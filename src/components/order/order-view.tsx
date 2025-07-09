@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
 import { MENU_ITEMS } from '@/lib/data';
@@ -166,7 +166,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         title: "Pedido enviado a cocina",
         description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido enviado.`,
     });
-    router.push('/dashboard');
+
+    if (currentOrder.tableId === 'takeaway') {
+      setCurrentOrder(orderToSave);
+    } else {
+      router.push('/dashboard');
+    }
   };
 
   const handleCompleteAndPay = () => {
