@@ -7,7 +7,7 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/app-header';
-import { UtensilsCrossed, Square, CheckSquare, ShoppingBag } from 'lucide-react';
+import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History } from 'lucide-react';
 
 export default function DashboardPage() {
   const { isMounted, currentUser, tables } = useAppStore();
@@ -63,6 +63,11 @@ export default function DashboardPage() {
           ))}
         </div>
       </main>
+      <Link href="/history" className="fixed bottom-8 right-8 z-50">
+        <Button size="lg" className="rounded-full w-16 h-16 shadow-lg" aria-label="Historial de pedidos">
+            <History className="h-8 w-8" />
+        </Button>
+      </Link>
     </div>
   );
 }
