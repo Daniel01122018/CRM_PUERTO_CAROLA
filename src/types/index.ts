@@ -4,12 +4,15 @@ export interface MenuItem {
   precio: number;
   category: 'Platos' | 'Bebidas' | 'Adicionales';
   sabores?: string[];
+  takeawayOnly?: boolean;
+  customPrice?: boolean;
 }
 
 export interface OrderItem {
   menuItemId: number;
   quantity: number;
   notes: string;
+  customPrice?: number;
 }
 
 export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';
