@@ -25,6 +25,7 @@ export default function HistoryPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState<'all' | 'tables' | 'takeaway'>('all');
   const [summaryData, setSummaryData] = useState<{
     totalToday: number;
     ordersTodayCount: number;
@@ -46,8 +47,15 @@ export default function HistoryPage() {
     .sort((a, b) => b.createdAt - a.createdAt), [orders]);
 
   const filteredOrders = useMemo(() => {
-    if (!searchTerm) return completedOrders;
-    return completedOrders.filter(order => {
+    const baseOrders = completedOrders.filter(order => {
+      if (filter === 'tables') return order.tableId !== 'takeaway';
+      if (filter === 'takeaway') return order.tableId === 'takeaway';
+      return true;
+    });
+
+    if (!searchTerm) return baseOrders;
+    
+    return baseOrders.filter(order => {
         const lowerCaseSearch = searchTerm.toLowerCase();
         const tableIdMatch = `mesa ${order.tableId}`.includes(lowerCaseSearch) || (order.tableId === 'takeaway' && 'para llevar'.includes(lowerCaseSearch));
         const orderIdMatch = order.id.toString().includes(lowerCaseSearch);
@@ -58,7 +66,7 @@ export default function HistoryPage() {
         });
         return tableIdMatch || orderIdMatch || totalMatch || itemMatch;
     });
-  }, [completedOrders, searchTerm]);
+  }, [completedOrders, searchTerm, filter]);
 
   useEffect(() => {
     if (!isMounted) return;
@@ -170,15 +178,22 @@ export default function HistoryPage() {
                         </Button>
                     </CardHeader>
                     <CardContent>
-                        <div className="relative mb-4 print:hidden">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input 
-                                type="search"
-                                placeholder="Buscar por mesa, ID, total o artículo..."
-                                className="pl-8"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                        <div className="flex flex-col sm:flex-row gap-4 mb-4 print:hidden">
+                            <div className="flex items-center gap-2">
+                                <Button size="sm" variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>Todos</Button>
+                                <Button size="sm" variant={filter === 'tables' ? 'default' : 'outline'} onClick={() => setFilter('tables')}>Mesas</Button>
+                                <Button size="sm" variant={filter === 'takeaway' ? 'default' : 'outline'} onClick={() => setFilter('takeaway')}>Para Llevar</Button>
+                            </div>
+                            <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    type="search"
+                                    placeholder="Buscar por mesa, ID, total o artículo..."
+                                    className="pl-8"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                            </div>
                         </div>
                         <ScrollArea className="h-[40vh]">
                             <Table>
@@ -331,3 +346,5 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    
