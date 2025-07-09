@@ -53,7 +53,7 @@ export function useAppStore() {
     }));
 
     return initialTables.map(table => {
-        const occupiedOrder = orders.find(o => o.tableId === table.id && o.status !== 'completed');
+        const occupiedOrder = orders.find(o => o.tableId === table.id && (o.status === 'active' || o.status === 'preparing'));
         return {
             ...table,
             status: occupiedOrder ? 'occupied' : 'available',
@@ -87,6 +87,16 @@ export function useAppStore() {
       return [...prevOrders, order];
     });
   }, []);
+  
+  const cancelOrder = useCallback((orderId: string) => {
+    setOrders(prevOrders => {
+      return prevOrders.map(o => 
+        o.id === orderId 
+        ? { ...o, status: 'cancelled' as const, cancelledAt: Date.now() } 
+        : o
+      );
+    });
+  }, []);
 
   return { 
     isMounted,
@@ -96,5 +106,6 @@ export function useAppStore() {
     tables, 
     orders, 
     addOrUpdateOrder,
+    cancelOrder,
   };
 }

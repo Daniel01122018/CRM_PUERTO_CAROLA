@@ -12,7 +12,7 @@ export interface OrderItem {
   notes: string;
 }
 
-export type OrderStatus = 'active' | 'preparing' | 'completed';
+export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';
 
 export interface Order {
   id: string; // timestamp based
@@ -21,6 +21,7 @@ export interface Order {
   status: OrderStatus;
   total: number;
   createdAt: number;
+  cancelledAt?: number;
   notes?: string;
 }
 

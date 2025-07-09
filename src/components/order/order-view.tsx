@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus } from 'lucide-react';
+import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus, XCircle } from 'lucide-react';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -23,7 +23,7 @@ interface OrderViewProps {
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { addOrUpdateOrder, isMounted, currentUser, orders } = useAppStore();
+  const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
   const [amountReceived, setAmountReceived] = useState('');
   const [sentItems, setSentItems] = useState<OrderItem[]>([]);
@@ -50,7 +50,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     
     const existingOrder = orders.find(o => 
       o.id === orderIdToFind || 
-      (resolvedTableId && o.tableId === resolvedTableId && o.status !== 'completed')
+      (resolvedTableId && o.tableId === resolvedTableId && (o.status === 'active' || o.status === 'preparing'))
     );
     
     if (existingOrder) {
@@ -176,11 +176,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!currentOrder) return;
+     if (currentOrder.status !== 'active') return;
     const newOrderState = { ...currentOrder, notes: e.target.value };
     setCurrentOrder(newOrderState);
-    if (currentOrder.status !== 'active') {
-        setHasUnsentChanges(true);
-    }
   };
   
   const handleCompleteAndPay = () => {
@@ -194,6 +192,17 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     toast({
         title: "Pedido completado",
         description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado y pagado.`,
+    });
+    router.push('/dashboard');
+  }
+
+  const handleCancelOrder = () => {
+    if (!currentOrder || !currentOrder.id) return;
+    cancelOrder(currentOrder.id);
+    toast({
+        variant: "destructive",
+        title: "Pedido Cancelado",
+        description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.`,
     });
     router.push('/dashboard');
   }
@@ -308,10 +317,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${(orderItem.quantity * menuItem.precio).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked && orderItem.quantity === sentItem.quantity}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked && orderItem.quantity === sentItem.quantity}>
                                     <MinusCircle className="h-4 w-4" />
                                 </Button>
                                 <span className="font-bold text-sm">{orderItem.quantity}</span>
@@ -335,6 +344,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                     placeholder="Añadir notas para la cocina (ej. alergias, sin picante, etc.)"
                     value={currentOrder.notes || ''}
                     onChange={handleNotesChange}
+                    readOnly={currentOrder.status !== 'active'}
                     className="mt-1"
                 />
             </div>
@@ -390,6 +400,25 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
                             <AlertDialogAction onClick={handleCompleteAndPay} disabled={parseFloat(amountReceived) < total}>Confirmar Pago</AlertDialogAction>
                           </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button size="lg" variant="destructive">
+                                <XCircle className="mr-2 h-4 w-4"/> Cancelar Pedido
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro de cancelar este pedido?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción es irreversible. El pedido será marcado como cancelado y se notificará a la cocina. No aparecerá en el historial de ventas.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>No, mantener pedido</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleCancelOrder}>Sí, cancelar pedido</AlertDialogAction>
+                            </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                   </div>
