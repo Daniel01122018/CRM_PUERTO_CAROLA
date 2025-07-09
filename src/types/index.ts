@@ -1,8 +1,9 @@
 export interface MenuItem {
   id: number;
-  name: string;
-  price: number;
-  category: 'Platos Fuertes' | 'Bebidas' | 'Extras';
+  nombre: string;
+  precio: number;
+  category: 'Platos' | 'Bebidas' | 'Adicionales';
+  sabores?: string[];
 }
 
 export interface OrderItem {

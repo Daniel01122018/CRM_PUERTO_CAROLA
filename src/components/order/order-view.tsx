@@ -4,16 +4,16 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
 import { MENU_ITEMS } from '@/lib/data';
-import type { Order, OrderItem, MenuItem } from '@/types';
+import type { Order, OrderItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, MinusCircle, Trash2, NotebookPen, Calculator, ArrowLeft, Send } from 'lucide-react';
+import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus } from 'lucide-react';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -37,9 +37,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (!isMounted) return;
     if (!currentUser) router.push('/');
 
-    let initialOrder: Order;
+    let initialOrder: Order | undefined;
     if (!orderIdOrTableId.startsWith('new-')) {
-      initialOrder = getOrder(orderIdOrTableId) as Order;
+      initialOrder = getOrder(orderIdOrTableId);
     }
 
     if (initialOrder) {
@@ -56,28 +56,37 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }
   }, [orderIdOrTableId, getOrder, router, isMounted, currentUser, tableId]);
 
-  const updateItemQuantity = (menuItemId: number, change: 1 | -1) => {
+  const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     setCurrentOrder(prev => {
       const updatedItems = [...(prev.items || [])];
-      const itemIndex = updatedItems.findIndex(i => i.menuItemId === menuItemId);
+      const itemIndex = updatedItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes);
 
       if (itemIndex > -1) {
         updatedItems[itemIndex].quantity += change;
-        if (updatedItems[itemIndex].quantity === 0) {
+        if (updatedItems[itemIndex].quantity <= 0) {
           updatedItems.splice(itemIndex, 1);
         }
-      } else if (change === 1) {
-        updatedItems.push({ menuItemId, quantity: 1, notes: '' });
+      } else if (change > 0) {
+        updatedItems.push({ menuItemId, quantity: change, notes: notes });
       }
       return { ...prev, items: updatedItems };
     });
   };
   
-  const updateItemNotes = (menuItemId: number, notes: string) => {
+  const removeItem = (menuItemId: number, notes: string) => {
+     setCurrentOrder(prev => {
+      const updatedItems = [...(prev.items || [])].filter(i => !(i.menuItemId === menuItemId && i.notes === notes));
+      return { ...prev, items: updatedItems };
+    });
+  };
+
+  const updateItemNotes = (menuItemId: number, oldNotes: string, newNotes: string) => {
     setCurrentOrder(prev => {
-        const updatedItems = [...(prev.items || [])].map(item => 
-            item.menuItemId === menuItemId ? { ...item, notes } : item
-        );
+        const updatedItems = [...(prev.items || [])];
+        const itemIndex = updatedItems.findIndex(i => i.menuItemId === menuItemId && i.notes === oldNotes);
+        if (itemIndex > -1) {
+            updatedItems[itemIndex].notes = newNotes;
+        }
         return { ...prev, items: updatedItems };
     });
   };
@@ -85,7 +94,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const total = useMemo(() => {
     return (currentOrder.items || []).reduce((acc, orderItem) => {
       const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
-      return acc + (menuItem ? menuItem.price * orderItem.quantity : 0);
+      return acc + (menuItem ? menuItem.precio * orderItem.quantity : 0);
     }, 0);
   }, [currentOrder.items]);
   
@@ -106,7 +115,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     addOrUpdateOrder(orderToSave);
     toast({
         title: "Pedido enviado a cocina",
-        description: `El pedido para la mesa ${currentOrder.tableId} ha sido enviado.`,
+        description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido enviado.`,
     });
     router.push('/dashboard');
   };
@@ -121,7 +130,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     addOrUpdateOrder(orderToSave);
     toast({
         title: "Pedido completado",
-        description: `El pedido para la mesa ${currentOrder.tableId} ha sido finalizado y pagado.`,
+        description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado y pagado.`,
     });
     router.push('/dashboard');
   }
@@ -150,19 +159,42 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                         <Card key={item.id} className="overflow-hidden">
                            <CardContent className="p-4 flex flex-col justify-between h-full">
                                 <div>
-                                    <p className="font-semibold">{item.name}</p>
-                                    <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                                    <p className="font-semibold">{item.nombre}</p>
+                                    <p className="text-sm text-muted-foreground">${item.precio.toFixed(2)}</p>
                                 </div>
                                 <div className="flex items-center justify-end gap-2 mt-2">
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1)}>
-                                        <MinusCircle className="h-4 w-4" />
-                                    </Button>
-                                    <span className="font-bold w-4 text-center">
-                                        {currentOrder.items?.find(i => i.menuItemId === item.id)?.quantity || 0}
-                                    </span>
-                                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1)}>
-                                        <PlusCircle className="h-4 w-4" />
-                                    </Button>
+                                    {item.sabores ? (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline">
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Añadir
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto">
+                                                <div className="flex flex-col gap-2">
+                                                    <p className="font-semibold text-sm">Seleccione un sabor:</p>
+                                                    {item.sabores.map(sabor => (
+                                                        <Button key={sabor} variant="ghost" className="justify-start" onClick={() => updateItemQuantity(item.id, 1, sabor)}>
+                                                            {sabor}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </PopoverContent>
+                                        </Popover>
+                                    ) : (
+                                        <>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')}>
+                                                <MinusCircle className="h-4 w-4" />
+                                            </Button>
+                                            <span className="font-bold w-4 text-center">
+                                                {currentOrder.items?.find(i => i.menuItemId === item.id && i.notes === '')?.quantity || 0}
+                                            </span>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}>
+                                                <PlusCircle className="h-4 w-4" />
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -188,26 +220,38 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   {currentOrder.items.map(orderItem => {
                     const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
+                    const itemKey = `${menuItem.id}-${orderItem.notes}`;
                     return (
-                        <div key={menuItem.id} className="space-y-2">
+                        <div key={itemKey} className="space-y-2">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="font-medium">{menuItem.name}</p>
+                                    <p className="font-medium">{menuItem.nombre} {menuItem.sabores && `(${orderItem.notes})`}</p>
                                     <p className="text-sm text-muted-foreground">
-                                        {orderItem.quantity} x ${menuItem.price.toFixed(2)}
+                                        {orderItem.quantity} x ${menuItem.precio.toFixed(2)}
                                     </p>
                                 </div>
-                                <p className="font-semibold">${(orderItem.quantity * menuItem.price).toFixed(2)}</p>
+                                <p className="font-semibold">${(orderItem.quantity * menuItem.precio).toFixed(2)}</p>
                             </div>
-                            <div className="relative">
-                                <NotebookPen className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    placeholder="Notas especiales..."
-                                    value={orderItem.notes}
-                                    onChange={(e) => updateItemNotes(menuItem.id, e.target.value)}
-                                    className="pl-8 text-xs h-9"
-                                />
+                            <div className="flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)}>
+                                    <MinusCircle className="h-4 w-4" />
+                                </Button>
+                                <span className="font-bold text-sm">{orderItem.quantity}</span>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, 1, orderItem.notes)}>
+                                    <PlusCircle className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(menuItem.id, orderItem.notes)}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
                             </div>
+                            { !menuItem.sabores &&
+                              <Input 
+                                  placeholder="Añadir nota..."
+                                  value={orderItem.notes}
+                                  onChange={(e) => updateItemNotes(menuItem.id, orderItem.notes, e.target.value)}
+                                  className="text-xs h-9"
+                              />
+                            }
                             <Separator/>
                         </div>
                     );

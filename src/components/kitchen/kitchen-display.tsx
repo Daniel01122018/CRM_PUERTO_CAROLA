@@ -51,8 +51,8 @@ export default function KitchenDisplay() {
                                         {order.items.map(item => {
                                             const menuItem = MENU_ITEMS.find(mi => mi.id === item.menuItemId);
                                             return (
-                                                <li key={item.menuItemId} className="text-sm">
-                                                    <div className="font-semibold">{menuItem?.name} x{item.quantity}</div>
+                                                <li key={`${item.menuItemId}-${item.notes}`} className="text-sm">
+                                                    <div className="font-semibold">{menuItem?.nombre} x{item.quantity}</div>
                                                     {item.notes && <p className="text-xs text-amber-800 bg-amber-100 p-1 rounded-sm">Nota: {item.notes}</p>}
                                                 </li>
                                             );
