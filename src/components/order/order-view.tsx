@@ -8,6 +8,7 @@ import type { Order, OrderItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -26,76 +27,50 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
   const [amountReceived, setAmountReceived] = useState('');
 
-  // Effect 1: Handles loading the order from the global store into local state.
+  // Effect to load or initialize the order.
   useEffect(() => {
     if (!isMounted || !currentUser) {
       if (isMounted) router.push('/');
       return;
     }
 
-    let resolvedTableId;
+    let resolvedTableId: number | 'takeaway' | null = null;
+    let orderIdToFind: string | undefined = undefined;
+
     if (orderIdOrTableId === 'takeaway') {
       resolvedTableId = 'takeaway';
     } else if (orderIdOrTableId.startsWith('new-')) {
       resolvedTableId = parseInt(orderIdOrTableId.split('-')[1], 10);
     } else {
-      const order = orders.find(o => o.id === orderIdOrTableId);
-      resolvedTableId = order ? order.tableId : null;
+      orderIdToFind = orderIdOrTableId;
     }
-
-    const orderToLoad = orders.find(o =>
-      o.id === orderIdOrTableId ||
-      (o.tableId === resolvedTableId && o.status !== 'completed')
+    
+    const existingOrder = orders.find(o => 
+      o.id === orderIdToFind || 
+      (resolvedTableId && o.tableId === resolvedTableId && o.status !== 'completed')
     );
 
-    if (orderToLoad) {
-      // Guard: Only update local state if it's different from the store's state.
-      // This prevents re-setting state from an update we just made.
-      if (JSON.stringify(orderToLoad) !== JSON.stringify(currentOrder)) {
-        setCurrentOrder(orderToLoad);
-      }
-    } else {
-      // Guard: Only create a new order if we don't have one locally for this table.
-      if (!currentOrder || currentOrder.tableId !== resolvedTableId) {
-        setCurrentOrder({
-          id: Date.now().toString(),
-          tableId: resolvedTableId,
-          items: [],
-          status: 'active',
-          createdAt: Date.now(),
-        });
-      }
+    if (existingOrder) {
+      setCurrentOrder(existingOrder);
+    } else if (resolvedTableId) {
+      setCurrentOrder({
+        id: Date.now().toString(),
+        tableId: resolvedTableId,
+        items: [],
+        status: 'active',
+        createdAt: Date.now(),
+        notes: '',
+      });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderIdOrTableId, isMounted, currentUser, orders, router]);
-  
-  // Effect 2: Handles persisting local state changes back to the global store.
-  useEffect(() => {
-    if (!isMounted || !currentOrder || !currentOrder.id || !currentUser || !currentOrder.items) {
-      return;
-    }
-    const orderInStore = orders.find(o => o.id === currentOrder.id);
-
-    // Guard: Only persist if the local state is different from the store state.
-    if (JSON.stringify(orderInStore) === JSON.stringify(currentOrder)) {
-      return;
-    }
-
-    const hasItems = currentOrder.items.length > 0;
-
-    if (hasItems) {
-      addOrUpdateOrder(currentOrder as Order);
-    } else if (orderInStore) {
-      removeOrder(currentOrder.id);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentOrder]);
 
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
-     if (!currentOrder) return;
+    if (!currentOrder) return;
+
     setCurrentOrder(prev => {
-      const prevItems = prev?.items || [];
+      if (!prev) return null;
+      const prevItems = prev.items || [];
       const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes);
       
       let newItems = [...prevItems];
@@ -107,7 +82,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         };
 
         if (updatedItem.quantity <= 0) {
-          newItems = newItems.filter((_, index) => index !== itemIndex);
+          newItems.splice(itemIndex, 1);
         } else {
           newItems[itemIndex] = updatedItem;
         }
@@ -116,27 +91,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         newItems.push(newItem);
       }
       
-      return {...prev, items: newItems};
-    });
-  };
-
-  const updateItemNotes = (menuItemId: number, oldNotes: string, newNotes: string) => {
-     if (!currentOrder) return;
-    setCurrentOrder(prev => {
-      if (!prev) return null;
-      const prevItems = prev.items || [];
-      const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === oldNotes);
-
-      if (itemIndex > -1) {
-        return {
-          ...prev,
-          items: prevItems.map((item, index) =>
-            index === itemIndex ? { ...item, notes: newNotes } : item
-          ),
-        };
-      }
-      
-      return prev;
+      const newOrderState = { ...prev, items: newItems };
+      addOrUpdateOrder(newOrderState as Order);
+      return newOrderState;
     });
   };
 
@@ -164,7 +121,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     } as Order;
     
     addOrUpdateOrder(orderToSave); // Persist directly
-    setCurrentOrder(orderToSave); // Update local state
 
     toast({
         title: "Pedido enviado a cocina",
@@ -174,11 +130,17 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (currentOrder.tableId !== 'takeaway') {
       router.push('/dashboard');
     } else {
-      // For takeaway, update status to ready immediately to show payment options
       const readyOrder = {...orderToSave, status: 'ready'} as Order;
       addOrUpdateOrder(readyOrder);
       setCurrentOrder(readyOrder);
     }
+  };
+  
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (!currentOrder) return;
+    const newOrderState = { ...currentOrder, notes: e.target.value };
+    setCurrentOrder(newOrderState);
+    addOrUpdateOrder(newOrderState as Order);
   };
 
   const handleCompleteAndPay = () => {
@@ -276,13 +238,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             <CardTitle>Pedido: {tableId === 'takeaway' ? 'Para Llevar' : `Mesa ${tableId}`}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[40vh]">
+            <ScrollArea className="h-[30vh]">
               {currentOrder.items && currentOrder.items.length > 0 ? (
                 <div className="space-y-4 pr-4">
-                  {currentOrder.items.map(orderItem => {
+                  {currentOrder.items.map((orderItem, index) => {
                     const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
-                    const itemKey = `${menuItem.id}-${orderItem.notes}`;
+                    const itemKey = `${menuItem.id}-${orderItem.notes || index}`;
                     return (
                         <div key={itemKey} className="space-y-2">
                             <div className="flex justify-between items-start">
@@ -295,7 +257,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${(orderItem.quantity * menuItem.precio).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -orderItem.quantity, orderItem.notes)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)}>
@@ -306,14 +268,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                     <PlusCircle className="h-4 w-4" />
                                 </Button>
                             </div>
-                            { !menuItem.sabores &&
-                              <Input 
-                                  placeholder="Añadir nota..."
-                                  value={orderItem.notes}
-                                  onChange={(e) => updateItemNotes(menuItem.id, orderItem.notes, e.target.value)}
-                                  className="text-xs h-9"
-                              />
-                            }
                             <Separator/>
                         </div>
                     );
@@ -323,8 +277,18 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 <p className="text-muted-foreground text-center py-8">Añade artículos del menú para empezar.</p>
               )}
             </ScrollArea>
+            <div className="space-y-1 pt-4 pr-4">
+                <label htmlFor="order-notes" className="text-sm font-medium">Notas Generales</label>
+                <Textarea
+                    id="order-notes"
+                    placeholder="Añadir notas para la cocina (ej. alergias, sin picante, etc.)"
+                    value={currentOrder.notes || ''}
+                    onChange={handleNotesChange}
+                    className="mt-1"
+                />
+            </div>
           </CardContent>
-          <CardFooter className="flex-col space-y-4">
+          <CardFooter className="flex-col space-y-4 pt-4">
             <div className="flex justify-between w-full text-xl font-bold">
               <span>Total:</span>
               <span>${total.toFixed(2)}</span>

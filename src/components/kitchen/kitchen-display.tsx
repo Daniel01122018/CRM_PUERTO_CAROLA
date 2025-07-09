@@ -48,16 +48,25 @@ export default function KitchenDisplay() {
                                 </CardHeader>
                                 <CardContent className="pt-4 flex-1">
                                     <ul className="space-y-2">
-                                        {order.items.map(item => {
+                                        {order.items.map((item, index) => {
                                             const menuItem = MENU_ITEMS.find(mi => mi.id === item.menuItemId);
                                             return (
-                                                <li key={`${item.menuItemId}-${item.notes}`} className="text-sm">
+                                                <li key={`${item.menuItemId}-${index}`} className="text-sm">
                                                     <div className="font-semibold">{menuItem?.nombre} x{item.quantity}</div>
                                                     {item.notes && <p className="text-xs text-amber-800 bg-amber-100 p-1 rounded-sm">Nota: {item.notes}</p>}
                                                 </li>
                                             );
                                         })}
                                     </ul>
+                                    {order.notes && (
+                                        <>
+                                            <Separator className="my-2" />
+                                            <div>
+                                                <p className="font-semibold text-sm">Notas Generales:</p>
+                                                <p className="text-xs text-amber-800 bg-amber-100 p-1 rounded-sm whitespace-pre-wrap">{order.notes}</p>
+                                            </div>
+                                        </>
+                                    )}
                                 </CardContent>
                                 <Separator />
                                 <CardFooter className="p-2">

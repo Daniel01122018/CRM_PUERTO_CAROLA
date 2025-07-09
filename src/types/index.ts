@@ -21,6 +21,7 @@ export interface Order {
   status: OrderStatus;
   total: number;
   createdAt: number;
+  notes?: string;
 }
 
 export interface Table {

@@ -254,6 +254,12 @@ export default function HistoryPage() {
                                     </p>
                                     <p className="text-xs text-muted-foreground">ID: {selectedOrder.id}</p>
                                 </div>
+                                {selectedOrder.notes && (
+                                    <div className="text-sm border-t border-b py-2">
+                                        <p className="font-semibold">Notas Generales:</p>
+                                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedOrder.notes}</p>
+                                    </div>
+                                )}
                                 <ScrollArea className="h-[45vh]">
                                     <ul className="space-y-2 text-sm pr-4">
                                         {selectedOrder.items.map((item, index) => {
@@ -330,9 +336,14 @@ export default function HistoryPage() {
                                     <ul className="text-xs">
                                         {order.items.map((item, index) => {
                                             const menuItem = MENU_ITEMS.find(mi => mi.id === item.menuItemId);
-                                            return <li key={index}>{menuItem?.nombre} x{item.quantity}</li>
+                                            return <li key={index}>{menuItem?.nombre} x{item.quantity} {item.notes ? `(${item.notes})` : ''}</li>;
                                         })}
                                     </ul>
+                                    {order.notes && (
+                                        <div className="text-xs mt-1 pt-1 border-t border-dashed">
+                                            <strong>Nota General:</strong> {order.notes}
+                                        </div>
+                                    )}
                                 </TableCell>
                                 <TableCell className="text-right font-medium">${order.total.toFixed(2)}</TableCell>
                             </TableRow>
@@ -346,5 +357,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    
