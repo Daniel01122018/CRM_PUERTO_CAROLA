@@ -12,7 +12,7 @@ export interface OrderItem {
   notes: string;
 }
 
-export type OrderStatus = 'active' | 'preparing' | 'completed';
+export type OrderStatus = 'active' | 'preparing' | 'ready' | 'completed';
 
 export interface Order {
   id: string; // timestamp based

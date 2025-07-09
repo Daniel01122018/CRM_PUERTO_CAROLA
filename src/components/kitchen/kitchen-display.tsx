@@ -17,7 +17,7 @@ export default function KitchenDisplay() {
     const router = useRouter();
 
     useEffect(() => {
-        if (isMounted && !currentUser) {
+        if (isMounted && (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'kitchen'))) {
             router.push('/');
         }
     }, [currentUser, isMounted, router]);
@@ -26,7 +26,7 @@ export default function KitchenDisplay() {
         .filter(o => o.status === 'preparing')
         .sort((a, b) => a.createdAt - b.createdAt);
     
-    if (!isMounted) {
+    if (!isMounted || !currentUser) {
         return <div className="text-center">Cargando...</div>
     }
 
@@ -61,7 +61,7 @@ export default function KitchenDisplay() {
                                 </CardContent>
                                 <Separator />
                                 <CardFooter className="p-2">
-                                    <Button className="w-full" onClick={() => updateOrderStatus(order.id, 'completed')}>
+                                    <Button className="w-full" onClick={() => updateOrderStatus(order.id, 'ready')}>
                                         <CheckCircle2 className="mr-2 h-4 w-4" />
                                         Marcar como Listo
                                     </Button>

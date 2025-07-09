@@ -13,7 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus } from 'lucide-react';
+import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus, Loader2 } from 'lucide-react';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -35,7 +35,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }, [orderIdOrTableId, orders]);
 
   // Effect 1: Initialize the component state. It runs when the order/table ID changes.
-  // It does NOT re-run when `orders` changes to prevent the main loop.
   useEffect(() => {
     if (!isMounted) return;
     if (!currentUser) {
@@ -45,11 +44,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     const orderToLoad = orders.find(o => 
         (o.id === orderIdOrTableId) || 
-        (o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'))
+        (o.tableId === tableId && (o.status !== 'completed'))
     );
     
     if (orderToLoad) {
-        // A full state replacement is fine here because this only runs when navigating to a new order.
         setCurrentOrder(orderToLoad);
     } else {
         const newOrderId = Date.now().toString();
@@ -65,13 +63,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }, [orderIdOrTableId, isMounted, currentUser, router]);
 
   // Effect 2: Persist local changes to the global store.
-  // This effect now only depends on `currentOrder`, breaking the update loop.
   useEffect(() => {
     if (!isMounted || !currentOrder.id || !currentUser) {
       return;
     }
     const orderInStore = orders.find(o => o.id === currentOrder.id);
     
+    // Prevent writing if the state is identical
     if (JSON.stringify(orderInStore) === JSON.stringify(currentOrder)) {
         return;
     }
@@ -81,6 +79,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (hasItems) {
       addOrUpdateOrder(currentOrder as Order);
     } else if (orderInStore) {
+      // Only remove if it was previously in the store
       removeOrder(currentOrder.id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,34 +90,26 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     setCurrentOrder(prev => {
       const prevItems = prev.items || [];
       const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes);
+      
+      let newItems = [...prevItems];
 
       if (itemIndex > -1) {
         const updatedItem = {
-          ...prevItems[itemIndex],
-          quantity: prevItems[itemIndex].quantity + change,
+          ...newItems[itemIndex],
+          quantity: newItems[itemIndex].quantity + change,
         };
 
         if (updatedItem.quantity <= 0) {
-          return {
-            ...prev,
-            items: prevItems.filter((_, index) => index !== itemIndex),
-          };
+          newItems = newItems.filter((_, index) => index !== itemIndex);
         } else {
-          return {
-            ...prev,
-            items: prevItems.map((item, index) =>
-              index === itemIndex ? updatedItem : item
-            ),
-          };
+          newItems[itemIndex] = updatedItem;
         }
       } else if (change > 0) {
         const newItem: OrderItem = { menuItemId, quantity: change, notes };
-        return {
-          ...prev,
-          items: [...prevItems, newItem],
-        };
+        newItems.push(newItem);
       }
-      return prev;
+      
+      return {...prev, items: newItems};
     });
   };
 
@@ -147,7 +138,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }, 0);
   }, [currentOrder.items]);
   
-  const handleFinalizeOrder = () => {
+  const handleSendToKitchen = () => {
     if (!currentOrder.id || !currentOrder.items || currentOrder.items.length === 0) {
         toast({
             variant: "destructive",
@@ -161,15 +152,16 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         total,
         status: 'preparing',
     } as Order;
-    addOrUpdateOrder(orderToSave);
+    
+    setCurrentOrder(orderToSave); // Update local state first
+    addOrUpdateOrder(orderToSave); // Then persist to global
+
     toast({
         title: "Pedido enviado a cocina",
         description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido enviado.`,
     });
 
-    if (currentOrder.tableId === 'takeaway') {
-      setCurrentOrder(orderToSave);
-    } else {
+    if (currentOrder.tableId !== 'takeaway') {
       router.push('/dashboard');
     }
   };
@@ -287,15 +279,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${(orderItem.quantity * menuItem.precio).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -orderItem.quantity, orderItem.notes)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)}>
                                     <MinusCircle className="h-4 w-4" />
                                 </Button>
                                 <span className="font-bold text-sm">{orderItem.quantity}</span>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, 1, orderItem.notes)}>
                                     <PlusCircle className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)}>
-                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
                             { !menuItem.sabores &&
@@ -322,12 +314,17 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               <span>${total.toFixed(2)}</span>
             </div>
             <div className="grid grid-cols-1 gap-2 w-full">
-              {currentOrder.status !== 'preparing' && (
-                <Button size="lg" onClick={handleFinalizeOrder} disabled={!currentOrder.items || currentOrder.items.length === 0}>
+              {currentOrder.status === 'active' && (
+                <Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}>
                   <Send className="mr-2 h-4 w-4"/> Enviar a Cocina
                 </Button>
               )}
               {currentOrder.status === 'preparing' && (
+                <Button size="lg" disabled>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin"/> Pedido en preparación...
+                </Button>
+              )}
+              {currentOrder.status === 'ready' && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white">

@@ -7,10 +7,10 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/app-header';
-import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History } from 'lucide-react';
+import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { isMounted, currentUser, tables } = useAppStore();
+  const { isMounted, currentUser, tables, orders } = useAppStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -27,6 +27,11 @@ export default function DashboardPage() {
      router.push('/kitchen');
      return <div className="flex h-screen items-center justify-center">Redirigiendo...</div>;
   }
+  
+  const tablesWithOrderStatus = tables.map(table => {
+    const order = orders.find(o => o.id === table.orderId);
+    return { ...table, orderStatus: order?.status };
+  });
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -42,35 +47,65 @@ export default function DashboardPage() {
             </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {tables.map((table) => (
-            <Link key={table.id} href={`/order/${table.orderId || `new-${table.id}`}`}>
-              <Card className={`transition-all hover:shadow-lg hover:-translate-y-1 ${table.status === 'occupied' ? 'bg-amber-100 border-amber-300' : 'bg-green-100 border-green-300'}`}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Mesa {table.id}</CardTitle>
-                  <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-lg font-bold capitalize">
-                    {table.status === 'available' ? 'Disponible' : 'Ocupada'}
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                    {table.status === 'available' ? <CheckSquare className="h-3 w-3 text-green-600" /> : <Square className="h-3 w-3 text-amber-600" />}
-                    <span>{table.status === 'available' ? 'Lista para un nuevo pedido' : 'Pedido en curso'}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+          {tablesWithOrderStatus.map((table) => {
+            let cardClass = 'bg-green-100 border-green-300';
+            let statusText = 'Disponible';
+            let statusSubText = 'Lista para un nuevo pedido';
+            let statusIcon = <CheckSquare className="h-3 w-3 text-green-600" />;
+
+            if (table.status === 'occupied') {
+                if (table.orderStatus === 'ready') {
+                    cardClass = 'bg-blue-100 border-blue-300';
+                    statusText = 'Pedido Listo';
+                    statusSubText = 'Listo para servir';
+                    statusIcon = <ChefHat className="h-3 w-3 text-blue-600" />;
+                } else {
+                    cardClass = 'bg-amber-100 border-amber-300';
+                    statusText = 'Ocupada';
+                    statusSubText = 'Pedido en curso';
+                    statusIcon = <Square className="h-3 w-3 text-amber-600" />;
+                }
+            }
+            
+            return (
+              <Link key={table.id} href={`/order/${table.orderId || `new-${table.id}`}`}>
+                <Card className={`transition-all hover:shadow-lg hover:-translate-y-1 ${cardClass}`}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Mesa {table.id}</CardTitle>
+                    <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-lg font-bold capitalize">{statusText}</div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        {statusIcon}
+                        <span>{statusSubText}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
         </div>
       </main>
-      <Button 
-        size="lg" 
-        className="rounded-full w-16 h-16 shadow-lg fixed bottom-8 right-8 z-50" 
-        aria-label="Historial de pedidos"
-        onClick={() => router.push('/history')}
-        >
-          <History className="h-8 w-8" />
-      </Button>
+      <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse gap-4">
+        <Button 
+          size="lg" 
+          className="rounded-full w-16 h-16 shadow-lg" 
+          aria-label="Historial de pedidos"
+          onClick={() => router.push('/history')}
+          >
+            <History className="h-8 w-8" />
+        </Button>
+        <Button 
+          size="lg" 
+          variant="secondary"
+          className="rounded-full w-16 h-16 shadow-lg" 
+          aria-label="Vista de Cocina"
+          onClick={() => router.push('/kitchen')}
+          >
+            <ChefHat className="h-8 w-8" />
+        </Button>
+      </div>
     </div>
   );
 }

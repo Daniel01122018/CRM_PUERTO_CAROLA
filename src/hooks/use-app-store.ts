@@ -37,7 +37,7 @@ export function useAppStore() {
       try {
         window.localStorage.setItem('orders', JSON.stringify(orders));
         const updatedTables = initialTables.map(table => {
-            const occupiedOrder = orders.find(o => o.tableId === table.id && (o.status === 'active' || o.status === 'preparing'));
+            const occupiedOrder = orders.find(o => o.tableId === table.id && (o.status === 'active' || o.status === 'preparing' || o.status === 'ready'));
             return {
                 ...table,
                 status: occupiedOrder ? 'occupied' : 'available',
