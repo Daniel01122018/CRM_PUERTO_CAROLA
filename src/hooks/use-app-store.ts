@@ -55,23 +55,6 @@ export function useAppStore() {
   }, [orders]);
 
 
-  // Effect to sync with other tabs
-  useEffect(() => {
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'orders') {
-        setOrders(event.newValue ? JSON.parse(event.newValue) : []);
-      }
-      if (event.key === 'currentUser') {
-        setCurrentUser(event.newValue ? JSON.parse(event.newValue) : null);
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
-
   const login = useCallback((username: string) => {
     let role: User['role'] = 'waiter';
     if (username === 'admin1') role = 'admin';
