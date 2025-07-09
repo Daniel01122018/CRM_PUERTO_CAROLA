@@ -58,18 +58,36 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     setCurrentOrder(prev => {
-      const updatedItems = [...(prev.items || [])];
-      const itemIndex = updatedItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes);
+      const prevItems = prev.items || [];
+      const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes);
 
       if (itemIndex > -1) {
-        updatedItems[itemIndex].quantity += change;
-        if (updatedItems[itemIndex].quantity <= 0) {
-          updatedItems.splice(itemIndex, 1);
+        const updatedItem = {
+          ...prevItems[itemIndex],
+          quantity: prevItems[itemIndex].quantity + change,
+        };
+
+        if (updatedItem.quantity <= 0) {
+          return {
+            ...prev,
+            items: prevItems.filter((_, index) => index !== itemIndex),
+          };
+        } else {
+          return {
+            ...prev,
+            items: prevItems.map((item, index) =>
+              index === itemIndex ? updatedItem : item
+            ),
+          };
         }
       } else if (change > 0) {
-        updatedItems.push({ menuItemId, quantity: change, notes: notes });
+        const newItem: OrderItem = { menuItemId, quantity: change, notes };
+        return {
+          ...prev,
+          items: [...prevItems, newItem],
+        };
       }
-      return { ...prev, items: updatedItems };
+      return prev;
     });
   };
   
@@ -82,12 +100,19 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
   const updateItemNotes = (menuItemId: number, oldNotes: string, newNotes: string) => {
     setCurrentOrder(prev => {
-        const updatedItems = [...(prev.items || [])];
-        const itemIndex = updatedItems.findIndex(i => i.menuItemId === menuItemId && i.notes === oldNotes);
-        if (itemIndex > -1) {
-            updatedItems[itemIndex].notes = newNotes;
-        }
-        return { ...prev, items: updatedItems };
+      const prevItems = prev.items || [];
+      const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === oldNotes);
+
+      if (itemIndex > -1) {
+        return {
+          ...prev,
+          items: prevItems.map((item, index) =>
+            index === itemIndex ? { ...item, notes: newNotes } : item
+          ),
+        };
+      }
+      
+      return prev;
     });
   };
 
