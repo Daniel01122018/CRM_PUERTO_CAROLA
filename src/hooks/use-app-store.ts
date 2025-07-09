@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Order, Table, User, OrderStatus } from '@/types';
+import type { Order, Table, User } from '@/types';
 import { TOTAL_TABLES } from '@/lib/data';
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
@@ -26,7 +26,6 @@ export function useAppStore() {
     setIsMounted(true);
   }, []);
 
-  // Effect to sync orders to localStorage
   useEffect(() => {
     if (isMounted) {
       try {
@@ -37,7 +36,16 @@ export function useAppStore() {
     }
   }, [orders, isMounted]);
 
-  // Derive tables state from orders state
+  useEffect(() => {
+    if (isMounted) {
+        try {
+            window.localStorage.setItem('currentUser', JSON.stringify(currentUser));
+        } catch (error) {
+            console.error('Error writing currentUser to localStorage:', error);
+        }
+    }
+  }, [currentUser, isMounted]);
+
   const tables = useMemo<Table[]>(() => {
     const initialTables: Table[] = Array.from({ length: TOTAL_TABLES }, (_, i) => ({
       id: i + 1,
@@ -45,7 +53,7 @@ export function useAppStore() {
     }));
 
     return initialTables.map(table => {
-        const occupiedOrder = orders.find(o => o.tableId === table.id && (o.status === 'active' || o.status === 'preparing' || o.status === 'ready'));
+        const occupiedOrder = orders.find(o => o.tableId === table.id && o.status !== 'completed');
         return {
             ...table,
             status: occupiedOrder ? 'occupied' : 'available',
@@ -62,20 +70,10 @@ export function useAppStore() {
     
     const user: User = { username, role };
     setCurrentUser(user);
-     try {
-      window.localStorage.setItem('currentUser', JSON.stringify(user));
-    } catch (error) {
-      console.error('Error writing currentUser to localStorage:', error);
-    }
   }, []);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
-    try {
-      window.localStorage.removeItem('currentUser');
-    } catch (error) {
-      console.error('Error removing currentUser from localStorage:', error);
-    }
   }, []);
 
   const addOrUpdateOrder = useCallback((order: Order) => {
@@ -90,18 +88,6 @@ export function useAppStore() {
     });
   }, []);
 
-  const getOrder = useCallback((orderId: string) => {
-    return orders.find(o => o.id === orderId);
-  }, [orders]);
-  
-  const updateOrderStatus = useCallback((orderId: string, status: OrderStatus) => {
-    setOrders(prevOrders => prevOrders.map(o => o.id === orderId ? {...o, status} : o));
-  }, []);
-
-  const removeOrder = useCallback((orderId: string) => {
-    setOrders(prevOrders => prevOrders.filter(o => o.id !== orderId));
-  }, []);
-
   return { 
     isMounted,
     currentUser,
@@ -110,8 +96,5 @@ export function useAppStore() {
     tables, 
     orders, 
     addOrUpdateOrder,
-    getOrder,
-    updateOrderStatus,
-    removeOrder
   };
 }

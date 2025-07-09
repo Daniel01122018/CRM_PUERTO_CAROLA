@@ -10,7 +10,7 @@ import AppHeader from '@/components/app-header';
 import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { isMounted, currentUser, tables, orders } = useAppStore();
+  const { isMounted, currentUser, tables } = useAppStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -28,11 +28,6 @@ export default function DashboardPage() {
      return <div className="flex h-screen items-center justify-center">Redirigiendo...</div>;
   }
   
-  const tablesWithOrderStatus = tables.map(table => {
-    const order = orders.find(o => o.id === table.orderId);
-    return { ...table, orderStatus: order?.status };
-  });
-
   return (
     <div className="flex min-h-screen w-full flex-col">
       <AppHeader />
@@ -47,24 +42,17 @@ export default function DashboardPage() {
             </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {tablesWithOrderStatus.map((table) => {
+          {tables.map((table) => {
             let cardClass = 'bg-green-100 border-green-300';
             let statusText = 'Disponible';
             let statusSubText = 'Lista para un nuevo pedido';
             let statusIcon = <CheckSquare className="h-3 w-3 text-green-600" />;
 
             if (table.status === 'occupied') {
-                if (table.orderStatus === 'ready') {
-                    cardClass = 'bg-blue-100 border-blue-300';
-                    statusText = 'Pedido Listo';
-                    statusSubText = 'Listo para servir';
-                    statusIcon = <ChefHat className="h-3 w-3 text-blue-600" />;
-                } else {
-                    cardClass = 'bg-amber-100 border-amber-300';
-                    statusText = 'Ocupada';
-                    statusSubText = 'Pedido en curso';
-                    statusIcon = <Square className="h-3 w-3 text-amber-600" />;
-                }
+                cardClass = 'bg-amber-100 border-amber-300';
+                statusText = 'Ocupada';
+                statusSubText = 'Pedido en curso';
+                statusIcon = <Square className="h-3 w-3 text-amber-600" />;
             }
             
             return (

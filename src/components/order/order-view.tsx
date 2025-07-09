@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus, Loader2 } from 'lucide-react';
+import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus } from 'lucide-react';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -23,17 +23,17 @@ interface OrderViewProps {
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { addOrUpdateOrder, removeOrder, isMounted, currentUser, orders } = useAppStore();
+  const { addOrUpdateOrder, isMounted, currentUser, orders } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
   const [amountReceived, setAmountReceived] = useState('');
   const [sentItems, setSentItems] = useState<OrderItem[]>([]);
   const [hasUnsentChanges, setHasUnsentChanges] = useState(false);
 
 
-  // Effect to load or initialize the order.
   useEffect(() => {
-    if (!isMounted || !currentUser) {
-      if (isMounted) router.push('/');
+    if (!isMounted) return;
+    if (!currentUser) {
+      router.push('/');
       return;
     }
 
@@ -52,12 +52,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       o.id === orderIdToFind || 
       (resolvedTableId && o.tableId === resolvedTableId && o.status !== 'completed')
     );
-
+    
     if (existingOrder) {
-      setCurrentOrder(existingOrder);
-       if (existingOrder.status !== 'active') {
-        setSentItems(existingOrder.items);
-      }
+        setCurrentOrder(existingOrder);
+        const initialSentItems = existingOrder.status !== 'active' ? existingOrder.items : [];
+        setSentItems(initialSentItems);
+
     } else if (resolvedTableId) {
       setCurrentOrder({
         id: Date.now().toString(),
@@ -67,24 +67,17 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         createdAt: Date.now(),
         notes: '',
       });
+      setSentItems([]);
+      setHasUnsentChanges(false);
     }
-    setHasUnsentChanges(false);
+
   }, [orderIdOrTableId, isMounted, currentUser, orders, router]);
 
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     if (!currentOrder) return;
 
-    const isAlreadySent = sentItems.some(item => item.menuItemId === menuItemId && item.notes === notes);
-
-    if (change < 0 && isAlreadySent) {
-      toast({
-        variant: "destructive",
-        title: "Acción no permitida",
-        description: "No se puede eliminar o reducir un artículo que ya fue enviado a cocina.",
-      });
-      return;
-    }
+    const sentItem = sentItems.find(item => item.menuItemId === menuItemId && item.notes === notes);
 
     setCurrentOrder(prev => {
       if (!prev) return null;
@@ -94,15 +87,29 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       let newItems = [...prevItems];
 
       if (itemIndex > -1) {
-        const updatedItem = {
-          ...newItems[itemIndex],
-          quantity: newItems[itemIndex].quantity + change,
-        };
+        const newQuantity = newItems[itemIndex].quantity + change;
+        
+        if (sentItem && newQuantity < sentItem.quantity) {
+             toast({
+                variant: "destructive",
+                title: "Acción no permitida",
+                description: "No se puede reducir la cantidad de un artículo ya enviado.",
+            });
+            return prev;
+        }
 
-        if (updatedItem.quantity <= 0) {
+        if (newQuantity <= 0) {
+           if (sentItem) {
+                toast({
+                    variant: "destructive",
+                    title: "Acción no permitida",
+                    description: "No se puede eliminar un artículo que ya fue enviado a cocina.",
+                });
+                return prev;
+           }
           newItems.splice(itemIndex, 1);
         } else {
-          newItems[itemIndex] = updatedItem;
+          newItems[itemIndex] = {...newItems[itemIndex], quantity: newQuantity};
         }
       } else if (change > 0) {
         const newItem: OrderItem = { menuItemId, quantity: change, notes };
@@ -110,7 +117,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       }
       
       const newOrderState = { ...prev, items: newItems };
-      addOrUpdateOrder(newOrderState as Order);
       if (prev.status !== 'active') {
         setHasUnsentChanges(true);
       }
@@ -145,7 +151,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     setSentItems(orderToSave.items);
     setHasUnsentChanges(false);
 
-
     toast({
         title: "Pedido enviado a cocina",
         description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido enviado.`,
@@ -153,10 +158,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     if (currentOrder.tableId !== 'takeaway') {
       router.push('/dashboard');
-    } else {
-      const readyOrder = {...orderToSave, status: 'ready'} as Order;
-      addOrUpdateOrder(readyOrder);
-      setCurrentOrder(readyOrder);
     }
   };
 
@@ -177,9 +178,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (!currentOrder) return;
     const newOrderState = { ...currentOrder, notes: e.target.value };
     setCurrentOrder(newOrderState);
-    addOrUpdateOrder(newOrderState as Order);
+    if (currentOrder.status !== 'active') {
+        setHasUnsentChanges(true);
+    }
   };
-
+  
   const handleCompleteAndPay = () => {
      if (!currentOrder || !currentOrder.id) return;
      const orderToSave: Order = {
@@ -192,6 +195,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         title: "Pedido completado",
         description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado y pagado.`,
     });
+    router.push('/dashboard');
+  }
+
+  const handleBack = () => {
+    if (currentOrder?.status === 'active' && currentOrder.items?.length > 0) {
+       addOrUpdateOrder({ ...currentOrder, total } as Order);
+    }
     router.push('/dashboard');
   }
 
@@ -282,7 +292,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                     const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
                     const itemKey = `${menuItem.id}-${orderItem.notes || index}`;
-                    const isSent = sentItems.some(sentItem => sentItem.menuItemId === orderItem.menuItemId && sentItem.notes === orderItem.notes);
+                    
+                    const sentItem = sentItems.find(i => i.menuItemId === orderItem.menuItemId && i.notes === orderItem.notes);
+                    const isLocked = !!sentItem;
+
                     return (
                         <div key={itemKey} className="space-y-2">
                             <div className="flex justify-between items-start">
@@ -295,10 +308,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${(orderItem.quantity * menuItem.precio).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isSent}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isSent}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked}>
                                     <MinusCircle className="h-4 w-4" />
                                 </Button>
                                 <span className="font-bold text-sm">{orderItem.quantity}</span>
@@ -319,11 +332,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 <label htmlFor="order-notes" className="text-sm font-medium">Notas Generales</label>
                 <Textarea
                     id="order-notes"
-                    placeholder={currentOrder.status !== 'active' ? "Las notas no se pueden editar una vez enviado el pedido." : "Añadir notas para la cocina (ej. alergias, sin picante, etc.)"}
+                    placeholder="Añadir notas para la cocina (ej. alergias, sin picante, etc.)"
                     value={currentOrder.notes || ''}
                     onChange={handleNotesChange}
                     className="mt-1"
-                    disabled={currentOrder.status !== 'active'}
                 />
             </div>
           </CardContent>
@@ -338,56 +350,52 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   <Send className="mr-2 h-4 w-4"/> Enviar a Cocina
                 </Button>
               )}
+              
               {currentOrder.status === 'preparing' && (
-                <>
-                  {hasUnsentChanges ? (
-                    <Button size="lg" onClick={handleSendUpdateToKitchen}>
-                      <Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina
-                    </Button>
-                  ) : (
-                    <Button size="lg" disabled>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin"/> Pedido en preparación...
-                    </Button>
-                  )}
-                </>
+                  <div className="grid grid-cols-1 gap-2 w-full">
+                      {hasUnsentChanges && (
+                        <Button size="lg" onClick={handleSendUpdateToKitchen}>
+                            <Send className="mr-2 h-4 w-4" /> Enviar Actualización
+                        </Button>
+                      )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white">
+                            <Calculator className="mr-2 h-4 w-4"/> Finalizar y Cobrar
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Calcular Cambio</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                El total del pedido es <strong>${total.toFixed(2)}</strong>. Ingrese el monto recibido para calcular el cambio.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="space-y-2">
+                            <label htmlFor="amount-received" className="text-sm font-medium">Monto Recibido</label>
+                            <Input 
+                                id="amount-received"
+                                type="number"
+                                placeholder="e.g., 50.00"
+                                value={amountReceived}
+                                onChange={(e) => setAmountReceived(e.target.value)}
+                            />
+                             {parseFloat(amountReceived) >= total && (
+                                 <p className="text-lg font-bold text-primary">
+                                    Cambio a entregar: ${(parseFloat(amountReceived) - total).toFixed(2)}
+                                 </p>
+                             )}
+                          </div>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleCompleteAndPay} disabled={parseFloat(amountReceived) < total}>Confirmar Pago</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                  </div>
               )}
-              {currentOrder.status === 'ready' && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white">
-                        <Calculator className="mr-2 h-4 w-4"/> Finalizar y Cobrar
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Calcular Cambio</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            El total del pedido es <strong>${total.toFixed(2)}</strong>. Ingrese el monto recibido para calcular el cambio.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <div className="space-y-2">
-                        <label htmlFor="amount-received" className="text-sm font-medium">Monto Recibido</label>
-                        <Input 
-                            id="amount-received"
-                            type="number"
-                            placeholder="e.g., 50.00"
-                            value={amountReceived}
-                            onChange={(e) => setAmountReceived(e.target.value)}
-                        />
-                         {parseFloat(amountReceived) >= total && (
-                             <p className="text-lg font-bold text-primary">
-                                Cambio a entregar: ${(parseFloat(amountReceived) - total).toFixed(2)}
-                             </p>
-                         )}
-                      </div>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleCompleteAndPay} disabled={parseFloat(amountReceived) < total}>Confirmar Pago</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-              )}
-              <Button size="lg" variant="outline" onClick={() => router.back()}>
+              
+              <Button size="lg" variant="outline" onClick={handleBack}>
                 <ArrowLeft className="mr-2 h-4 w-4"/> Volver al Salón
               </Button>
             </div>
