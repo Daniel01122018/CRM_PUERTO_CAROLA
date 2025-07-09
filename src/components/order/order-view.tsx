@@ -23,72 +23,79 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { addOrUpdateOrder, removeOrder, isMounted, currentUser, orders } = useAppStore();
-  const [currentOrder, setCurrentOrder] = useState<Partial<Order>>({});
+  const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
   const [amountReceived, setAmountReceived] = useState('');
 
-  const tableId = useMemo(() => {
-    if(orderIdOrTableId === 'takeaway') return 'takeaway';
-    if(orderIdOrTableId.startsWith('new-')) return parseInt(orderIdOrTableId.split('-')[1]);
-    
-    const existingOrder = orders.find(o => o.id === orderIdOrTableId);
-    return existingOrder ? existingOrder.tableId : null;
-  }, [orderIdOrTableId, orders]);
-
-  // Effect 1: Initialize the component state. It runs when the order/table ID changes.
+  // Effect 1: Handles loading the order from the global store into local state.
   useEffect(() => {
-    if (!isMounted) return;
-    if (!currentUser) {
-      router.push('/');
+    if (!isMounted || !currentUser) {
+      if (isMounted) router.push('/');
       return;
     }
 
-    const orderToLoad = orders.find(o => 
-        (o.id === orderIdOrTableId) || 
-        (o.tableId === tableId && (o.status !== 'completed'))
-    );
-    
-    if (orderToLoad) {
-        setCurrentOrder(orderToLoad);
+    let resolvedTableId;
+    if (orderIdOrTableId === 'takeaway') {
+      resolvedTableId = 'takeaway';
+    } else if (orderIdOrTableId.startsWith('new-')) {
+      resolvedTableId = parseInt(orderIdOrTableId.split('-')[1], 10);
     } else {
-        const newOrderId = Date.now().toString();
+      const order = orders.find(o => o.id === orderIdOrTableId);
+      resolvedTableId = order ? order.tableId : null;
+    }
+
+    const orderToLoad = orders.find(o =>
+      o.id === orderIdOrTableId ||
+      (o.tableId === resolvedTableId && o.status !== 'completed')
+    );
+
+    if (orderToLoad) {
+      // Guard: Only update local state if it's different from the store's state.
+      // This prevents re-setting state from an update we just made.
+      if (JSON.stringify(orderToLoad) !== JSON.stringify(currentOrder)) {
+        setCurrentOrder(orderToLoad);
+      }
+    } else {
+      // Guard: Only create a new order if we don't have one locally for this table.
+      if (!currentOrder || currentOrder.tableId !== resolvedTableId) {
         setCurrentOrder({
-            id: newOrderId,
-            tableId: tableId,
-            items: [],
-            status: 'active',
-            createdAt: Date.now(),
+          id: Date.now().toString(),
+          tableId: resolvedTableId,
+          items: [],
+          status: 'active',
+          createdAt: Date.now(),
         });
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderIdOrTableId, isMounted, currentUser, router]);
-
-  // Effect 2: Persist local changes to the global store.
+  }, [orderIdOrTableId, isMounted, currentUser, orders, router]);
+  
+  // Effect 2: Handles persisting local state changes back to the global store.
   useEffect(() => {
-    if (!isMounted || !currentOrder.id || !currentUser) {
+    if (!isMounted || !currentOrder || !currentOrder.id || !currentUser || !currentOrder.items) {
       return;
     }
     const orderInStore = orders.find(o => o.id === currentOrder.id);
-    
-    // Prevent writing if the state is identical
+
+    // Guard: Only persist if the local state is different from the store state.
     if (JSON.stringify(orderInStore) === JSON.stringify(currentOrder)) {
-        return;
+      return;
     }
 
-    const hasItems = currentOrder.items && currentOrder.items.length > 0;
-    
+    const hasItems = currentOrder.items.length > 0;
+
     if (hasItems) {
       addOrUpdateOrder(currentOrder as Order);
     } else if (orderInStore) {
-      // Only remove if it was previously in the store
       removeOrder(currentOrder.id);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentOrder, isMounted, currentUser]);
+  }, [currentOrder]);
 
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
+     if (!currentOrder) return;
     setCurrentOrder(prev => {
-      const prevItems = prev.items || [];
+      const prevItems = prev?.items || [];
       const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes);
       
       let newItems = [...prevItems];
@@ -114,7 +121,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   };
 
   const updateItemNotes = (menuItemId: number, oldNotes: string, newNotes: string) => {
+     if (!currentOrder) return;
     setCurrentOrder(prev => {
+      if (!prev) return null;
       const prevItems = prev.items || [];
       const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === oldNotes);
 
@@ -132,14 +141,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   };
 
   const total = useMemo(() => {
-    return (currentOrder.items || []).reduce((acc, orderItem) => {
+    if (!currentOrder || !currentOrder.items) return 0;
+    return currentOrder.items.reduce((acc, orderItem) => {
       const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
       return acc + (menuItem ? menuItem.precio * orderItem.quantity : 0);
     }, 0);
-  }, [currentOrder.items]);
+  }, [currentOrder]);
   
   const handleSendToKitchen = () => {
-    if (!currentOrder.id || !currentOrder.items || currentOrder.items.length === 0) {
+    if (!currentOrder || !currentOrder.id || !currentOrder.items || currentOrder.items.length === 0) {
         toast({
             variant: "destructive",
             title: "Pedido vacío",
@@ -153,8 +163,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         status: 'preparing',
     } as Order;
     
-    setCurrentOrder(orderToSave); // Update local state first
-    addOrUpdateOrder(orderToSave); // Then persist to global
+    addOrUpdateOrder(orderToSave); // Persist directly
+    setCurrentOrder(orderToSave); // Update local state
 
     toast({
         title: "Pedido enviado a cocina",
@@ -163,11 +173,16 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     if (currentOrder.tableId !== 'takeaway') {
       router.push('/dashboard');
+    } else {
+      // For takeaway, update status to ready immediately to show payment options
+      const readyOrder = {...orderToSave, status: 'ready'} as Order;
+      addOrUpdateOrder(readyOrder);
+      setCurrentOrder(readyOrder);
     }
   };
 
   const handleCompleteAndPay = () => {
-     if (!currentOrder.id) return;
+     if (!currentOrder || !currentOrder.id) return;
      const orderToSave: Order = {
         ...currentOrder,
         total,
@@ -181,11 +196,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     router.push('/dashboard');
   }
 
-  if (!isMounted || !currentOrder.id) {
+  if (!isMounted || !currentOrder) {
     return <div>Cargando pedido...</div>;
   }
   
   const menuCategories = [...new Set(MENU_ITEMS.map(item => item.category))];
+  const tableId = currentOrder.tableId;
 
   return (
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
