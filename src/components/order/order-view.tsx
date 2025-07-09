@@ -34,6 +34,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     return existingOrder ? existingOrder.tableId : null;
   }, [orderIdOrTableId, orders]);
 
+  // Effect 1: Initialize the component state. It runs when the order/table ID changes.
+  // It does NOT re-run when `orders` changes to prevent the main loop.
   useEffect(() => {
     if (!isMounted) return;
     if (!currentUser) {
@@ -46,37 +48,45 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         (orderIdOrTableId.startsWith('new-') && o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'))
     );
     
-    // Using a deep compare with JSON.stringify to break update cycles.
-    // This effect now handles both initialization and syncing from external changes.
     if (orderToLoad) {
-      if (JSON.stringify(orderToLoad) !== JSON.stringify(currentOrder)) {
+        // A full state replacement is fine here because this only runs when navigating to a new order.
         setCurrentOrder(orderToLoad);
-      }
-    } else if (!currentOrder.id || currentOrder.tableId !== tableId) {
-      const newOrderId = Date.now().toString();
-      setCurrentOrder({
-        id: newOrderId,
-        tableId: tableId,
-        items: [],
-        status: 'active',
-        createdAt: Date.now(),
-      });
+    } else {
+        const newOrderId = Date.now().toString();
+        setCurrentOrder({
+            id: newOrderId,
+            tableId: tableId,
+            items: [],
+            status: 'active',
+            createdAt: Date.now(),
+        });
     }
-  }, [orderIdOrTableId, isMounted, currentUser, tableId, orders, router, currentOrder]);
+  }, [orderIdOrTableId, isMounted, currentUser, router]);
 
+  // Effect 2: Persist local changes to the global store.
   useEffect(() => {
-    if (!isMounted || !currentOrder.id) {
+    if (!isMounted || !currentOrder.id || !currentUser) {
       return;
     }
-    const orderExistsInStore = !!orders.find(o => o.id === currentOrder.id);
-    const hasItems = currentOrder.items && currentOrder.items.length > 0;
+    // Find the order in the store to see if it needs updating or removing.
+    const orderInStore = orders.find(o => o.id === currentOrder.id);
 
+    // Deep compare to prevent writing if the state is already in sync.
+    // This is the secondary loop prevention mechanism.
+    if (JSON.stringify(orderInStore) === JSON.stringify(currentOrder)) {
+        return;
+    }
+
+    const hasItems = currentOrder.items && currentOrder.items.length > 0;
+    
     if (hasItems) {
       addOrUpdateOrder(currentOrder as Order);
-    } else if (orderExistsInStore) {
+    } else if (orderInStore) {
+      // Only remove if it was already in the store and is now empty.
       removeOrder(currentOrder.id);
     }
-  }, [currentOrder, addOrUpdateOrder, removeOrder, orders, isMounted]);
+  }, [currentOrder, orders, isMounted, currentUser, addOrUpdateOrder, removeOrder]);
+
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     setCurrentOrder(prev => {
