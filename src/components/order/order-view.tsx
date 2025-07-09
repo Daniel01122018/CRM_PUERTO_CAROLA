@@ -248,18 +248,19 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     else router.push('/dashboard');
   }
 
-  if (!isMounted || !currentOrder) {
-    return <div>Cargando pedido...</div>;
-  }
-  
-  const isTakeaway = currentOrder.tableId === 'takeaway';
+  const isTakeaway = currentOrder?.tableId === 'takeaway';
   const availableMenuItems = useMemo(() => {
       return isTakeaway 
           ? MENU_ITEMS 
           : MENU_ITEMS.filter(item => !item.takeawayOnly);
   }, [isTakeaway]);
 
-  const menuCategories = [...new Set(availableMenuItems.map(item => item.category))];
+  const menuCategories = useMemo(() => [...new Set(availableMenuItems.map(item => item.category))], [availableMenuItems]);
+
+  if (!isMounted || !currentOrder) {
+    return <div>Cargando pedido...</div>;
+  }
+  
   const tableId = currentOrder.tableId;
 
   return (
