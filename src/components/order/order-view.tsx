@@ -45,7 +45,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     const orderToLoad = orders.find(o => 
         (o.id === orderIdOrTableId) || 
-        (orderIdOrTableId.startsWith('new-') && o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'))
+        (o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'))
     );
     
     if (orderToLoad) {
@@ -61,18 +61,17 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             createdAt: Date.now(),
         });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderIdOrTableId, isMounted, currentUser, router]);
 
   // Effect 2: Persist local changes to the global store.
+  // This effect now only depends on `currentOrder`, breaking the update loop.
   useEffect(() => {
     if (!isMounted || !currentOrder.id || !currentUser) {
       return;
     }
-    // Find the order in the store to see if it needs updating or removing.
     const orderInStore = orders.find(o => o.id === currentOrder.id);
-
-    // Deep compare to prevent writing if the state is already in sync.
-    // This is the secondary loop prevention mechanism.
+    
     if (JSON.stringify(orderInStore) === JSON.stringify(currentOrder)) {
         return;
     }
@@ -82,10 +81,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (hasItems) {
       addOrUpdateOrder(currentOrder as Order);
     } else if (orderInStore) {
-      // Only remove if it was already in the store and is now empty.
       removeOrder(currentOrder.id);
     }
-  }, [currentOrder, orders, isMounted, currentUser, addOrUpdateOrder, removeOrder]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentOrder, isMounted, currentUser]);
 
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
@@ -120,13 +119,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         };
       }
       return prev;
-    });
-  };
-  
-  const removeItem = (menuItemId: number, notes: string) => {
-     setCurrentOrder(prev => {
-      const updatedItems = [...(prev.items || [])].filter(i => !(i.menuItemId === menuItemId && i.notes === notes));
-      return { ...prev, items: updatedItems };
     });
   };
 
@@ -297,7 +289,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, 1, orderItem.notes)}>
                                     <PlusCircle className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeItem(menuItem.id, orderItem.notes)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
