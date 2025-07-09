@@ -190,7 +190,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                     {item.sabores ? (
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant="outline">
+                                                <Button variant="outline" disabled={currentOrder.status !== 'active'}>
                                                     <Plus className="h-4 w-4 mr-2" />
                                                     Añadir
                                                 </Button>
@@ -208,13 +208,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                         </Popover>
                                     ) : (
                                         <>
-                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')}>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={currentOrder.status !== 'active'}>
                                                 <MinusCircle className="h-4 w-4" />
                                             </Button>
                                             <span className="font-bold w-4 text-center">
                                                 {currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity || 0}
                                             </span>
-                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')} disabled={currentOrder.status !== 'active'}>
                                                 <PlusCircle className="h-4 w-4" />
                                             </Button>
                                         </>
@@ -257,14 +257,14 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${(orderItem.quantity * menuItem.precio).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={currentOrder.status !== 'active'}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={currentOrder.status !== 'active'}>
                                     <MinusCircle className="h-4 w-4" />
                                 </Button>
                                 <span className="font-bold text-sm">{orderItem.quantity}</span>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, 1, orderItem.notes)}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, 1, orderItem.notes)} disabled={currentOrder.status !== 'active'}>
                                     <PlusCircle className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -281,10 +281,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 <label htmlFor="order-notes" className="text-sm font-medium">Notas Generales</label>
                 <Textarea
                     id="order-notes"
-                    placeholder="Añadir notas para la cocina (ej. alergias, sin picante, etc.)"
+                    placeholder={currentOrder.status !== 'active' ? "Las notas no se pueden editar una vez enviado el pedido." : "Añadir notas para la cocina (ej. alergias, sin picante, etc.)"}
                     value={currentOrder.notes || ''}
                     onChange={handleNotesChange}
                     className="mt-1"
+                    disabled={currentOrder.status !== 'active'}
                 />
             </div>
           </CardContent>
