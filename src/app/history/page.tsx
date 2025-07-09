@@ -25,6 +25,15 @@ export default function HistoryPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [summaryData, setSummaryData] = useState<{
+    totalToday: number;
+    ordersTodayCount: number;
+    weeklyData: { date: string; Ventas: number }[];
+  }>({
+    totalToday: 0,
+    ordersTodayCount: 0,
+    weeklyData: [],
+  });
 
   useEffect(() => {
     if (isMounted && !currentUser) {
@@ -51,7 +60,9 @@ export default function HistoryPage() {
     });
   }, [completedOrders, searchTerm]);
 
-  const summaryData = useMemo(() => {
+  useEffect(() => {
+    if (!isMounted) return;
+
     const today = new Date();
     const todayStart = startOfDay(today);
     
@@ -72,12 +83,12 @@ export default function HistoryPage() {
         });
     }
 
-    return {
+    setSummaryData({
       totalToday,
       ordersTodayCount: todaysOrders.length,
       weeklyData,
-    };
-  }, [completedOrders]);
+    });
+  }, [completedOrders, isMounted]);
   
   const handlePrintReport = () => {
     window.print();
