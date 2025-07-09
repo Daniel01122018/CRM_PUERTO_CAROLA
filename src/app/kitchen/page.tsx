@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import AppHeader from '@/components/app-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { MENU_ITEMS } from '@/lib/data';
-import { Utensils, Clock, StickyNote } from 'lucide-react';
+import { Utensils, Clock, StickyNote, ArrowLeft } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -36,9 +38,17 @@ export default function KitchenPage() {
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AppHeader />
       <main className="flex-1 p-4 sm:p-6">
-        <div className="mb-4">
-            <h1 className="text-3xl font-bold tracking-tight">Vista de Cocina</h1>
-            <p className="text-muted-foreground">Pedidos activos para preparar.</p>
+        <div className="flex items-center justify-between mb-4">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Vista de Cocina</h1>
+                <p className="text-muted-foreground">Pedidos activos para preparar.</p>
+            </div>
+            <Link href="/dashboard">
+                <Button variant="outline" className="flex items-center gap-2">
+                    <ArrowLeft className="h-5 w-5" />
+                    Volver al Salón
+                </Button>
+            </Link>
         </div>
         {activeOrders.length > 0 ? (
           <ScrollArea className="h-[calc(100vh-150px)]">
