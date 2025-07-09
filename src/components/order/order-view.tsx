@@ -37,41 +37,60 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       return;
     }
 
-    let resolvedTableId: number | 'takeaway' | null = null;
-    let orderIdToFind: string | undefined = undefined;
+    // Case 1: Create a new order
+    if (orderIdOrTableId.startsWith('new-')) {
+      const type = orderIdOrTableId.substring(4); // e.g., 'takeaway' or a table number '1'
 
-    if (orderIdOrTableId === 'takeaway') {
-      resolvedTableId = 'takeaway';
-    } else if (orderIdOrTableId.startsWith('new-')) {
-      resolvedTableId = parseInt(orderIdOrTableId.split('-')[1], 10);
-    } else {
-      orderIdToFind = orderIdOrTableId;
-    }
-    
-    const existingOrder = orders.find(o => 
-      o.id === orderIdToFind || 
-      (resolvedTableId && o.tableId === resolvedTableId && (o.status === 'active' || o.status === 'preparing'))
-    );
-    
-    if (existingOrder) {
-        setCurrentOrder(existingOrder);
-        const initialSentItems = existingOrder.status !== 'active' ? existingOrder.items : [];
-        setSentItems(initialSentItems);
+      // For tables, we must first check if there's already an active order.
+      // If so, we load it instead of creating a new one to prevent duplicates.
+      if (type !== 'takeaway') {
+        const tableId = parseInt(type, 10);
+        const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
+        if (existingOrderForTable) {
+          setCurrentOrder(existingOrderForTable);
+          const initialSentItems = existingOrderForTable.status !== 'active' ? existingOrderForTable.items : [];
+          setSentItems(initialSentItems);
+          return; // Exit after loading existing order
+        }
+      }
 
-    } else if (resolvedTableId) {
+      // If it's a new takeaway order, or a new order for an available table, create it.
       setCurrentOrder({
         id: Date.now().toString(),
-        tableId: resolvedTableId,
+        tableId: type === 'takeaway' ? 'takeaway' : parseInt(type, 10),
         items: [],
         status: 'active',
         createdAt: Date.now(),
+        total: 0,
         notes: '',
       });
       setSentItems([]);
       setHasUnsentChanges(false);
+    } 
+    // Case 2: Open an existing order by its unique ID
+    else {
+      const existingOrder = orders.find(o => o.id === orderIdOrTableId);
+      
+      if (existingOrder) {
+          setCurrentOrder(existingOrder);
+          const initialSentItems = existingOrder.status !== 'active' ? existingOrder.items : [];
+          setSentItems(initialSentItems);
+      } else {
+        // If order is not found (e.g., completed/cancelled and removed from active list), redirect.
+        toast({
+          variant: "destructive",
+          title: "Pedido no encontrado",
+          description: "El pedido que intentas abrir ya no está activo.",
+        });
+        if (orderIdOrTableId.includes('takeaway')) {
+            router.push('/takeaway');
+        } else {
+            router.push('/dashboard');
+        }
+      }
     }
 
-  }, [orderIdOrTableId, isMounted, currentUser, orders, router]);
+  }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
 
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
@@ -117,7 +136,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       }
       
       const newOrderState = { ...prev, items: newItems };
-      if (prev.status !== 'active') {
+      if (JSON.stringify(prev.items) !== JSON.stringify(newItems)) {
         setHasUnsentChanges(true);
       }
       return newOrderState;
@@ -156,7 +175,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido enviado.`,
     });
 
-    if (currentOrder.tableId !== 'takeaway') {
+    if (currentOrder.tableId === 'takeaway') {
+      router.push('/takeaway');
+    } else {
       router.push('/dashboard');
     }
   };
@@ -171,14 +192,20 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       title: "Actualización enviada",
       description: "Nuevos artículos enviados a cocina.",
     });
-    router.push('/dashboard');
+     if (currentOrder.tableId === 'takeaway') {
+      router.push('/takeaway');
+    } else {
+      router.push('/dashboard');
+    }
   };
   
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!currentOrder) return;
-     if (currentOrder.status !== 'active') return;
     const newOrderState = { ...currentOrder, notes: e.target.value };
     setCurrentOrder(newOrderState);
+    if (currentOrder.status !== 'active') {
+       setHasUnsentChanges(true);
+    }
   };
   
   const handleCompleteAndPay = () => {
@@ -193,7 +220,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         title: "Pedido completado",
         description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado y pagado.`,
     });
-    router.push('/dashboard');
+    if (currentOrder.tableId === 'takeaway') {
+      router.push('/takeaway');
+    } else {
+      router.push('/dashboard');
+    }
   }
 
   const handleCancelOrder = () => {
@@ -204,14 +235,22 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         title: "Pedido Cancelado",
         description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.`,
     });
-    router.push('/dashboard');
+    if (currentOrder.tableId === 'takeaway') {
+      router.push('/takeaway');
+    } else {
+      router.push('/dashboard');
+    }
   }
 
   const handleBack = () => {
     if (currentOrder?.status === 'active' && currentOrder.items?.length > 0) {
        addOrUpdateOrder({ ...currentOrder, total } as Order);
     }
-    router.push('/dashboard');
+    if (currentOrder?.tableId === 'takeaway') {
+        router.push('/takeaway');
+    } else {
+        router.push('/dashboard');
+    }
   }
 
   if (!isMounted || !currentOrder) {
@@ -220,6 +259,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   
   const menuCategories = [...new Set(MENU_ITEMS.map(item => item.category))];
   const tableId = currentOrder.tableId;
+
+  const isOrderSent = currentOrder.status === 'preparing' || currentOrder.status === 'completed';
 
   return (
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -291,7 +332,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       <div>
         <Card className="sticky top-24">
           <CardHeader>
-            <CardTitle>Pedido: {tableId === 'takeaway' ? 'Para Llevar' : `Mesa ${tableId}`}</CardTitle>
+            <CardTitle>Pedido: {tableId === 'takeaway' ? `Para Llevar #${currentOrder.id?.slice(-4)}` : `Mesa ${tableId}`}</CardTitle>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[30vh]">
@@ -300,7 +341,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   {currentOrder.items.map((orderItem, index) => {
                     const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
-                    const itemKey = `${menuItem.id}-${orderItem.notes || index}`;
+                    const itemKey = `${menuItem.id}-${orderItem.notes || ''}-${index}`;
                     
                     const sentItem = sentItems.find(i => i.menuItemId === orderItem.menuItemId && i.notes === orderItem.notes);
                     const isLocked = !!sentItem;
@@ -317,10 +358,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${(orderItem.quantity * menuItem.precio).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked && orderItem.quantity === sentItem.quantity}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -orderItem.quantity, orderItem.notes)} disabled={isLocked}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked && orderItem.quantity === sentItem.quantity}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isLocked && orderItem.quantity <= (sentItem?.quantity || 0)}>
                                     <MinusCircle className="h-4 w-4" />
                                 </Button>
                                 <span className="font-bold text-sm">{orderItem.quantity}</span>
@@ -344,7 +385,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                     placeholder="Añadir notas para la cocina (ej. alergias, sin picante, etc.)"
                     value={currentOrder.notes || ''}
                     onChange={handleNotesChange}
-                    readOnly={currentOrder.status !== 'active'}
                     className="mt-1"
                 />
             </div>
@@ -425,7 +465,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               )}
               
               <Button size="lg" variant="outline" onClick={handleBack}>
-                <ArrowLeft className="mr-2 h-4 w-4"/> Volver al Salón
+                <ArrowLeft className="mr-2 h-4 w-4"/> Volver
               </Button>
             </div>
           </CardFooter>

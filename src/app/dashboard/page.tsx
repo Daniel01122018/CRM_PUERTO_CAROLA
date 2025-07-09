@@ -34,7 +34,7 @@ export default function DashboardPage() {
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold">Estado de las Mesas</h1>
-            <Link href="/order/takeaway">
+            <Link href="/takeaway">
                 <Button className="flex items-center gap-2">
                     <ShoppingBag className="h-5 w-5" />
                     Para Llevar
