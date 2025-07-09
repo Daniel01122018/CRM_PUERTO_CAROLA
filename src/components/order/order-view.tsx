@@ -22,29 +22,30 @@ interface OrderViewProps {
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { addOrUpdateOrder, getOrder, removeOrder, isMounted, currentUser } = useAppStore();
+  const { addOrUpdateOrder, removeOrder, isMounted, currentUser, orders } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order>>({});
   const [amountReceived, setAmountReceived] = useState('');
 
   const tableId = useMemo(() => {
     if(orderIdOrTableId === 'takeaway') return 'takeaway';
     if(orderIdOrTableId.startsWith('new-')) return parseInt(orderIdOrTableId.split('-')[1]);
-    const existingOrder = getOrder(orderIdOrTableId);
+    
+    const existingOrder = orders.find(o => o.id === orderIdOrTableId);
     return existingOrder ? existingOrder.tableId : null;
-  }, [orderIdOrTableId, getOrder]);
+  }, [orderIdOrTableId, orders]);
 
   useEffect(() => {
     if (!isMounted) return;
     if (!currentUser) router.push('/');
 
-    let initialOrder: Order | undefined;
-    if (!orderIdOrTableId.startsWith('new-')) {
-      initialOrder = getOrder(orderIdOrTableId);
-    }
-
-    if (initialOrder) {
-      setCurrentOrder(initialOrder);
-    } else {
+    const orderToLoad = orders.find(o => 
+        (o.id === orderIdOrTableId) || 
+        (orderIdOrTableId.startsWith('new-') && o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'))
+    );
+    
+    if (orderToLoad) {
+      setCurrentOrder(orderToLoad);
+    } else if (!currentOrder.id || currentOrder.tableId !== tableId) {
       const newOrderId = Date.now().toString();
       setCurrentOrder({
         id: newOrderId,
@@ -54,13 +55,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         createdAt: Date.now(),
       });
     }
-  }, [orderIdOrTableId, getOrder, router, isMounted, currentUser, tableId]);
+  }, [orderIdOrTableId, isMounted, currentUser, tableId, orders, router, currentOrder.id, currentOrder.tableId]);
 
   useEffect(() => {
     if (!isMounted || !currentOrder.id) {
       return;
     }
-    const orderExistsInStore = !!getOrder(currentOrder.id);
+    const orderExistsInStore = !!orders.find(o => o.id === currentOrder.id);
     const hasItems = currentOrder.items && currentOrder.items.length > 0;
 
     if (hasItems) {
@@ -68,7 +69,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     } else if (orderExistsInStore) {
       removeOrder(currentOrder.id);
     }
-  }, [currentOrder, addOrUpdateOrder, removeOrder, getOrder, isMounted]);
+  }, [currentOrder, addOrUpdateOrder, removeOrder, orders, isMounted]);
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     setCurrentOrder(prev => {
@@ -227,7 +228,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                                 <MinusCircle className="h-4 w-4" />
                                             </Button>
                                             <span className="font-bold w-4 text-center">
-                                                {currentOrder.items?.find(i => i.menuItemId === item.id && i.notes === '')?.quantity || 0}
+                                                {currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity || 0}
                                             </span>
                                             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}>
                                                 <PlusCircle className="h-4 w-4" />
@@ -264,7 +265,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                         <div key={itemKey} className="space-y-2">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="font-medium">{menuItem.nombre} {menuItem.sabores && `(${orderItem.notes})`}</p>
+                                    <p className="font-medium">{menuItem.nombre} {orderItem.notes ? `(${orderItem.notes})` : ''}</p>
                                     <p className="text-sm text-muted-foreground">
                                         {orderItem.quantity} x ${menuItem.precio.toFixed(2)}
                                     </p>
