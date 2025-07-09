@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Order, Table, User, OrderStatus } from '@/types';
 import { TOTAL_TABLES } from '@/lib/data';
 
@@ -17,14 +17,8 @@ const getInitialState = <T,>(key: string, defaultValue: T): T => {
   }
 };
 
-const initialTables: Table[] = Array.from({ length: TOTAL_TABLES }, (_, i) => ({
-  id: i + 1,
-  status: 'available',
-}));
-
 export function useAppStore() {
   const [orders, setOrders] = useState<Order[]>(() => getInitialState<Order[]>('orders', []));
-  const [tables, setTables] = useState<Table[]>(() => getInitialState<Table[]>('tables', initialTables));
   const [currentUser, setCurrentUser] = useState<User | null>(() => getInitialState<User | null>('currentUser', null));
   const [isMounted, setIsMounted] = useState(false);
 
@@ -32,36 +26,43 @@ export function useAppStore() {
     setIsMounted(true);
   }, []);
 
+  // Effect to sync orders to localStorage
   useEffect(() => {
     if (isMounted) {
       try {
         window.localStorage.setItem('orders', JSON.stringify(orders));
-        const updatedTables = initialTables.map(table => {
-            const occupiedOrder = orders.find(o => o.tableId === table.id && (o.status === 'active' || o.status === 'preparing' || o.status === 'ready'));
-            return {
-                ...table,
-                status: occupiedOrder ? 'occupied' : 'available',
-                orderId: occupiedOrder?.id
-            };
-        });
-        setTables(updatedTables);
-        window.localStorage.setItem('tables', JSON.stringify(updatedTables));
       } catch (error) {
         console.error('Error writing to localStorage:', error);
       }
     }
   }, [orders, isMounted]);
 
+  // Derive tables state from orders state
+  const tables = useMemo<Table[]>(() => {
+    const initialTables: Table[] = Array.from({ length: TOTAL_TABLES }, (_, i) => ({
+      id: i + 1,
+      status: 'available',
+    }));
+
+    return initialTables.map(table => {
+        const occupiedOrder = orders.find(o => o.tableId === table.id && (o.status === 'active' || o.status === 'preparing' || o.status === 'ready'));
+        return {
+            ...table,
+            status: occupiedOrder ? 'occupied' : 'available',
+            orderId: occupiedOrder?.id
+        };
+    });
+  }, [orders]);
+
+
+  // Effect to sync with other tabs
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'orders' && event.newValue) {
-        setOrders(JSON.parse(event.newValue));
+      if (event.key === 'orders') {
+        setOrders(event.newValue ? JSON.parse(event.newValue) : []);
       }
-      if (event.key === 'tables' && event.newValue) {
-        setTables(JSON.parse(event.newValue));
-      }
-      if (event.key === 'currentUser' && event.newValue) {
-        setCurrentUser(JSON.parse(event.newValue));
+      if (event.key === 'currentUser') {
+        setCurrentUser(event.newValue ? JSON.parse(event.newValue) : null);
       }
     };
 
