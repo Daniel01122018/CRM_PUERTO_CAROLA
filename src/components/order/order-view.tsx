@@ -36,15 +36,22 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
   useEffect(() => {
     if (!isMounted) return;
-    if (!currentUser) router.push('/');
+    if (!currentUser) {
+      router.push('/');
+      return;
+    }
 
     const orderToLoad = orders.find(o => 
         (o.id === orderIdOrTableId) || 
         (orderIdOrTableId.startsWith('new-') && o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'))
     );
     
+    // Using a deep compare with JSON.stringify to break update cycles.
+    // This effect now handles both initialization and syncing from external changes.
     if (orderToLoad) {
-      setCurrentOrder(orderToLoad);
+      if (JSON.stringify(orderToLoad) !== JSON.stringify(currentOrder)) {
+        setCurrentOrder(orderToLoad);
+      }
     } else if (!currentOrder.id || currentOrder.tableId !== tableId) {
       const newOrderId = Date.now().toString();
       setCurrentOrder({
@@ -55,7 +62,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         createdAt: Date.now(),
       });
     }
-  }, [orderIdOrTableId, isMounted, currentUser, tableId, orders, router, currentOrder.id, currentOrder.tableId]);
+  }, [orderIdOrTableId, isMounted, currentUser, tableId, orders, router, currentOrder]);
 
   useEffect(() => {
     if (!isMounted || !currentOrder.id) {
