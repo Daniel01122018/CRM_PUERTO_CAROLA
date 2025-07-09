@@ -63,11 +63,14 @@ export default function DashboardPage() {
           ))}
         </div>
       </main>
-      <Link href="/history" className="fixed bottom-8 right-8 z-50">
-        <Button size="lg" className="rounded-full w-16 h-16 shadow-lg" aria-label="Historial de pedidos">
-            <History className="h-8 w-8" />
-        </Button>
-      </Link>
+      <Button 
+        size="lg" 
+        className="rounded-full w-16 h-16 shadow-lg fixed bottom-8 right-8 z-50" 
+        aria-label="Historial de pedidos"
+        onClick={() => router.push('/history')}
+        >
+          <History className="h-8 w-8" />
+      </Button>
     </div>
   );
 }
