@@ -26,6 +26,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const { addOrUpdateOrder, removeOrder, isMounted, currentUser, orders } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
   const [amountReceived, setAmountReceived] = useState('');
+  const [sentItems, setSentItems] = useState<OrderItem[]>([]);
+  const [hasUnsentChanges, setHasUnsentChanges] = useState(false);
+
 
   // Effect to load or initialize the order.
   useEffect(() => {
@@ -52,6 +55,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     if (existingOrder) {
       setCurrentOrder(existingOrder);
+       if (existingOrder.status !== 'active') {
+        setSentItems(existingOrder.items);
+      }
     } else if (resolvedTableId) {
       setCurrentOrder({
         id: Date.now().toString(),
@@ -62,11 +68,23 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         notes: '',
       });
     }
+    setHasUnsentChanges(false);
   }, [orderIdOrTableId, isMounted, currentUser, orders, router]);
 
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     if (!currentOrder) return;
+
+    const isAlreadySent = sentItems.some(item => item.menuItemId === menuItemId && item.notes === notes);
+
+    if (change < 0 && isAlreadySent) {
+      toast({
+        variant: "destructive",
+        title: "Acción no permitida",
+        description: "No se puede eliminar o reducir un artículo que ya fue enviado a cocina.",
+      });
+      return;
+    }
 
     setCurrentOrder(prev => {
       if (!prev) return null;
@@ -93,6 +111,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       
       const newOrderState = { ...prev, items: newItems };
       addOrUpdateOrder(newOrderState as Order);
+      if (prev.status !== 'active') {
+        setHasUnsentChanges(true);
+      }
       return newOrderState;
     });
   };
@@ -120,7 +141,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         status: 'preparing',
     } as Order;
     
-    addOrUpdateOrder(orderToSave); // Persist directly
+    addOrUpdateOrder(orderToSave);
+    setSentItems(orderToSave.items);
+    setHasUnsentChanges(false);
+
 
     toast({
         title: "Pedido enviado a cocina",
@@ -134,6 +158,19 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       addOrUpdateOrder(readyOrder);
       setCurrentOrder(readyOrder);
     }
+  };
+
+  const handleSendUpdateToKitchen = () => {
+    if (!currentOrder || !currentOrder.id || !currentOrder.items) return;
+    const orderToSave: Order = { ...currentOrder, total } as Order;
+    addOrUpdateOrder(orderToSave);
+    setSentItems(orderToSave.items);
+    setHasUnsentChanges(false);
+    toast({
+      title: "Actualización enviada",
+      description: "Nuevos artículos enviados a cocina.",
+    });
+    router.push('/dashboard');
   };
   
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -190,7 +227,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                     {item.sabores ? (
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant="outline" disabled={currentOrder.status !== 'active'}>
+                                                <Button variant="outline">
                                                     <Plus className="h-4 w-4 mr-2" />
                                                     Añadir
                                                 </Button>
@@ -208,13 +245,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                         </Popover>
                                     ) : (
                                         <>
-                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={currentOrder.status !== 'active'}>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')}>
                                                 <MinusCircle className="h-4 w-4" />
                                             </Button>
                                             <span className="font-bold w-4 text-center">
                                                 {currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity || 0}
                                             </span>
-                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')} disabled={currentOrder.status !== 'active'}>
+                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}>
                                                 <PlusCircle className="h-4 w-4" />
                                             </Button>
                                         </>
@@ -245,6 +282,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                     const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
                     const itemKey = `${menuItem.id}-${orderItem.notes || index}`;
+                    const isSent = sentItems.some(sentItem => sentItem.menuItemId === orderItem.menuItemId && sentItem.notes === orderItem.notes);
                     return (
                         <div key={itemKey} className="space-y-2">
                             <div className="flex justify-between items-start">
@@ -257,14 +295,14 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${(orderItem.quantity * menuItem.precio).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={currentOrder.status !== 'active'}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isSent}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={currentOrder.status !== 'active'}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, -1, orderItem.notes)} disabled={isSent}>
                                     <MinusCircle className="h-4 w-4" />
                                 </Button>
                                 <span className="font-bold text-sm">{orderItem.quantity}</span>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, 1, orderItem.notes)} disabled={currentOrder.status !== 'active'}>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateItemQuantity(menuItem.id, 1, orderItem.notes)}>
                                     <PlusCircle className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -295,15 +333,23 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               <span>${total.toFixed(2)}</span>
             </div>
             <div className="grid grid-cols-1 gap-2 w-full">
-              {currentOrder.status === 'active' && (
+               {currentOrder.status === 'active' && (
                 <Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}>
                   <Send className="mr-2 h-4 w-4"/> Enviar a Cocina
                 </Button>
               )}
               {currentOrder.status === 'preparing' && (
-                <Button size="lg" disabled>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin"/> Pedido en preparación...
-                </Button>
+                <>
+                  {hasUnsentChanges ? (
+                    <Button size="lg" onClick={handleSendUpdateToKitchen}>
+                      <Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina
+                    </Button>
+                  ) : (
+                    <Button size="lg" disabled>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin"/> Pedido en preparación...
+                    </Button>
+                  )}
+                </>
               )}
               {currentOrder.status === 'ready' && (
                   <AlertDialog>
