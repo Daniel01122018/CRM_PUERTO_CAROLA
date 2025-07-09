@@ -114,6 +114,10 @@ export function useAppStore() {
     setOrders(prevOrders => prevOrders.map(o => o.id === orderId ? {...o, status} : o));
   }, []);
 
+  const removeOrder = useCallback((orderId: string) => {
+    setOrders(prevOrders => prevOrders.filter(o => o.id !== orderId));
+  }, []);
+
   return { 
     isMounted,
     currentUser,
@@ -123,6 +127,7 @@ export function useAppStore() {
     orders, 
     addOrUpdateOrder,
     getOrder,
-    updateOrderStatus
+    updateOrderStatus,
+    removeOrder
   };
 }

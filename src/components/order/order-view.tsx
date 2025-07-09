@@ -22,7 +22,7 @@ interface OrderViewProps {
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { addOrUpdateOrder, getOrder, isMounted, currentUser } = useAppStore();
+  const { addOrUpdateOrder, getOrder, removeOrder, isMounted, currentUser } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order>>({});
   const [amountReceived, setAmountReceived] = useState('');
 
@@ -55,6 +55,20 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       });
     }
   }, [orderIdOrTableId, getOrder, router, isMounted, currentUser, tableId]);
+
+  useEffect(() => {
+    if (!isMounted || !currentOrder.id) {
+      return;
+    }
+    const orderExistsInStore = !!getOrder(currentOrder.id);
+    const hasItems = currentOrder.items && currentOrder.items.length > 0;
+
+    if (hasItems) {
+      addOrUpdateOrder(currentOrder as Order);
+    } else if (orderExistsInStore) {
+      removeOrder(currentOrder.id);
+    }
+  }, [currentOrder, addOrUpdateOrder, removeOrder, getOrder, isMounted]);
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     setCurrentOrder(prev => {
