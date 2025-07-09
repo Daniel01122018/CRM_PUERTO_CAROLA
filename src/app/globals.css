@@ -27,7 +27,7 @@ body {
     --border: 220 13% 91%;
     --input: 220 13% 91%;
     --ring: 174 72% 56%;
-    --radius: 0.5rem;
+    --chart-1: hsl(var(--primary));
   }
   .dark {
     --background: 224 71.4% 4.1%;
@@ -59,4 +59,36 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+@media print {
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background-color: #fff;
+        color: #000;
+    }
+    .print\:hidden {
+        display: none !important;
+    }
+    .print\:block {
+        display: block !important;
+    }
+    main, .print-report-container {
+        padding: 0;
+        margin: 0;
+        box-shadow: none;
+        border: none;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+    }
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
 }
