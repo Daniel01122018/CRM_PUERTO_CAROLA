@@ -36,12 +36,12 @@ export function useAppStore() {
     if (isMounted) {
       try {
         window.localStorage.setItem('orders', JSON.stringify(orders));
-        const updatedTables = tables.map(table => {
-            const activeOrder = orders.find(o => o.tableId === table.id && o.status === 'active');
+        const updatedTables = initialTables.map(table => {
+            const occupiedOrder = orders.find(o => o.tableId === table.id && (o.status === 'active' || o.status === 'preparing'));
             return {
                 ...table,
-                status: activeOrder ? 'occupied' : 'available',
-                orderId: activeOrder?.id
+                status: occupiedOrder ? 'occupied' : 'available',
+                orderId: occupiedOrder?.id
             };
         });
         setTables(updatedTables);
@@ -51,17 +51,6 @@ export function useAppStore() {
       }
     }
   }, [orders, isMounted]);
-
-   useEffect(() => {
-    if (isMounted) {
-      try {
-        window.localStorage.setItem('currentUser', JSON.stringify(currentUser));
-      } catch (error) {
-        console.error('Error writing to localStorage:', error);
-      }
-    }
-  }, [currentUser, isMounted]);
-
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
@@ -89,10 +78,20 @@ export function useAppStore() {
     
     const user: User = { username, role };
     setCurrentUser(user);
+     try {
+      window.localStorage.setItem('currentUser', JSON.stringify(user));
+    } catch (error) {
+      console.error('Error writing currentUser to localStorage:', error);
+    }
   }, []);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
+    try {
+      window.localStorage.removeItem('currentUser');
+    } catch (error) {
+      console.error('Error removing currentUser from localStorage:', error);
+    }
   }, []);
 
   const addOrUpdateOrder = useCallback((order: Order) => {
