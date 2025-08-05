@@ -27,17 +27,28 @@ export function useAppStore() {
   useEffect(() => {
     setIsMounted(true);
     
-    // Set up the real-time listener for orders
-    const unsubscribe = onSnapshot(collection(db, "orders"), (snapshot) => {
-        const ordersData = snapshot.docs.map(doc => doc.data() as Order);
-        setOrders(ordersData);
-    });
+    // Set up the real-time listener for orders from Firestore
+    try {
+        const unsubscribe = onSnapshot(collection(db, "orders"), (snapshot) => {
+            const ordersData = snapshot.docs.map(doc => doc.data() as Order);
+            setOrders(ordersData);
+        }, (error) => {
+            console.error("Error listening to orders collection:", error);
+            // This is a good place to check your Firestore security rules or Firebase config
+            if (error.code === 'permission-denied') {
+                alert("Error de permisos: No se pudo conectar a la base de datos. Verifica la configuración de Firebase y las reglas de seguridad de Firestore.");
+            }
+        });
 
-    return () => unsubscribe(); // Cleanup listener on component unmount
+        return () => unsubscribe(); // Cleanup listener on component unmount
+    } catch(e) {
+        console.error("Could not initialize Firebase listener. Is your firebase.ts config correct?", e);
+    }
   }, []);
 
 
   useEffect(() => {
+    // We still use localStorage for the current user session, as it's specific to the device
     if (isMounted) {
         try {
             window.localStorage.setItem('currentUser', JSON.stringify(currentUser));
@@ -78,6 +89,10 @@ export function useAppStore() {
   }, []);
 
   const addOrUpdateOrder = useCallback(async (order: Order) => {
+    if (!order.id) {
+        console.error("Order must have an ID to be saved to Firestore.");
+        return;
+    }
     try {
       // Use the order id as the document id in Firestore
       const orderRef = doc(db, "orders", order.id);
