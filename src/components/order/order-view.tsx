@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -9,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -37,7 +39,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [amountReceived, setAmountReceived] = useState('');
   const [change, setChange] = useState(0);
-
+  
   const availableMenuItems = useMemo(() => {
     if (!currentOrder) return [];
     const isTakeaway = currentOrder.tableId === 'takeaway';
@@ -45,7 +47,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         ? MENU_ITEMS 
         : MENU_ITEMS.filter(item => !item.takeawayOnly);
   }, [currentOrder]);
-
+  
   const menuCategories = useMemo(() => [...new Set(availableMenuItems.map(item => item.category))], [availableMenuItems]);
 
   useEffect(() => {
