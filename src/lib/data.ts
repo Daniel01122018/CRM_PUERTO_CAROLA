@@ -27,16 +27,20 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 21, nombre: "PAN", precio: 0.25, category: 'Adicionales' },
   { id: 22, nombre: "MAIZ TOSTADO", precio: 0.25, category: 'Adicionales' },
   { id: 23, nombre: "TARRINA/CONTENEDOR", precio: 0.25, category: 'Adicionales' },
+  { id: 34, nombre: "TOSTADO DE QUESO", precio: 1.00, category: 'Adicionales' },
+  { id: 35, nombre: "TOSTADA MIXTA", precio: 1.25, category: 'Adicionales' },
 
   // Bebidas
-  { id: 24, nombre: "COCA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"] },
+  { id: 24, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"] },
   { id: 25, nombre: "BATIDO", precio: 1.25, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
-  { id: 26, nombre: "Cola 1,35L", precio: 2.50, category: 'Bebidas' },
+  { id: 26, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
+  { id: 32, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
+  { id: 33, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
   
   // Platos solo para llevar
   { id: 27, nombre: "Guatita Media tarrina", precio: 3.25, category: 'Platos', takeawayOnly: true },
   { id: 28, nombre: "Guatita Tarrina LLena", precio: 6.25, category: 'Platos', takeawayOnly: true },
-  { id: 29, nombre: "Cazuela Media Tarrina", precio: 3.50, category: 'Platos', takeawayOnly: true },
+  { id: 29, nombre: "Cazuela Media Tarrina", precio: 6.50, category: 'Platos', takeawayOnly: true },
   { id: 30, nombre: "Cazuela Tarrina LLena", precio: 6.50, category: 'Platos', takeawayOnly: true },
   { id: 31, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true, takeawayOnly: true },
 ];

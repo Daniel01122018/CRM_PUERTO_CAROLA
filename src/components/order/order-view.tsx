@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
 import { MENU_ITEMS } from '@/lib/data';
-import type { Order, OrderItem, MenuItem } from '@/types';
+import type { Order, OrderItem, MenuItem, PaymentMethod } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,11 +15,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus, XCircle } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 interface OrderViewProps {
   orderIdOrTableId: string;
 }
-
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -28,11 +28,17 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [amountReceived, setAmountReceived] = useState('');
   const [sentItems, setSentItems] = useState<OrderItem[]>([]);
   const [hasUnsentChanges, setHasUnsentChanges] = useState(false);
-  
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [splitPaymentDialogOpen, setSplitPaymentDialogOpen] = useState(false);
+  const [splitAmount, setSplitAmount] = useState('');
+  const [splitPaymentMethod, setSplitPaymentMethod] = useState<PaymentMethod | ''>('');
+
   const [customPrice, setCustomPrice] = useState('');
   const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
   const [customPriceItem, setCustomPriceItem] = useState<MenuItem | null>(null);
 
+  // State to manage open popovers for flavor selection
+  const [openFlavorPopoverId, setOpenFlavorPopoverId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isMounted) return;
@@ -191,6 +197,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       return acc + (price * orderItem.quantity);
     }, 0);
   }, [currentOrder]);
+
   
   const handleSendToKitchen = () => {
     if (!currentOrder || !currentOrder.id || !currentOrder.items || currentOrder.items.length === 0) {
@@ -223,14 +230,20 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (currentOrder.status !== 'active') setHasUnsentChanges(true);
   };
   
-  const handleCompleteAndPay = () => {
+  const handleFullPayment = (paymentMethod: PaymentMethod) => {
      if (!currentOrder || !currentOrder.id) return;
-     const orderToSave: Order = { ...currentOrder, total, status: 'completed' } as Order;
-    addOrUpdateOrder(orderToSave);
-    toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado y pagado.` });
-    if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
-    else router.push('/dashboard');
+     const orderToSave: Order = { ...currentOrder, total, status: 'completed', paymentMethod: paymentMethod } as Order;
+     addOrUpdateOrder(orderToSave);
+     toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado y pagado con ${paymentMethod}.` });
+     setPaymentDialogOpen(false);
+     setSplitPaymentDialogOpen(false);
+     setAmountReceived('');
+     setSplitAmount('');
+     setSplitPaymentMethod('');
+     if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
+     else router.push('/dashboard');
   }
+
 
   const handleCancelOrder = () => {
     if (!currentOrder || !currentOrder.id) return;
@@ -250,12 +263,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
   const isTakeaway = currentOrder?.tableId === 'takeaway';
   const availableMenuItems = useMemo(() => {
-      return isTakeaway 
-          ? MENU_ITEMS 
-          : MENU_ITEMS.filter(item => !item.takeawayOnly);
-  }, [isTakeaway]);
+      return MENU_ITEMS;
+  }, []); // Removed the dependency on isTakeaway and filtering
 
   const menuCategories = useMemo(() => [...new Set(availableMenuItems.map(item => item.category))], [availableMenuItems]);
+
+  const remainingAmountToPay = useMemo(() => {
+      return total - (currentOrder?.partialPaymentsTotal || 0);
+  }, [total, currentOrder?.partialPaymentsTotal]);
+
 
   if (!isMounted || !currentOrder) {
     return <div>Cargando pedido...</div>;
@@ -269,66 +285,82 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         <Card>
           <CardHeader><CardTitle>Menú</CardTitle></CardHeader>
           <CardContent>
-            <ScrollArea className="h-[60vh]">
-              <div className="space-y-6 pr-4">
+             <Tabs defaultValue={menuCategories[0]} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  {menuCategories.map(category => (
+                      <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
+                  ))}
+                </TabsList>
                 {menuCategories.map(category => (
-                  <div key={category}>
-                    <h3 className="text-lg font-semibold mb-2">{category}</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {availableMenuItems.filter(item => item.category === category).map(item => 
-                        item.customPrice ? (
-                            <Card key={item.id} className="overflow-hidden">
-                                <CardContent className="p-4 flex flex-col justify-between h-full">
-                                    <div>
-                                        <p className="font-semibold">{item.nombre}</p>
-                                        <p className="text-sm text-muted-foreground">Precio manual</p>
-                                    </div>
-                                    <div className="flex items-center justify-end gap-2 mt-2">
-                                        <Button variant="outline" onClick={() => { setCustomPriceItem(item); setIsCustomPriceDialogOpen(true); }}>
-                                            <Plus className="h-4 w-4 mr-2" /> Añadir
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                        <Card key={item.id} className="overflow-hidden">
-                           <CardContent className="p-4 flex flex-col justify-between h-full">
-                                <div>
-                                    <p className="font-semibold">{item.nombre}</p>
-                                    <p className="text-sm text-muted-foreground">${item.precio.toFixed(2)}</p>
-                                </div>
-                                <div className="flex items-center justify-end gap-2 mt-2">
-                                    {item.sabores ? (
-                                        <Popover>
-                                            <PopoverTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-2" />Añadir</Button></PopoverTrigger>
-                                            <PopoverContent className="w-auto">
-                                                <div className="flex flex-col gap-2">
-                                                    <p className="font-semibold text-sm">Seleccione un sabor:</p>
-                                                    {item.sabores.map(sabor => (
-                                                        <Button key={sabor} variant="ghost" className="justify-start" onClick={() => updateItemQuantity(item.id, 1, sabor)}>
-                                                            {sabor}
-                                                        </Button>
-                                                    ))}
+                    <TabsContent key={category} value={category}>
+                       <ScrollArea className="h-[50vh]">
+                           <div className="space-y-6 pr-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {availableMenuItems.filter(item => item.category === category).map(item => 
+                                    item.customPrice ? (
+                                        <Card key={item.id} className="overflow-hidden">
+                                            <CardContent className="p-4 flex flex-col justify-between h-full">
+                                                <div>
+                                                    <p className="font-semibold">{item.nombre}</p>
+                                                    <p className="text-sm text-muted-foreground">Precio manual</p>
                                                 </div>
-                                            </PopoverContent>
-                                        </Popover>
+                                                <div className="flex items-center justify-end gap-2 mt-2">
+                                                    <Button variant="outline" onClick={() => { setCustomPriceItem(item); setIsCustomPriceDialogOpen(true); }}>
+                                                        <Plus className="h-4 w-4 mr-2" /> Añadir
+                                                    </Button>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
                                     ) : (
-                                        <>
-                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')}><MinusCircle className="h-4 w-4" /></Button>
-                                            <span className="font-bold w-4 text-center">{currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity || 0}</span>
-                                            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}><PlusCircle className="h-4 w-4" /></Button>
-                                        </>
-                                    )}
+                                    <Card key={item.id} className="overflow-hidden">
+                                       <CardContent className="p-4 flex flex-col justify-between h-full">
+                                            <div>
+                                                <p className="font-semibold">{item.nombre}</p>
+                                                <p className="text-sm text-muted-foreground">${item.precio.toFixed(2)}</p>
+                                            </div>
+                                            <div className="flex items-center justify-end gap-2 mt-2">
+                                                {item.sabores ? (
+                                                    <Popover open={openFlavorPopoverId === item.id} onOpenChange={(isOpen) => setOpenFlavorPopoverId(isOpen ? item.id : null)}>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="outline"><Plus className="h-4 w-4 mr-2" />Añadir</Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto">
+                                                            <div className="flex flex-col gap-2">
+                                                                <p className="font-semibold text-sm">Seleccione un sabor:</p>
+                                                                {item.sabores.map(sabor => (
+                                                                    <Button
+                                                                        key={sabor}
+                                                                        variant="ghost"
+                                                                        className="justify-start"
+                                                                        onClick={() => {
+                                                                            updateItemQuantity(item.id, 1, sabor);
+                                                                            setOpenFlavorPopoverId(null); // Close popover after selection
+                                                                        }}
+                                                                    >
+                                                                        {sabor}
+                                                                    </Button>
+                                                                ))}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                ) : (
+                                                    <>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity === 0}><MinusCircle className="h-4 w-4" /></Button>
+                                                        <span className="font-bold w-4 text-center">{currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity || 0}</span>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}><PlusCircle className="h-4 w-4" /></Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                   )
+                                  )}
                                 </div>
-                            </CardContent>
-                        </Card>
-                       )
-                      )}
-                    </div>
-                  </div>
+                            </div>
+                       </ScrollArea>
+                    </TabsContent>
                 ))}
-              </div>
-            </ScrollArea>
+             </Tabs>
           </CardContent>
         </Card>
       </div>
@@ -383,36 +415,34 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           </CardContent>
           <CardFooter className="flex-col space-y-4 pt-4">
             <div className="flex justify-between w-full text-xl font-bold"><span>Total:</span><span>${total.toFixed(2)}</span></div>
+             {currentOrder.partialPaymentsTotal && currentOrder.partialPaymentsTotal > 0 && (
+                <div className="flex justify-between w-full text-lg font-semibold text-orange-600">
+                    <span>Pagado Parcialmente:</span>
+                    <span>-${currentOrder.partialPaymentsTotal.toFixed(2)}</span>
+                </div>
+            )}
+            <div className="flex justify-between w-full text-2xl font-bold text-primary"><span>Total Pendiente:</span><span>${remainingAmountToPay.toFixed(2)}</span></div>
+
             <div className="grid grid-cols-1 gap-2 w-full">
                {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4"/> Enviar a Cocina</Button>)}
               {currentOrder.status === 'preparing' && (
-                  <div className="grid grid-cols-1 gap-2 w-full">
-                      {hasUnsentChanges && (<Button size="lg" onClick={handleSendUpdateToKitchen}><Send className="mr-2 h-4 w-4" /> Enviar Actualización</Button>)}
+                  <div className="grid grid-cols-2 gap-2 w-full">
+                      {hasUnsentChanges && (<Button size="lg" className="col-span-2" onClick={handleSendUpdateToKitchen}><Send className="mr-2 h-4 w-4" /> Enviar Actualización</Button>)}
+
+                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleFullPayment('efectivo')} disabled={remainingAmountToPay <= 0}>Efectivo</Button>
+                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleFullPayment('tarjeta')} disabled={remainingAmountToPay <= 0}>Tarjeta</Button>
+                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => setSplitPaymentDialogOpen(true)} disabled={remainingAmountToPay <= 0}>Transferencia/DeUna</Button>
+
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white"><Calculator className="mr-2 h-4 w-4"/> Finalizar y Cobrar</Button></AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Calcular Cambio</AlertDialogTitle>
-                            <AlertDialogDescription>El total del pedido es <strong>${total.toFixed(2)}</strong>. Ingrese el monto recibido para calcular el cambio.</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <div className="space-y-2">
-                            <label htmlFor="amount-received" className="text-sm font-medium">Monto Recibido</label>
-                            <Input id="amount-received" type="number" placeholder="e.g., 50.00" value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} />
-                             {parseFloat(amountReceived) >= total && (<p className="text-lg font-bold text-primary">Cambio a entregar: ${(parseFloat(amountReceived) - total).toFixed(2)}</p>)}
-                          </div>
-                          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleCompleteAndPay} disabled={parseFloat(amountReceived) < total}>Confirmar Pago</AlertDialogAction></AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild><Button size="lg" variant="destructive"><XCircle className="mr-2 h-4 w-4"/> Cancelar Pedido</Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild><Button size="lg" variant="destructive" className="col-span-2"><XCircle className="mr-2 h-4 w-4"/> Cancelar Pedido</Button></AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de cancelar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible. El pedido será marcado como cancelado y se notificará a la cocina. No aparecerá en el historial de ventas.</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, cancelar pedido</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                   </div>
-              )}
-              <Button size="lg" variant="outline" onClick={handleBack}><ArrowLeft className="mr-2 h-4 w-4"/> Volver</Button>
+ )}
+              <Button size="lg" variant="outline" onClick={handleBack} className="col-span-2"><ArrowLeft className="mr-2 h-4 w-4"/> Volver</Button>
             </div>
           </CardFooter>
         </Card>
@@ -432,6 +462,28 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           </AlertDialogContent>
       </AlertDialog>
 
+      {/* Split Payment Dialog */}
+      <AlertDialog open={splitPaymentDialogOpen} onOpenChange={setSplitPaymentDialogOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Pago Parcial</AlertDialogTitle>
+                  <AlertDialogDescription>Ingrese el monto y seleccione el método de pago parcial. Total Pendiente: <strong>${remainingAmountToPay.toFixed(2)}</strong></AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="space-y-4">
+                   <div className="space-y-2">
+                        <label htmlFor="split-amount" className="text-sm font-medium">Monto a Pagar</label>
+                        <Input id="split-amount" type="number" placeholder="e.g., 10.00" value={splitAmount} onChange={(e) => setSplitAmount(e.target.value)} autoFocus />
+                   </div>
+              </div>
+              <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => {
+                      setSplitPaymentDialogOpen(false);
+                      setSplitAmount('');
+                      setSplitPaymentMethod('');
+                  }}>Cancelar</AlertDialogCancel>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

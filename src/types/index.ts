@@ -13,6 +13,7 @@ export interface OrderItem {
   quantity: number;
   notes: string;
   customPrice?: number;
+  isPaid?: boolean; // Added isPaid property
 }
 
 export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';
