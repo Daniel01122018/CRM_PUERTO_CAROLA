@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Order, Table, User } from '@/types';
 import { TOTAL_TABLES } from '@/lib/data';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, doc, setDoc } from "firebase/firestore";
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
   if (typeof window === 'undefined') {
@@ -18,23 +20,22 @@ const getInitialState = <T,>(key: string, defaultValue: T): T => {
 };
 
 export function useAppStore() {
-  const [orders, setOrders] = useState<Order[]>(() => getInitialState<Order[]>('orders', []));
+  const [orders, setOrders] = useState<Order[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => getInitialState<User | null>('currentUser', null));
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    
+    // Set up the real-time listener for orders
+    const unsubscribe = onSnapshot(collection(db, "orders"), (snapshot) => {
+        const ordersData = snapshot.docs.map(doc => doc.data() as Order);
+        setOrders(ordersData);
+    });
+
+    return () => unsubscribe(); // Cleanup listener on component unmount
   }, []);
 
-  useEffect(() => {
-    if (isMounted) {
-      try {
-        window.localStorage.setItem('orders', JSON.stringify(orders));
-      } catch (error) {
-        console.error('Error writing to localStorage:', error);
-      }
-    }
-  }, [orders, isMounted]);
 
   useEffect(() => {
     if (isMounted) {
@@ -76,26 +77,27 @@ export function useAppStore() {
     setCurrentUser(null);
   }, []);
 
-  const addOrUpdateOrder = useCallback((order: Order) => {
-    setOrders(prevOrders => {
-      const existingOrderIndex = prevOrders.findIndex(o => o.id === order.id);
-      if (existingOrderIndex > -1) {
-        const updatedOrders = [...prevOrders];
-        updatedOrders[existingOrderIndex] = order;
-        return updatedOrders;
-      }
-      return [...prevOrders, order];
-    });
+  const addOrUpdateOrder = useCallback(async (order: Order) => {
+    try {
+      // Use the order id as the document id in Firestore
+      const orderRef = doc(db, "orders", order.id);
+      await setDoc(orderRef, order, { merge: true }); // merge: true prevents overwriting if you only send partial data
+    } catch (error) {
+        console.error("Error adding/updating document: ", error);
+    }
   }, []);
   
-  const cancelOrder = useCallback((orderId: string) => {
-    setOrders(prevOrders => {
-      return prevOrders.map(o => 
-        o.id === orderId 
-        ? { ...o, status: 'cancelled' as const, cancelledAt: Date.now() } 
-        : o
-      );
-    });
+  const cancelOrder = useCallback(async (orderId: string) => {
+    try {
+        const orderRef = doc(db, "orders", orderId);
+        const cancelledOrderData = {
+            status: 'cancelled' as const,
+            cancelledAt: Date.now()
+        };
+        await setDoc(orderRef, cancelledOrderData, { merge: true });
+    } catch (error) {
+        console.error("Error cancelling order: ", error);
+    }
   }, []);
 
   return { 

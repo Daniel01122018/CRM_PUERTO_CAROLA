@@ -27,7 +27,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 21, nombre: "PAN", precio: 0.25, category: 'Adicionales' },
   { id: 22, nombre: "MAIZ TOSTADO", precio: 0.25, category: 'Adicionales' },
   { id: 23, nombre: "TARRINA/CONTENEDOR", precio: 0.25, category: 'Adicionales' },
-  { id: 34, nombre: "TOSTADO DE QUESO", precio: 1.00, category: 'Adicionales' },
+  { id: 34, nombre: "TOSTADA DE QUESO", precio: 1.00, category: 'Adicionales' },
   { id: 35, nombre: "TOSTADA MIXTA", precio: 1.25, category: 'Adicionales' },
 
   // Bebidas
@@ -52,4 +52,4 @@ export const USERS = {
     'cocina': 'cocina01'
 };
 
-export const TOTAL_TABLES = 10;
+export const TOTAL_TABLES = 14;

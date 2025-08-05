@@ -13,10 +13,10 @@ export interface OrderItem {
   quantity: number;
   notes: string;
   customPrice?: number;
-  isPaid?: boolean; // Added isPaid property
 }
 
 export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';
+export type PaymentMethod = 'Efectivo' | 'Tarjeta' | 'Transferencia' | 'Yape/Plin';
 
 export interface Order {
   id: string; // timestamp based
@@ -27,6 +27,9 @@ export interface Order {
   createdAt: number;
   cancelledAt?: number;
   notes?: string;
+  paymentMethod?: PaymentMethod;
+  partialPayments?: { amount: number; method: PaymentMethod; timestamp: number }[];
+  partialPaymentsTotal?: number;
 }
 
 export interface Table {

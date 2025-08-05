@@ -14,8 +14,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, MinusCircle, Trash2, Calculator, ArrowLeft, Send, Plus, XCircle } from 'lucide-react';
+import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, CreditCard, Smartphone, Banknote } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -25,20 +26,27 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const { toast } = useToast();
   const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
-  const [amountReceived, setAmountReceived] = useState('');
   const [sentItems, setSentItems] = useState<OrderItem[]>([]);
   const [hasUnsentChanges, setHasUnsentChanges] = useState(false);
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [splitPaymentDialogOpen, setSplitPaymentDialogOpen] = useState(false);
-  const [splitAmount, setSplitAmount] = useState('');
-  const [splitPaymentMethod, setSplitPaymentMethod] = useState<PaymentMethod | ''>('');
-
+  
   const [customPrice, setCustomPrice] = useState('');
   const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
   const [customPriceItem, setCustomPriceItem] = useState<MenuItem | null>(null);
-
-  // State to manage open popovers for flavor selection
+  
   const [openFlavorPopoverId, setOpenFlavorPopoverId] = useState<number | null>(null);
+  const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [amountReceived, setAmountReceived] = useState('');
+  const [change, setChange] = useState(0);
+
+  const availableMenuItems = useMemo(() => {
+    if (!currentOrder) return [];
+    const isTakeaway = currentOrder.tableId === 'takeaway';
+    return isTakeaway 
+        ? MENU_ITEMS 
+        : MENU_ITEMS.filter(item => !item.takeawayOnly);
+  }, [currentOrder]);
+
+  const menuCategories = useMemo(() => [...new Set(availableMenuItems.map(item => item.category))], [availableMenuItems]);
 
   useEffect(() => {
     if (!isMounted) return;
@@ -49,24 +57,28 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     if (orderIdOrTableId.startsWith('new-')) {
       const type = orderIdOrTableId.substring(4); 
+      let tableId: number | 'takeaway';
       if (type !== 'takeaway') {
-        const tableId = parseInt(type, 10);
-        const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
-        if (existingOrderForTable) {
-          setCurrentOrder(existingOrderForTable);
-          const initialSentItems = existingOrderForTable.status !== 'active' ? [] : existingOrderForTable.items;
-          setSentItems(initialSentItems);
-          return; 
-        }
+         tableId = parseInt(type, 10);
+         const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
+         if (existingOrderForTable) {
+            router.push(`/order/${existingOrderForTable.id}`);
+            return;
+         }
+      } else {
+        tableId = 'takeaway';
       }
+
       setCurrentOrder({
         id: Date.now().toString(),
-        tableId: type === 'takeaway' ? 'takeaway' : parseInt(type, 10),
+        tableId: tableId,
         items: [],
         status: 'active',
         createdAt: Date.now(),
         total: 0,
         notes: '',
+        partialPayments: [],
+        partialPaymentsTotal: 0,
       });
       setSentItems([]);
       setHasUnsentChanges(false);
@@ -76,9 +88,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       
       if (existingOrder) {
           setCurrentOrder(existingOrder);
-          const initialSentItems = existingOrder.status !== 'active' ? existingOrder.items : [];
-          setSentItems(initialSentItems);
+          // Sent items are items that were part of the order when it was last set to 'preparing'
+          const lastSentItems = existingOrder.status === 'preparing' || existingOrder.status === 'completed'
+            ? existingOrder.items 
+            : [];
+          setSentItems(lastSentItems);
       } else {
+        // If order is not found, it might be completed or cancelled, redirect
         toast({
           variant: "destructive",
           title: "Pedido no encontrado",
@@ -92,6 +108,35 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       }
     }
   }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
+
+  useEffect(() => {
+    if (currentOrder?.status !== 'active') {
+        setHasUnsentChanges(false);
+    }
+  }, [currentOrder?.status]);
+
+  const total = useMemo(() => {
+    if (!currentOrder || !currentOrder.items) return 0;
+    return currentOrder.items.reduce((acc, orderItem) => {
+      const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
+      const price = orderItem.customPrice || (menuItem ? menuItem.precio : 0);
+      return acc + (price * orderItem.quantity);
+    }, 0);
+  }, [currentOrder]);
+  
+  const remainingAmountToPay = useMemo(() => {
+      return total - (currentOrder?.partialPaymentsTotal || 0);
+  }, [total, currentOrder?.partialPaymentsTotal]);
+
+  useEffect(() => {
+    const received = parseFloat(amountReceived);
+    if (!isNaN(received) && received >= remainingAmountToPay) {
+      setChange(received - remainingAmountToPay);
+    } else {
+      setChange(0);
+    }
+  }, [amountReceived, remainingAmountToPay]);
+
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     if (!currentOrder) return;
@@ -111,9 +156,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         const newItem: OrderItem = { menuItemId, quantity: change, notes };
         newItems.push(newItem);
       }
-      if (JSON.stringify(prev.items) !== JSON.stringify(newItems)) {
-        setHasUnsentChanges(true);
-      }
+
+      setHasUnsentChanges(true);
+
       return { ...prev, items: newItems };
     });
   };
@@ -142,11 +187,19 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         const newItems = [...(prev.items || [])];
         const itemToUpdate = newItems[itemIndex];
         const sentItem = sentItems.find(i => i.menuItemId === itemToUpdate.menuItemId && i.notes === itemToUpdate.notes);
+        
+        let sentQuantity = 0;
+        if (sentItem) {
+          sentQuantity = sentItem.quantity;
+        }
+
         const newQuantity = itemToUpdate.quantity + change;
-        if (sentItem && newQuantity < sentItem.quantity) {
+
+        if (newQuantity < sentQuantity) {
             toast({ variant: "destructive", title: "Acción no permitida", description: "No se puede reducir la cantidad de un artículo ya enviado." });
             return prev;
         }
+
         if (newQuantity <= 0) {
             if (sentItem) {
                  toast({ variant: "destructive", title: "Acción no permitida", description: "No se puede eliminar un artículo que ya fue enviado a cocina." });
@@ -189,15 +242,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     setIsCustomPriceDialogOpen(false);
   }
 
-  const total = useMemo(() => {
-    if (!currentOrder || !currentOrder.items) return 0;
-    return currentOrder.items.reduce((acc, orderItem) => {
-      const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
-      const price = orderItem.customPrice || (menuItem ? menuItem.precio : 0);
-      return acc + (price * orderItem.quantity);
-    }, 0);
-  }, [currentOrder]);
-
   
   const handleSendToKitchen = () => {
     if (!currentOrder || !currentOrder.id || !currentOrder.items || currentOrder.items.length === 0) {
@@ -206,9 +250,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }
     const orderToSave: Order = { ...currentOrder, total, status: 'preparing' } as Order;
     addOrUpdateOrder(orderToSave);
-    setSentItems(orderToSave.items);
-    setHasUnsentChanges(false);
+    
     toast({ title: "Pedido enviado a cocina", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido enviado.` });
+    
     if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
     else router.push('/dashboard');
   };
@@ -217,8 +261,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (!currentOrder || !currentOrder.id || !currentOrder.items) return;
     const orderToSave: Order = { ...currentOrder, total } as Order;
     addOrUpdateOrder(orderToSave);
-    setSentItems(orderToSave.items);
-    setHasUnsentChanges(false);
+    
     toast({ title: "Actualización enviada", description: "Nuevos artículos enviados a cocina." });
     if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
     else router.push('/dashboard');
@@ -227,19 +270,16 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!currentOrder) return;
     setCurrentOrder({ ...currentOrder, notes: e.target.value });
-    if (currentOrder.status !== 'active') setHasUnsentChanges(true);
+    setHasUnsentChanges(true);
   };
   
   const handleFullPayment = (paymentMethod: PaymentMethod) => {
      if (!currentOrder || !currentOrder.id) return;
      const orderToSave: Order = { ...currentOrder, total, status: 'completed', paymentMethod: paymentMethod } as Order;
      addOrUpdateOrder(orderToSave);
-     toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado y pagado con ${paymentMethod}.` });
+     toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado.` });
      setPaymentDialogOpen(false);
-     setSplitPaymentDialogOpen(false);
      setAmountReceived('');
-     setSplitAmount('');
-     setSplitPaymentMethod('');
      if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
      else router.push('/dashboard');
   }
@@ -254,30 +294,19 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }
 
   const handleBack = () => {
-    if (currentOrder?.status === 'active' && (currentOrder.items?.length || 0) > 0) {
+    if (currentOrder?.status === 'active' && hasUnsentChanges && (currentOrder.items?.length || 0) > 0) {
        addOrUpdateOrder({ ...currentOrder, total } as Order);
     }
     if (currentOrder?.tableId === 'takeaway') router.push('/takeaway');
     else router.push('/dashboard');
   }
 
-  const isTakeaway = currentOrder?.tableId === 'takeaway';
-  const availableMenuItems = useMemo(() => {
-      return MENU_ITEMS;
-  }, []); // Removed the dependency on isTakeaway and filtering
-
-  const menuCategories = useMemo(() => [...new Set(availableMenuItems.map(item => item.category))], [availableMenuItems]);
-
-  const remainingAmountToPay = useMemo(() => {
-      return total - (currentOrder?.partialPaymentsTotal || 0);
-  }, [total, currentOrder?.partialPaymentsTotal]);
-
-
   if (!isMounted || !currentOrder) {
-    return <div>Cargando pedido...</div>;
+    return <div className="flex h-screen items-center justify-center">Cargando pedido...</div>;
   }
   
   const tableId = currentOrder.tableId;
+  const isNotesDisabled = currentOrder.status === 'preparing' || currentOrder.status === 'completed';
 
   return (
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -377,7 +406,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   {currentOrder.items.map((orderItem, index) => {
                     const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
-                    const isLocked = sentItems.some(sent => sent.menuItemId === orderItem.menuItemId && sent.notes === orderItem.notes && sent.customPrice === orderItem.customPrice && sent.quantity >= orderItem.quantity);
+
+                    const sentItem = sentItems.find(si => si.menuItemId === orderItem.menuItemId && si.notes === orderItem.notes && si.customPrice === orderItem.customPrice);
+                    const sentQuantity = sentItem?.quantity || 0;
+                    const isLocked = sentQuantity > 0 && orderItem.quantity <= sentQuantity;
+
                     const isCustomPrice = !!orderItem.customPrice;
 
                     return (
@@ -390,7 +423,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${((orderItem.customPrice || menuItem.precio) * orderItem.quantity).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItemByIndex(index)} disabled={isLocked}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItemByIndex(index)} disabled={!!sentItem}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 {!isCustomPrice && (
                                     <>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantityByIndex(index, -1)} disabled={isLocked}><MinusCircle className="h-4 w-4" /></Button>
@@ -410,7 +443,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             </ScrollArea>
             <div className="space-y-1 pt-4 pr-4">
                 <label htmlFor="order-notes" className="text-sm font-medium">Notas Generales</label>
-                <Textarea id="order-notes" placeholder="Añadir notas para la cocina (ej. alergias, sin picante, etc.)" value={currentOrder.notes || ''} onChange={handleNotesChange} className="mt-1" disabled={currentOrder.status === 'preparing'}/>
+                <Textarea id="order-notes" placeholder="Añadir notas para la cocina (ej. alergias, sin picante, etc.)" value={currentOrder.notes || ''} onChange={handleNotesChange} className="mt-1" disabled={isNotesDisabled}/>
             </div>
           </CardContent>
           <CardFooter className="flex-col space-y-4 pt-4">
@@ -424,25 +457,23 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             <div className="flex justify-between w-full text-2xl font-bold text-primary"><span>Total Pendiente:</span><span>${remainingAmountToPay.toFixed(2)}</span></div>
 
             <div className="grid grid-cols-1 gap-2 w-full">
-               {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4"/> Enviar a Cocina</Button>)}
+               {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0 || !hasUnsentChanges}><Send className="mr-2 h-4 w-4"/> Enviar a Cocina</Button>)}
               {currentOrder.status === 'preparing' && (
-                  <div className="grid grid-cols-2 gap-2 w-full">
-                      {hasUnsentChanges && (<Button size="lg" className="col-span-2" onClick={handleSendUpdateToKitchen}><Send className="mr-2 h-4 w-4" /> Enviar Actualización</Button>)}
+                  <div className="grid grid-cols-1 gap-2 w-full">
+                      {hasUnsentChanges && (<Button size="lg" onClick={handleSendUpdateToKitchen}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
 
-                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleFullPayment('efectivo')} disabled={remainingAmountToPay <= 0}>Efectivo</Button>
-                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleFullPayment('tarjeta')} disabled={remainingAmountToPay <= 0}>Tarjeta</Button>
-                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => setSplitPaymentDialogOpen(true)} disabled={remainingAmountToPay <= 0}>Transferencia/DeUna</Button>
+                      <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)}>Finalizar y Cobrar</Button>
 
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button size="lg" variant="destructive" className="col-span-2"><XCircle className="mr-2 h-4 w-4"/> Cancelar Pedido</Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild><Button size="lg" variant="destructive"><XCircle className="mr-2 h-4 w-4"/> Cancelar Pedido</Button></AlertDialogTrigger>
                         <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de cancelar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible. El pedido será marcado como cancelado y se notificará a la cocina. No aparecerá en el historial de ventas.</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, cancelar pedido</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                   </div>
- )}
-              <Button size="lg" variant="outline" onClick={handleBack} className="col-span-2"><ArrowLeft className="mr-2 h-4 w-4"/> Volver</Button>
+              )}
+              <Button size="lg" variant="outline" onClick={handleBack}><ArrowLeft className="mr-2 h-4 w-4"/> Volver</Button>
             </div>
           </CardFooter>
         </Card>
@@ -461,29 +492,51 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               </AlertDialogFooter>
           </AlertDialogContent>
       </AlertDialog>
-
-      {/* Split Payment Dialog */}
-      <AlertDialog open={splitPaymentDialogOpen} onOpenChange={setSplitPaymentDialogOpen}>
-          <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>Pago Parcial</AlertDialogTitle>
-                  <AlertDialogDescription>Ingrese el monto y seleccione el método de pago parcial. Total Pendiente: <strong>${remainingAmountToPay.toFixed(2)}</strong></AlertDialogDescription>
-              </AlertDialogHeader>
-              <div className="space-y-4">
-                   <div className="space-y-2">
-                        <label htmlFor="split-amount" className="text-sm font-medium">Monto a Pagar</label>
-                        <Input id="split-amount" type="number" placeholder="e.g., 10.00" value={splitAmount} onChange={(e) => setSplitAmount(e.target.value)} autoFocus />
-                   </div>
+      
+      <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Finalizar y Cobrar Pedido</DialogTitle>
+                  <DialogDescription>Seleccione el método de pago para completar la transacción.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                  <div className="text-center">
+                      <p className="text-sm text-muted-foreground">Total a Pagar</p>
+                      <p className="text-4xl font-bold">${remainingAmountToPay.toFixed(2)}</p>
+                  </div>
+                  <Tabs defaultValue="Efectivo" className="w-full">
+                      <TabsList className="grid w-full grid-cols-4">
+                          <TabsTrigger value="Efectivo"><Banknote className="h-5 w-5"/></TabsTrigger>
+                          <TabsTrigger value="Tarjeta"><CreditCard className="h-5 w-5"/></TabsTrigger>
+                          <TabsTrigger value="Transferencia"><Smartphone className="h-5 w-5"/></TabsTrigger>
+                          <TabsTrigger value="Yape/Plin"><Smartphone className="h-5 w-5"/></TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="Efectivo">
+                          <div className="space-y-2 mt-4">
+                              <Label htmlFor="amount-received">Monto Recibido</Label>
+                              <Input id="amount-received" type="number" placeholder="Ingrese el monto..." value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} />
+                               {change > 0 && (
+                                  <p className="text-sm text-green-600 font-medium text-center pt-2">Vuelto: ${change.toFixed(2)}</p>
+                              )}
+                          </div>
+                          <Button className="w-full mt-4" onClick={() => handleFullPayment('Efectivo')} disabled={parseFloat(amountReceived) < remainingAmountToPay}>Pagar con Efectivo</Button>
+                      </TabsContent>
+                       <TabsContent value="Tarjeta">
+                           <Button className="w-full mt-4" onClick={() => handleFullPayment('Tarjeta')}>Pagar con Tarjeta</Button>
+                       </TabsContent>
+                       <TabsContent value="Transferencia">
+                           <Button className="w-full mt-4" onClick={() => handleFullPayment('Transferencia')}>Pagar con Transferencia</Button>
+                       </TabsContent>
+                       <TabsContent value="Yape/Plin">
+                           <Button className="w-full mt-4" onClick={() => handleFullPayment('Yape/Plin')}>Pagar con Yape/Plin</Button>
+                       </TabsContent>
+                  </Tabs>
               </div>
-              <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => {
-                      setSplitPaymentDialogOpen(false);
-                      setSplitAmount('');
-                      setSplitPaymentMethod('');
-                  }}>Cancelar</AlertDialogCancel>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-      </AlertDialog>
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancelar</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
     </div>
   );
 }
