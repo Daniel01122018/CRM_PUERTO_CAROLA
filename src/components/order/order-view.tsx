@@ -529,9 +529,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                        <TabsContent value="Transferencia">
                            <Button className="w-full mt-4" onClick={() => handleFullPayment('Transferencia')}>Pagar con Transferencia</Button>
                        </TabsContent>
-                       <TabsContent value="Yape/Plin">
-                           <Button className="w-full mt-4" onClick={() => handleFullPayment('Yape/Plin')}>Pagar con Yape/Plin</Button>
-                       </TabsContent>
                   </Tabs>
               </div>
               <DialogFooter>

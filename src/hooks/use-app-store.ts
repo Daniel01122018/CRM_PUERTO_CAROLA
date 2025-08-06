@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Order, Table, User } from '@/types';
+import type { Order, Table, User, Expense } from '@/types';
 import { TOTAL_TABLES } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, addDoc } from "firebase/firestore";
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
   if (typeof window === 'undefined') {
@@ -21,6 +21,7 @@ const getInitialState = <T,>(key: string, defaultValue: T): T => {
 
 export function useAppStore() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => getInitialState<User | null>('currentUser', null));
   const [isMounted, setIsMounted] = useState(false);
 
@@ -29,18 +30,30 @@ export function useAppStore() {
     
     // Set up the real-time listener for orders from Firestore
     try {
-        const unsubscribe = onSnapshot(collection(db, "orders"), (snapshot) => {
+        const unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
             const ordersData = snapshot.docs.map(doc => doc.data() as Order);
             setOrders(ordersData);
         }, (error) => {
             console.error("Error listening to orders collection:", error);
-            // This is a good place to check your Firestore security rules or Firebase config
             if (error.code === 'permission-denied') {
-                alert("Error de permisos: No se pudo conectar a la base de datos. Verifica la configuración de Firebase y las reglas de seguridad de Firestore.");
+                alert("Error de permisos: No se pudo conectar a la base de datos de pedidos. Verifica la configuración de Firebase y las reglas de seguridad de Firestore.");
             }
         });
 
-        return () => unsubscribe(); // Cleanup listener on component unmount
+        const unsubscribeExpenses = onSnapshot(collection(db, "expenses"), (snapshot) => {
+            const expensesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            setExpenses(expensesData);
+        }, (error) => {
+            console.error("Error listening to expenses collection:", error);
+            if (error.code === 'permission-denied') {
+                 alert("Error de permisos: No se pudo conectar a la base de datos de gastos. Verifica la configuración de Firebase y las reglas de seguridad de Firestore.");
+            }
+        });
+
+        return () => {
+            unsubscribeOrders(); 
+            unsubscribeExpenses();
+        };
     } catch(e) {
         console.error("Could not initialize Firebase listener. Is your firebase.ts config correct?", e);
     }
@@ -94,9 +107,8 @@ export function useAppStore() {
         return;
     }
     try {
-      // Use the order id as the document id in Firestore
       const orderRef = doc(db, "orders", order.id);
-      await setDoc(orderRef, order, { merge: true }); // merge: true prevents overwriting if you only send partial data
+      await setDoc(orderRef, order, { merge: true }); 
     } catch (error) {
         console.error("Error adding/updating document: ", error);
     }
@@ -115,6 +127,23 @@ export function useAppStore() {
     }
   }, []);
 
+  const addExpense = useCallback(async (expense: Omit<Expense, 'id' | 'createdAt' | 'createdBy'>) => {
+    if (!currentUser) {
+        console.error("No user logged in to create an expense.");
+        return;
+    }
+    try {
+      const newExpense: Omit<Expense, 'id'> = {
+        ...expense,
+        createdAt: Date.now(),
+        createdBy: currentUser.username,
+      };
+      await addDoc(collection(db, "expenses"), newExpense);
+    } catch (error) {
+      console.error("Error adding expense: ", error);
+    }
+  }, [currentUser]);
+
   return { 
     isMounted,
     currentUser,
@@ -124,5 +153,7 @@ export function useAppStore() {
     orders, 
     addOrUpdateOrder,
     cancelOrder,
+    expenses,
+    addExpense,
   };
 }

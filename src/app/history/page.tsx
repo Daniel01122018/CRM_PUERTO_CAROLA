@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/app-header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { MENU_ITEMS } from '@/lib/data';
@@ -25,6 +25,8 @@ export default function HistoryPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
+  const [orderToCancelId, setOrderToCancelId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'tables' | 'takeaway'>('all');
   const [summaryData, setSummaryData] = useState<{
     totalToday: number;
@@ -102,10 +104,35 @@ export default function HistoryPage() {
     window.print();
   };
 
+  const handleCancelOrder = (orderId: string) => {
+    setOrderToCancelId(orderId);
+    setIsAlertDialogOpen(true);
+  };
+
+  const confirmCancelOrder = async () => {
+    if (orderToCancelId) {
+      await cancelOrder(orderToCancelId);
+    }
+    setIsAlertDialogOpen(false);
+    setOrderToCancelId(null);
+  };
+
   if (!isMounted || !currentUser) {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
   
+  // Restrict access to administrators only
+  if (isMounted && currentUser && currentUser.role !== 'admin') {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center text-center">
+        <HistoryIcon className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-4">Acceso solo para administradores.</h1>
+        <Link href="/dashboard">
+          <Button>Volver al Salón</Button>
+        </Link>
+      </div>
+    );
+  }
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AppHeader />
@@ -200,8 +227,10 @@ export default function HistoryPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Pedido</TableHead>
-                                        <TableHead className="hidden sm:table-cell">Fecha</TableHead>
+                                        <TableHead className="w-[150px] hidden sm:table-cell">Fecha</TableHead>
+                                        <TableHead className="w-[100px]">Estado</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
+                                        {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center print:hidden">Acción</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -218,7 +247,16 @@ export default function HistoryPage() {
                                             <TableCell className="hidden sm:table-cell">
                                                 {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}
                                             </TableCell>
+                                            <TableCell>
+                                                {order.status === 'completed' && <span className="text-green-600">Completado</span>}
+                                                {order.status === 'cancelled' && <span className="text-red-600">Cancelado</span>}
+                                                {/* Add other statuses if needed */}
+                                            </TableCell>
                                             <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
+                                            {currentUser?.role === 'admin' && order.status === 'completed' && (
+                                            <TableCell className="text-center print:hidden">
+                                                <Button variant="destructive" size="sm" onClick={(e) => {e.stopPropagation(); handleCancelOrder(order.id)}}>Cancelar</Button>
+                                            </TableCell>)}
                                         </TableRow>
                                     )) : (
                                         <TableRow>
@@ -354,6 +392,21 @@ export default function HistoryPage() {
         </div>
 
       </main>
+      <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Cancelación</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas cancelar este pedido? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsAlertDialogOpen(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCancelOrder}>Sí, Cancelar Pedido</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

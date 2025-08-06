@@ -16,7 +16,7 @@ export interface OrderItem {
 }
 
 export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';
-export type PaymentMethod = 'Efectivo' | 'Tarjeta' | 'Transferencia' | 'Yape/Plin';
+export type PaymentMethod = 'Efectivo' | 'Tarjeta' | 'Transferencia';
 
 export interface Order {
   id: string; // timestamp based
@@ -41,4 +41,15 @@ export interface Table {
 export interface User {
   username: string;
   role: 'waiter' | 'admin' | 'kitchen';
+}
+
+export type ExpenseCategory = 'Proveedores' | 'Servicios' | 'Sueldos' | 'Marketing' | 'Mantenimiento' | 'Impuestos' | 'Otros';
+
+export interface Expense {
+    id: string;
+    description: string;
+    amount: number;
+    category: ExpenseCategory;
+    createdAt: number;
+    createdBy: string;
 }
