@@ -15,14 +15,17 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Calendar } from '@/components/ui/calendar';
 import AppHeader from '@/components/app-header';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX } from 'lucide-react';
+import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX, ChevronsUpDown } from 'lucide-react';
 import type { ExpenseCategory } from '@/types';
 import type { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+
 
 const expenseSchema = z.object({
   description: z.string().min(2, { message: 'La descripción es requerida.' }),
@@ -78,12 +81,7 @@ export default function ExpensesPage() {
       });
     }
   };
-
-  const setRecurringExpense = (expense: { name: string; category: ExpenseCategory }) => {
-    form.setValue('description', expense.name);
-    form.setValue('category', expense.category);
-  }
-
+  
   const dateFilterRange = useMemo(() => {
     const now = new Date();
     switch (filterPreset) {
@@ -213,16 +211,67 @@ export default function ExpensesPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Descripción</FormLabel>
-                          <FormControl><Input placeholder="ej. Compra de vegetales" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                            <FormLabel>Gasto / Descripción</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <FormControl>
+                                    <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                        "w-full justify-between",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value
+                                        ? RECURRING_EXPENSES.find(
+                                            (exp) => exp.name === field.value
+                                        )?.name
+                                        : "Seleccione o escriba un gasto"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0">
+                                <Command>
+                                    <CommandInput placeholder="Buscar gasto..." />
+                                    <CommandEmpty>No se encontró el gasto.</CommandEmpty>
+                                    <CommandList>
+                                        <CommandGroup>
+                                            {RECURRING_EXPENSES.map((exp) => (
+                                            <CommandItem
+                                                value={exp.name}
+                                                key={exp.name}
+                                                onSelect={() => {
+                                                    form.setValue("description", exp.name)
+                                                    form.setValue("category", exp.category)
+                                                }}
+                                            >
+                                                {exp.name}
+                                            </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                     <div className="p-2">
+                                        <Input 
+                                            placeholder="O escriba una descripción nueva"
+                                            onChange={(e) => {
+                                                form.setValue("description", e.target.value)
+                                            }}
+                                            value={field.value}
+                                        />
+                                    </div>
+                                </Command>
+                                </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
                     <FormField
                       control={form.control}
                       name="amount"
@@ -272,20 +321,6 @@ export default function ExpensesPage() {
                   </CardFooter>
                 </form>
               </Form>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Gastos Recurrentes</CardTitle>
-                    <CardDescription>Click para rellenar la descripción y categoría.</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-wrap gap-2">
-                    {RECURRING_EXPENSES.map(exp => (
-                        <Button key={exp.name} variant="outline" size="sm" onClick={() => setRecurringExpense(exp)}>
-                            {exp.name}
-                        </Button>
-                    ))}
-                </CardContent>
             </Card>
           </div>
 
