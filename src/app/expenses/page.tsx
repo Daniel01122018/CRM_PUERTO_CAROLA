@@ -15,19 +15,27 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar } from '@/components/ui/calendar';
 import AppHeader from '@/components/app-header';
 import { useToast } from '@/hooks/use-toast';
-import { format, startOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfYesterday } from 'date-fns';
+import { format, startOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfYesterday, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX } from 'lucide-react';
+import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX, ChevronsUpDown, Check } from 'lucide-react';
 import type { ExpenseCategory } from '@/types';
 import type { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+
 
 const expenseSchema = z.object({
   amount: z.coerce.number().positive({ message: 'El monto debe ser positivo.' }),
-  category: z.enum(['Proveedores', 'Insumos', 'Sueldos', 'Servicios', 'Gas', 'Mantenimiento', 'Impuestos', 'Marketing', 'Personal', 'Otros'], { required_error: 'Debe seleccionar una categoría.' }),
+  category: z.string().min(1, { message: 'Debe seleccionar o ingresar una categoría.' }),
 });
+
+const PREDEFINED_CATEGORIES: ExpenseCategory[] = [
+    "Pescado", "Chifles", "Supermercado", "Mercado Montebello", "Sueldos", 
+    "Yuca", "Camarón", "Pedido de Colas", "Pan", "Gas", "Gasto Personal"
+];
 
 type FilterPreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_7_days' | 'this_month' | 'last_month' | 'custom';
 
@@ -39,11 +47,18 @@ export default function ExpensesPage() {
   const [filterCategory, setFilterCategory] = useState<ExpenseCategory | 'all'>('all');
   const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_month');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
+  
+  const allCategories = useMemo(() => {
+    const dynamicCategories = expenses.map(e => e.category);
+    return [...new Set([...PREDEFINED_CATEGORIES, ...dynamicCategories])];
+  }, [expenses]);
+
 
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
       amount: 0,
+      category: '',
     },
   });
 
@@ -54,7 +69,7 @@ export default function ExpensesPage() {
         title: 'Gasto Registrado',
         description: `Se ha añadido un gasto en "${values.category}" por un monto de $${values.amount.toFixed(2)}.`,
       });
-      form.reset();
+      form.reset({ amount: 0, category: '' });
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -75,7 +90,7 @@ export default function ExpensesPage() {
       case 'this_week':
         return { from: startOfWeek(now, { locale: es }), to: endOfWeek(now, { locale: es }) };
       case 'last_7_days':
-        return { from: subDays(now, 6), to: endOfDay(now) };
+        return { from: subDays(startOfDay(now), 6), to: endOfDay(now) };
       case 'this_month':
         return { from: startOfMonth(now), to: endOfMonth(now) };
       case 'last_month':
@@ -92,9 +107,8 @@ export default function ExpensesPage() {
     return expenses
       .filter(expense => {
         const categoryMatch = filterCategory === 'all' || expense.category === filterCategory;
-        if (!dateFilterRange) return categoryMatch;
-        // @ts-ignore
-        const dateMatch = isWithinInterval(new Date(expense.createdAt), { start: dateFilterRange.from, end: dateFilterRange.to });
+        if (!dateFilterRange || !dateFilterRange.from) return categoryMatch;
+        const dateMatch = isWithinInterval(new Date(expense.createdAt), { start: dateFilterRange.from, end: dateFilterRange.to! });
         return categoryMatch && dateMatch;
       })
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -197,27 +211,58 @@ export default function ExpensesPage() {
                         control={form.control}
                         name="category"
                         render={({ field }) => (
-                            <FormItem>
+                            <FormItem className="flex flex-col">
                             <FormLabel>Categoría</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                             <Popover>
+                                <PopoverTrigger asChild>
                                 <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione una categoría" />
-                                </SelectTrigger>
+                                    <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                        "w-full justify-between",
+                                        !field.value && "text-muted-foreground"
+                                    )}
+                                    >
+                                    {field.value
+                                        ? allCategories.find(
+                                            (cat) => cat === field.value
+                                        )
+                                        : "Seleccionar o escribir categoría"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
                                 </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="Proveedores">Proveedores</SelectItem>
-                                    <SelectItem value="Insumos">Insumos</SelectItem>
-                                    <SelectItem value="Sueldos">Sueldos</SelectItem>
-                                    <SelectItem value="Servicios">Servicios (Agua, Luz)</SelectItem>
-                                    <SelectItem value="Gas">Gas</SelectItem>
-                                    <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
-                                    <SelectItem value="Impuestos">Impuestos</SelectItem>
-                                    <SelectItem value="Marketing">Marketing</SelectItem>
-                                    <SelectItem value="Personal">Gasto Personal</SelectItem>
-                                    <SelectItem value="Otros">Otros</SelectItem>
-                                </SelectContent>
-                            </Select>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command>
+                                     <CommandInput placeholder="Buscar o crear categoría..." />
+                                    <CommandList>
+                                        <CommandEmpty>No se encontró la categoría.</CommandEmpty>
+                                        <CommandGroup>
+                                        {allCategories.map((cat) => (
+                                            <CommandItem
+                                                value={cat}
+                                                key={cat}
+                                                onSelect={() => {
+                                                    form.setValue("category", cat)
+                                                }}
+                                                >
+                                                <Check
+                                                className={cn(
+                                                    "mr-2 h-4 w-4",
+                                                    cat === field.value
+                                                    ? "opacity-100"
+                                                    : "opacity-0"
+                                                )}
+                                                />
+                                                {cat}
+                                            </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                                </PopoverContent>
+                            </Popover>
                             <FormMessage />
                             </FormItem>
                         )}
@@ -257,16 +302,9 @@ export default function ExpensesPage() {
                                 <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar categoría" /></SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Todas las categorías</SelectItem>
-                                    <SelectItem value="Proveedores">Proveedores</SelectItem>
-                                    <SelectItem value="Insumos">Insumos</SelectItem>
-                                    <SelectItem value="Sueldos">Sueldos</SelectItem>
-                                    <SelectItem value="Servicios">Servicios</SelectItem>
-                                    <SelectItem value="Gas">Gas</SelectItem>
-                                    <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
-                                    <SelectItem value="Impuestos">Impuestos</SelectItem>
-                                    <SelectItem value="Marketing">Marketing</SelectItem>
-                                    <SelectItem value="Personal">Gasto Personal</SelectItem>
-                                    <SelectItem value="Otros">Otros</SelectItem>
+                                    {allCategories.map(cat => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
 
@@ -289,8 +327,8 @@ export default function ExpensesPage() {
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     {customDateRange?.from ? 
                                         customDateRange.to ? 
-                                        `${format(customDateRange.from, 'LLL dd, y')} - ${format(customDateRange.to, 'LLL dd, y')}` : 
-                                        format(customDateRange.from, 'LLL dd, y') : 
+                                        `${format(customDateRange.from, 'LLL dd, y', { locale: es })} - ${format(customDateRange.to, 'LLL dd, y', { locale: es })}` : 
+                                        format(customDateRange.from, 'LLL dd, y', { locale: es }) : 
                                         <span>Fecha personalizada</span>}
                                 </Button>
                                 </PopoverTrigger>
