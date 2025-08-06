@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppStore } from '@/hooks/use-app-store';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -15,36 +15,19 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Calendar } from '@/components/ui/calendar';
 import AppHeader from '@/components/app-header';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX } from 'lucide-react';
 import type { ExpenseCategory } from '@/types';
 import type { DateRange } from 'react-day-picker';
-import { cn } from '@/lib/utils';
-
 
 const expenseSchema = z.object({
-  description: z.string().min(2, { message: 'La descripción es requerida.' }),
   amount: z.coerce.number().positive({ message: 'El monto debe ser positivo.' }),
   category: z.enum(['Proveedores', 'Insumos', 'Sueldos', 'Servicios', 'Gas', 'Mantenimiento', 'Impuestos', 'Marketing', 'Personal', 'Otros'], { required_error: 'Debe seleccionar una categoría.' }),
 });
-
-const RECURRING_EXPENSES: { name: string; category: ExpenseCategory }[] = [
-    { name: "Pescado", category: "Proveedores" },
-    { name: "Chifles", category: "Insumos" },
-    { name: "Supermercado", category: "Insumos" },
-    { name: "Mercado Montebello", category: "Insumos" },
-    { name: "Sueldos", category: "Sueldos" },
-    { name: "Yuca", category: "Insumos" },
-    { name: "Camarón", category: "Proveedores" },
-    { name: "Pedido de Colas", category: "Proveedores" },
-    { name: "Pan", category: "Insumos" },
-    { name: "Gas", category: "Gas" }
-];
 
 type FilterPreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_7_days' | 'this_month' | 'last_month' | 'custom';
 
@@ -60,7 +43,6 @@ export default function ExpensesPage() {
   const form = useForm<z.infer<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
-      description: '',
       amount: 0,
     },
   });
@@ -70,7 +52,7 @@ export default function ExpensesPage() {
       await addExpense(values);
       toast({
         title: 'Gasto Registrado',
-        description: `Se ha añadido "${values.description}" por un monto de $${values.amount.toFixed(2)}.`,
+        description: `Se ha añadido un gasto en "${values.category}" por un monto de $${values.amount.toFixed(2)}.`,
       });
       form.reset();
     } catch (error) {
@@ -111,6 +93,7 @@ export default function ExpensesPage() {
       .filter(expense => {
         const categoryMatch = filterCategory === 'all' || expense.category === filterCategory;
         if (!dateFilterRange) return categoryMatch;
+        // @ts-ignore
         const dateMatch = isWithinInterval(new Date(expense.createdAt), { start: dateFilterRange.from, end: dateFilterRange.to });
         return categoryMatch && dateMatch;
       })
@@ -210,79 +193,6 @@ export default function ExpensesPage() {
                     <CardTitle>Registrar Nuevo Gasto</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <FormField
-                        control={form.control}
-                        name="description"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                            <FormLabel>Gasto / Descripción</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    className={cn(
-                                        "w-full justify-between",
-                                        !field.value && "text-muted-foreground"
-                                    )}
-                                    >
-                                    {field.value
-                                        ? RECURRING_EXPENSES.find(
-                                            (exp) => exp.name === field.value
-                                        )?.name
-                                        : "Seleccione o escriba un gasto"}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-full p-0">
-                                <Command>
-                                    <CommandInput placeholder="Buscar gasto..." />
-                                    <CommandEmpty>No se encontró el gasto.</CommandEmpty>
-                                    <CommandList>
-                                        <CommandGroup>
-                                            {RECURRING_EXPENSES.map((exp) => (
-                                            <CommandItem
-                                                value={exp.name}
-                                                key={exp.name}
-                                                onSelect={() => {
-                                                    form.setValue("description", exp.name)
-                                                    form.setValue("category", exp.category)
-                                                }}
-                                            >
-                                                {exp.name}
-                                            </CommandItem>
-                                            ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                     <div className="p-2">
-                                        <Input 
-                                            placeholder="O escriba una descripción nueva"
-                                            onChange={(e) => {
-                                                form.setValue("description", e.target.value)
-                                            }}
-                                            value={field.value}
-                                        />
-                                    </div>
-                                </Command>
-                                </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    <FormField
-                      control={form.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Monto ($)</FormLabel>
-                          <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                      <FormField
                         control={form.control}
                         name="category"
@@ -312,6 +222,17 @@ export default function ExpensesPage() {
                             </FormItem>
                         )}
                         />
+                    <FormField
+                      control={form.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Monto ($)</FormLabel>
+                          <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </CardContent>
                   <CardFooter>
                     <Button type="submit" className="w-full">
@@ -403,7 +324,6 @@ export default function ExpensesPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Fecha</TableHead>
-                                        <TableHead>Descripción</TableHead>
                                         <TableHead>Categoría</TableHead>
                                         <TableHead className="text-right">Monto</TableHead>
                                     </TableRow>
@@ -416,18 +336,17 @@ export default function ExpensesPage() {
                                                         {format(new Date(expense.createdAt), "dd MMM yyyy", { locale: es })}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div className="font-medium">{expense.description}</div>
+                                                        <div className="font-medium">{expense.category}</div>
                                                         <div className="text-xs text-muted-foreground sm:hidden">
                                                             {format(new Date(expense.createdAt), "dd/MM/yy", { locale: es })}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell>{expense.category}</TableCell>
                                                     <TableCell className="text-right font-medium">${expense.amount.toFixed(2)}</TableCell>
                                                 </TableRow>
                                             ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={4} className="h-24 text-center">
+                                            <TableCell colSpan={3} className="h-24 text-center">
                                                 No hay gastos que coincidan con los filtros.
                                             </TableCell>
                                         </TableRow>

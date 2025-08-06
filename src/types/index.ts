@@ -47,7 +47,6 @@ export type ExpenseCategory = 'Proveedores' | 'Insumos' | 'Sueldos' | 'Servicios
 
 export interface Expense {
     id: string;
-    description: string;
     amount: number;
     category: ExpenseCategory;
     createdAt: number;
