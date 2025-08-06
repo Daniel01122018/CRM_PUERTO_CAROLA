@@ -3,14 +3,14 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
-// TODO: Replace with your actual Firebase configuration from your Firebase project console
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDYFqq5d5A-0uRpAsDh13jFeiuARuXDX3U",
+  authDomain: "el-puerto-de-carola-crm.firebaseapp.com",
+  projectId: "el-puerto-de-carola-crm",
+  storageBucket: "el-puerto-de-carola-crm.firebasestorage.app",
+  messagingSenderId: "863402545896",
+  appId: "1:863402545896:web:9db2295bdd445378406f5d",
+  measurementId: "G-2YHV4MT7MN"
 };
 
 // Initialize Firebase
