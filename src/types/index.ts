@@ -43,7 +43,7 @@ export interface User {
   role: 'waiter' | 'admin' | 'kitchen';
 }
 
-export type ExpenseCategory = 'Proveedores' | 'Servicios' | 'Sueldos' | 'Marketing' | 'Mantenimiento' | 'Impuestos' | 'Otros';
+export type ExpenseCategory = 'Proveedores' | 'Insumos' | 'Sueldos' | 'Servicios' | 'Gas' | 'Mantenimiento' | 'Impuestos' | 'Marketing' | 'Personal' | 'Otros';
 
 export interface Expense {
     id: string;
