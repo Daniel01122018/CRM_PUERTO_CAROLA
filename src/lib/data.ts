@@ -50,6 +50,7 @@ export const USERS = {
     'Mesero1': '1234567890',
     'admin1': 'admin01',
     'cocina': 'cocina01'
+    
 };
 
 export const TOTAL_TABLES = 14;
