@@ -36,6 +36,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 26, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
   { id: 32, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
   { id: 33, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
+  { id: 36, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },
   
   // Platos solo para llevar
   { id: 27, nombre: "Guatita Media tarrina", precio: 3.25, category: 'Platos', takeawayOnly: true },
