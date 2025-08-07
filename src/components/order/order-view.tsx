@@ -92,7 +92,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           setCurrentOrder(existingOrder);
           // Sent items are items that were part of the order when it was last set to 'preparing'
           const lastSentItems = existingOrder.status === 'preparing' || existingOrder.status === 'completed'
-            ? existingOrder.items 
+            ? [...existingOrder.items]
             : [];
           setSentItems(lastSentItems);
       } else {
@@ -507,11 +507,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                       <p className="text-4xl font-bold">${remainingAmountToPay.toFixed(2)}</p>
                   </div>
                   <Tabs defaultValue="Efectivo" className="w-full">
-                      <TabsList className="grid w-full grid-cols-4">
+                      <TabsList className="grid w-full grid-cols-3">
                           <TabsTrigger value="Efectivo"><Banknote className="h-5 w-5"/></TabsTrigger>
                           <TabsTrigger value="Tarjeta"><CreditCard className="h-5 w-5"/></TabsTrigger>
                           <TabsTrigger value="Transferencia"><Smartphone className="h-5 w-5"/></TabsTrigger>
-                          <TabsTrigger value="Yape/Plin"><Smartphone className="h-5 w-5"/></TabsTrigger>
+                          
                       </TabsList>
                       <TabsContent value="Efectivo">
                           <div className="space-y-2 mt-4">

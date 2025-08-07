@@ -20,7 +20,7 @@ import { es } from 'date-fns/locale';
 import { ArrowLeft, History as HistoryIcon, Search, DollarSign, ShoppingBag, FileText, XCircle } from 'lucide-react';
 
 export default function HistoryPage() {
-  const { isMounted, currentUser, orders } = useAppStore();
+  const { isMounted, currentUser, orders, cancelOrder } = useAppStore();
   const router = useRouter();
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -255,12 +255,12 @@ export default function HistoryPage() {
                                             <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
                                             {currentUser?.role === 'admin' && order.status === 'completed' && (
                                             <TableCell className="text-center print:hidden">
-                                                <Button variant="destructive" size="sm" onClick={(e) => {e.stopPropagation(); handleCancelOrder(order.id)}}>Cancelar</Button>
+                                                <Button variant="destructive" size="sm" onClick={(e) => {e.stopPropagation(); handleCancelOrder(order.id)}}>Anular</Button>
                                             </TableCell>)}
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={3} className="h-24 text-center">
+                                            <TableCell colSpan={5} className="h-24 text-center">
                                                 No se encontraron resultados.
                                             </TableCell>
                                         </TableRow>
@@ -367,7 +367,7 @@ export default function HistoryPage() {
                             <TableRow key={order.id}>
                                 <TableCell className="font-medium">
                                     {order.tableId === 'takeaway' ? 'LLEVAR' : `Mesa ${order.tableId}`}<br/>
-                                    <span className="text-xs text-muted-foreground">ID: {order.id}</span>
+                                    <span className="text-xs text-muted-foreground">ID: {order.id.slice(-6)}</span>
                                 </TableCell>
                                 <TableCell>{format(new Date(order.createdAt), "dd/MM/yy HH:mm")}</TableCell>
                                 <TableCell>
@@ -395,14 +395,14 @@ export default function HistoryPage() {
       <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Cancelación</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Anulación</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Estás seguro de que deseas cancelar este pedido? Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas anular este pedido? Esta acción no se puede deshacer y el monto se restará de las ventas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setIsAlertDialogOpen(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCancelOrder}>Sí, Cancelar Pedido</AlertDialogAction>
+            <AlertDialogAction onClick={confirmCancelOrder}>Sí, Anular Pedido</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
