@@ -46,10 +46,10 @@ export const MENU_ITEMS: MenuItem[] = [
 ];
 
 export const USERS = {
-    'Elena': '0123456789',
-    'Mesero1': '1234567890',
-    'admin1': 'admin001',
-    'cocina': 'cocina01'
+    'Elena': { id: 'user-elena', password: '0123456789', role: 'waiter' as const },
+    'Mesero1': { id: 'user-mesero1', password: '1234567890', role: 'waiter' as const },
+    'admin1': { id: 'user-admin1', password: 'admin001', role: 'admin' as const },
+    'cocina': { id: 'user-cocina', password: 'cocina01', role: 'kitchen' as const }
 };
 
 export const TOTAL_TABLES = 14;

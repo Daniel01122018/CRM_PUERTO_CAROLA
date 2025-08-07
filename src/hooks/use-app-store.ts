@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Order, Table, User, Expense, Employee } from '@/types';
-import { TOTAL_TABLES } from '@/lib/data';
+import { TOTAL_TABLES, USERS as staticUsers } from '@/lib/data';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, addDoc } from "firebase/firestore";
 
@@ -22,14 +22,13 @@ const getInitialState = <T,>(key: string, defaultValue: T): T => {
 export function useAppStore() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [manualEmployees, setManualEmployees] = useState<Employee[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => getInitialState<User | null>('currentUser', null));
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     
-    // Set up real-time listeners from Firestore
     const listeners: (() => void)[] = [];
     
     try {
@@ -47,7 +46,7 @@ export function useAppStore() {
         
         const unsubscribeEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
             const employeesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
-            setEmployees(employeesData);
+            setManualEmployees(employeesData);
         }, (error) => console.error("Error listening to employees collection:", error));
         listeners.push(unsubscribeEmployees);
 
@@ -59,9 +58,29 @@ export function useAppStore() {
     }
   }, []);
 
+  const employees: Employee[] = useMemo(() => {
+    const systemUsersAsEmployees: Employee[] = Object.entries(staticUsers)
+        .filter(([_, user]) => user.role !== 'kitchen') // Exclude kitchen user from employees list
+        .map(([name, user]) => ({
+            id: user.id,
+            name: name,
+            role: user.role,
+            createdAt: 0, // System users don't have a creation date
+        }));
+
+    // Combine system users and manually added employees, ensuring no duplicates by name
+    const allEmployees = [...systemUsersAsEmployees];
+    manualEmployees.forEach(manualEmployee => {
+        if (!allEmployees.some(e => e.name.toLowerCase() === manualEmployee.name.toLowerCase())) {
+            allEmployees.push(manualEmployee);
+        }
+    });
+    
+    return allEmployees;
+  }, [manualEmployees]);
+
 
   useEffect(() => {
-    // We still use localStorage for the current user session, as it's specific to the device
     if (isMounted) {
         try {
             window.localStorage.setItem('currentUser', JSON.stringify(currentUser));
@@ -89,12 +108,11 @@ export function useAppStore() {
 
 
   const login = useCallback((username: string) => {
-    let role: User['role'] = 'waiter';
-    if (username === 'admin1') role = 'admin';
-    if (username === 'cocina') role = 'kitchen';
-    
-    const user: User = { username, role };
-    setCurrentUser(user);
+    const userData = staticUsers[username as keyof typeof staticUsers];
+    if (userData) {
+      const user: User = { username, role: userData.role };
+      setCurrentUser(user);
+    }
   }, []);
 
   const logout = useCallback(() => {

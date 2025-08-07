@@ -34,14 +34,15 @@ export default function LoginForm() {
   });
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const expectedPassword = USERS[values.username as keyof typeof USERS];
-    if (expectedPassword && expectedPassword === values.password) {
+    const user = USERS[values.username as keyof typeof USERS];
+    
+    if (user && user.password === values.password) {
       login(values.username);
       toast({
         title: 'Inicio de sesión exitoso',
         description: `Bienvenido, ${values.username}!`,
       });
-      if (values.username === 'cocina') {
+      if (user.role === 'kitchen') {
         router.push('/kitchen');
       } else {
         router.push('/dashboard');

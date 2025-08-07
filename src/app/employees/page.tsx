@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -30,7 +30,11 @@ export default function EmployeesPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const sortedEmployees = employees.sort((a, b) => b.createdAt - a.createdAt);
+  const sortedEmployees = useMemo(() => {
+    if (!employees) return [];
+    return [...employees].sort((a, b) => b.createdAt - a.createdAt);
+  }, [employees]);
+
 
   const form = useForm<z.infer<typeof employeeSchema>>({
     resolver: zodResolver(employeeSchema),
