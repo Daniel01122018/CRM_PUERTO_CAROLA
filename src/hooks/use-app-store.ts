@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Order, Table, User, Expense, Employee } from '@/types';
 import { TOTAL_TABLES, USERS as staticUsers } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc, addDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, setDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
   if (typeof window === 'undefined') {
@@ -33,19 +33,19 @@ export function useAppStore() {
     
     try {
         const unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
-            const ordersData = snapshot.docs.map(doc => doc.data() as Order);
+            const ordersData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }) as Order);
             setOrders(ordersData);
         }, (error) => console.error("Error listening to orders collection:", error));
         listeners.push(unsubscribeOrders);
 
         const unsubscribeExpenses = onSnapshot(collection(db, "expenses"), (snapshot) => {
-            const expensesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+            const expensesData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Expense));
             setExpenses(expensesData);
         }, (error) => console.error("Error listening to expenses collection:", error));
         listeners.push(unsubscribeExpenses);
         
         const unsubscribeEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
-            const employeesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+            const employeesData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Employee));
             setManualEmployees(employeesData);
         }, (error) => console.error("Error listening to employees collection:", error));
         listeners.push(unsubscribeEmployees);
@@ -59,23 +59,23 @@ export function useAppStore() {
   }, []);
 
   const employees: Employee[] = useMemo(() => {
-    const systemUsersAsEmployees: Employee[] = Object.entries(staticUsers)
-        .filter(([_, user]) => user.role !== 'kitchen') // Exclude kitchen user from employees list
-        .map(([name, user]) => ({
-            id: user.id,
-            name: name,
-            role: user.role,
-            createdAt: 0, // System users don't have a creation date
-        }));
-
-    // Combine system users and manually added employees, ensuring no duplicates by name
-    const allEmployees = [...systemUsersAsEmployees];
-    manualEmployees.forEach(manualEmployee => {
-        if (!allEmployees.some(e => e.name.toLowerCase() === manualEmployee.name.toLowerCase())) {
-            allEmployees.push(manualEmployee);
+     // Manually added employees are the primary source
+    const allEmployees = [...manualEmployees];
+    
+    // Add system users only if they don't already exist in manualEmployees by name
+    Object.entries(staticUsers)
+      .filter(([_, user]) => user.role !== 'kitchen')
+      .forEach(([name, user]) => {
+        if (!allEmployees.some(e => e.name.toLowerCase() === name.toLowerCase())) {
+           allEmployees.push({
+             id: user.id,
+             name: name,
+             role: user.role,
+             createdAt: 0,
+           });
         }
     });
-    
+
     return allEmployees;
   }, [manualEmployees]);
 
@@ -110,7 +110,7 @@ export function useAppStore() {
   const login = useCallback((username: string) => {
     const userData = staticUsers[username as keyof typeof staticUsers];
     if (userData) {
-      const user: User = { username, role: userData.role };
+      const user: User = { username, role: userData.role, id: userData.id };
       setCurrentUser(user);
     }
   }, []);
@@ -126,7 +126,8 @@ export function useAppStore() {
     }
     try {
       const orderRef = doc(db, "orders", order.id);
-      await setDoc(orderRef, order, { merge: true }); 
+      const orderToSave = { ...order, id: order.id }; // Ensure ID is part of the document data
+      await setDoc(orderRef, orderToSave, { merge: true }); 
     } catch (error) {
         console.error("Error adding/updating document: ", error);
     }
