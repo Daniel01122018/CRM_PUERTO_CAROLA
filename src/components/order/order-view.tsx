@@ -51,10 +51,14 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const menuCategories = useMemo(() => [...new Set(availableMenuItems.map(item => item.category))], [availableMenuItems]);
 
   useEffect(() => {
-    if (!isMounted) return;
-    if (!currentUser) {
-      router.push('/');
+    if (!isMounted || !currentUser) {
+      if (isMounted) router.push('/');
       return;
+    }
+
+    // Do not proceed if orders are not loaded yet, unless it's a new order
+    if (orders.length === 0 && !orderIdOrTableId.startsWith('new-')) {
+        return;
     }
 
     if (orderIdOrTableId.startsWith('new-')) {
@@ -90,17 +94,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       
       if (existingOrder) {
           setCurrentOrder(existingOrder);
-          // Sent items are items that were part of the order when it was last set to 'preparing'
-          const lastSentItems = existingOrder.status === 'preparing' || existingOrder.status === 'completed'
+          const lastSentItems = (existingOrder.status === 'preparing' || existingOrder.status === 'completed')
             ? [...existingOrder.items]
             : [];
           setSentItems(lastSentItems);
       } else {
-        // If order is not found, it might be completed or cancelled, redirect
         toast({
           variant: "destructive",
           title: "Pedido no encontrado",
-          description: "El pedido que intentas abrir ya no está activo.",
+          description: "El pedido que intentas abrir ya no está activo o fue cerrado.",
         });
         if (orderIdOrTableId.includes('takeaway')) {
             router.push('/takeaway');
