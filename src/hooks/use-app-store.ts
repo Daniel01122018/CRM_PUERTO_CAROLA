@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { Order, Table, User, Expense } from '@/types';
+import type { Order, Table, User, Expense, Employee } from '@/types';
 import { TOTAL_TABLES } from '@/lib/data';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, doc, setDoc, addDoc } from "firebase/firestore";
@@ -22,37 +22,37 @@ const getInitialState = <T,>(key: string, defaultValue: T): T => {
 export function useAppStore() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => getInitialState<User | null>('currentUser', null));
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     
-    // Set up the real-time listener for orders from Firestore
+    // Set up real-time listeners from Firestore
+    const listeners: (() => void)[] = [];
+    
     try {
         const unsubscribeOrders = onSnapshot(collection(db, "orders"), (snapshot) => {
             const ordersData = snapshot.docs.map(doc => doc.data() as Order);
             setOrders(ordersData);
-        }, (error) => {
-            console.error("Error listening to orders collection:", error);
-            if (error.code === 'permission-denied') {
-                alert("Error de permisos: No se pudo conectar a la base de datos de pedidos. Verifica la configuración de Firebase y las reglas de seguridad de Firestore.");
-            }
-        });
+        }, (error) => console.error("Error listening to orders collection:", error));
+        listeners.push(unsubscribeOrders);
 
         const unsubscribeExpenses = onSnapshot(collection(db, "expenses"), (snapshot) => {
             const expensesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
             setExpenses(expensesData);
-        }, (error) => {
-            console.error("Error listening to expenses collection:", error);
-            if (error.code === 'permission-denied') {
-                 alert("Error de permisos: No se pudo conectar a la base de datos de gastos. Verifica la configuración de Firebase y las reglas de seguridad de Firestore.");
-            }
-        });
+        }, (error) => console.error("Error listening to expenses collection:", error));
+        listeners.push(unsubscribeExpenses);
+        
+        const unsubscribeEmployees = onSnapshot(collection(db, "employees"), (snapshot) => {
+            const employeesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
+            setEmployees(employeesData);
+        }, (error) => console.error("Error listening to employees collection:", error));
+        listeners.push(unsubscribeEmployees);
 
         return () => {
-            unsubscribeOrders(); 
-            unsubscribeExpenses();
+           listeners.forEach(unsubscribe => unsubscribe());
         };
     } catch(e) {
         console.error("Could not initialize Firebase listener. Is your firebase.ts config correct?", e);
@@ -144,6 +144,23 @@ export function useAppStore() {
     }
   }, [currentUser]);
 
+  const addEmployee = useCallback(async (employee: Omit<Employee, 'id' | 'createdAt'>) => {
+     if (!currentUser || currentUser.role !== 'admin') {
+        console.error("Only admins can add employees.");
+        throw new Error("Acción no permitida.");
+     }
+     try {
+         const newEmployee: Omit<Employee, 'id'> = {
+             ...employee,
+             createdAt: Date.now(),
+         };
+         await addDoc(collection(db, "employees"), newEmployee);
+     } catch(error) {
+         console.error("Error adding employee: ", error);
+         throw new Error("No se pudo agregar el empleado.");
+     }
+  }, [currentUser]);
+
   return { 
     isMounted,
     currentUser,
@@ -155,5 +172,7 @@ export function useAppStore() {
     cancelOrder,
     expenses,
     addExpense,
+    employees,
+    addEmployee,
   };
 }

@@ -21,8 +21,8 @@ import AppHeader from '@/components/app-header';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfYesterday, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX, ChevronsUpDown, Check } from 'lucide-react';
-import type { ExpenseCategory } from '@/types';
+import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX, ChevronsUpDown, Check, Users } from 'lucide-react';
+import type { ExpenseCategory, Employee } from '@/types';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 
@@ -30,6 +30,7 @@ import { cn } from '@/lib/utils';
 const expenseSchema = z.object({
   amount: z.coerce.number().positive({ message: 'El monto debe ser positivo.' }),
   category: z.string().min(1, { message: 'Debe seleccionar o ingresar una categoría.' }),
+  employeeId: z.string().optional(),
 });
 
 const PREDEFINED_CATEGORIES: ExpenseCategory[] = [
@@ -40,7 +41,7 @@ const PREDEFINED_CATEGORIES: ExpenseCategory[] = [
 type FilterPreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_7_days' | 'this_month' | 'last_month' | 'custom';
 
 export default function ExpensesPage() {
-  const { isMounted, currentUser, expenses, addExpense } = useAppStore();
+  const { isMounted, currentUser, expenses, addExpense, employees } = useAppStore();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -59,17 +60,33 @@ export default function ExpensesPage() {
     defaultValues: {
       amount: 0,
       category: '',
+      employeeId: '',
     },
   });
+  
+  const categoryWatch = form.watch('category');
 
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
     try {
-      await addExpense(values);
+      let expenseData: any = {
+        amount: values.amount,
+        category: values.category,
+      };
+
+      if (values.category === 'Sueldos' && values.employeeId) {
+        const employee = employees.find(e => e.id === values.employeeId);
+        if(employee) {
+          expenseData.employeeId = employee.id;
+          expenseData.employeeName = employee.name;
+        }
+      }
+
+      await addExpense(expenseData);
       toast({
         title: 'Gasto Registrado',
         description: `Se ha añadido un gasto en "${values.category}" por un monto de $${values.amount.toFixed(2)}.`,
       });
-      form.reset({ amount: 0, category: '' });
+      form.reset({ amount: 0, category: '', employeeId: '' });
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -169,12 +186,18 @@ export default function ExpensesPage() {
                 <Wallet className="h-6 w-6" />
                 Gestión de Gastos
             </h1>
-            <Link href="/dashboard">
-                <Button variant="outline" className="flex items-center gap-2">
-                    <ArrowLeft className="h-5 w-5" />
-                    Volver al Salón
+            <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => router.push('/employees')}>
+                    <Users className="h-5 w-5 mr-2"/>
+                    Gestionar Empleados
                 </Button>
-            </Link>
+                <Link href="/dashboard">
+                    <Button variant="outline" className="flex items-center gap-2">
+                        <ArrowLeft className="h-5 w-5" />
+                        Volver al Salón
+                    </Button>
+                </Link>
+            </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -234,10 +257,18 @@ export default function ExpensesPage() {
                                 </FormControl>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command>
-                                     <CommandInput placeholder="Buscar o crear categoría..." />
+                                <Command shouldFilter={false}>
+                                    <CommandInput 
+                                      placeholder="Buscar o crear categoría..."
+                                      onValueChange={(search) => {
+                                        const exists = allCategories.some(cat => cat.toLowerCase() === search.toLowerCase());
+                                        if (!exists) {
+                                            form.setValue("category", search);
+                                        }
+                                      }}
+                                    />
                                     <CommandList>
-                                        <CommandEmpty>No se encontró la categoría.</CommandEmpty>
+                                        <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
                                         <CommandGroup>
                                         {allCategories.map((cat) => (
                                             <CommandItem
@@ -267,6 +298,30 @@ export default function ExpensesPage() {
                             </FormItem>
                         )}
                         />
+                     {categoryWatch === 'Sueldos' && (
+                         <FormField
+                            control={form.control}
+                            name="employeeId"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Empleado</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccione un empleado" />
+                                    </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                    {employees.map(e => (
+                                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                                    ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                     )}
                     <FormField
                       control={form.control}
                       name="amount"
@@ -369,19 +424,22 @@ export default function ExpensesPage() {
                                  <TableBody>
                                     {filteredExpenses.length > 0 ? (
                                         filteredExpenses.map(expense => (
-                                                <TableRow key={expense.id}>
-                                                    <TableCell className="hidden sm:table-cell">
-                                                        {format(new Date(expense.createdAt), "dd MMM yyyy", { locale: es })}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="font-medium">{expense.category}</div>
-                                                        <div className="text-xs text-muted-foreground sm:hidden">
-                                                            {format(new Date(expense.createdAt), "dd/MM/yy", { locale: es })}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-medium">${expense.amount.toFixed(2)}</TableCell>
-                                                </TableRow>
-                                            ))
+                                            <TableRow key={expense.id}>
+                                                <TableCell className="hidden sm:table-cell">
+                                                    {format(new Date(expense.createdAt), "dd MMM yyyy", { locale: es })}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-medium">{expense.category}</div>
+                                                    {expense.employeeName && (
+                                                        <div className="text-xs text-muted-foreground">{expense.employeeName}</div>
+                                                    )}
+                                                    <div className="text-xs text-muted-foreground sm:hidden">
+                                                        {format(new Date(expense.createdAt), "dd/MM/yy", { locale: es })}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right font-medium">${expense.amount.toFixed(2)}</TableCell>
+                                            </TableRow>
+                                        ))
                                     ) : (
                                         <TableRow>
                                             <TableCell colSpan={3} className="h-24 text-center">

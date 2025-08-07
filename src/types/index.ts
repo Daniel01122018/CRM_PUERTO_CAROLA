@@ -45,10 +45,19 @@ export interface User {
 
 export type ExpenseCategory = string;
 
+export interface Employee {
+    id: string;
+    name: string;
+    role: string;
+    createdAt: number;
+}
+
 export interface Expense {
     id: string;
     amount: number;
     category: ExpenseCategory;
     createdAt: number;
     createdBy: string;
+    employeeId?: string;
+    employeeName?: string;
 }
