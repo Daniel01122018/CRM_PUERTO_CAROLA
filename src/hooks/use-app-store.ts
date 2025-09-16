@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -94,7 +95,7 @@ export function useAppStore() {
   const login = useCallback((username: string) => {
     const userData = staticUsers[username as keyof typeof staticUsers];
     if (userData) {
-      const user: User = { id: userData.id, username, role: userData.role };
+      const user: User = { username, role: userData.role };
       setCurrentUser(user);
     }
   }, []);
