@@ -83,6 +83,7 @@ export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
   { id: 304, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },
   { id: 305, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
   { id: 306, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
+  { id: 307, nombre: "AGUA", precio: 0.75, category: 'Bebidas' },
 ];
 
 

@@ -61,19 +61,22 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }
 
     if (!orders) {
-      return;
+      return; // Dexie is still loading data
     }
-
+    
+    // Case 1: Creating a new order
     if (orderIdOrTableId.startsWith('new-')) {
-      const type = orderIdOrTableId.substring(4); 
+      const type = orderIdOrTableId.substring(4);
       let tableId: number | 'takeaway';
+
       if (type !== 'takeaway') {
-         tableId = parseInt(type, 10);
-         const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
-         if (existingOrderForTable) {
-            router.push(`/order/${existingOrderForTable.id}`);
-            return;
-         }
+        tableId = parseInt(type, 10);
+        // Check if there is already an active order for this table
+        const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
+        if (existingOrderForTable) {
+          router.push(`/order/${existingOrderForTable.id}`);
+          return;
+        }
       } else {
         tableId = 'takeaway';
       }
@@ -89,25 +92,38 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         partialPayments: [],
         partialPaymentsTotal: 0,
       });
-    } 
-    else {
-      const existingOrder = orders.find(o => o.id === orderIdOrTableId);
-      
-      if (existingOrder) {
-          setCurrentOrder(existingOrder);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Pedido no encontrado",
-          description: "El pedido que intentas abrir ya no está activo o fue cerrado.",
-        });
-        if (orderIdOrTableId.includes('takeaway')) {
-            router.push('/takeaway');
-        } else {
-            router.push('/dashboard');
-        }
-      }
+      return;
     }
+
+    // Case 2: Loading an existing order by its ID
+    const existingOrderById = orders.find(o => o.id === orderIdOrTableId);
+    if (existingOrderById) {
+      setCurrentOrder(existingOrderById);
+      return;
+    }
+
+    // Case 3: Navigating to a table that might have an active order (from dashboard)
+    const tableIdAsNumber = parseInt(orderIdOrTableId, 10);
+    if (!isNaN(tableIdAsNumber)) {
+        const activeOrderForTable = orders.find(o => o.tableId === tableIdAsNumber && (o.status === 'active' || o.status === 'preparing'));
+        if (activeOrderForTable) {
+            router.push(`/order/${activeOrderForTable.id}`);
+            return;
+        }
+    }
+
+    // Case 4: Order not found
+    toast({
+      variant: "destructive",
+      title: "Pedido no encontrado",
+      description: "El pedido que intentas abrir ya no está activo o fue cerrado.",
+    });
+    if (orderIdOrTableId.includes('takeaway')) {
+      router.push('/takeaway');
+    } else {
+      router.push('/dashboard');
+    }
+    
   }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
 
 
@@ -342,7 +358,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                                     </Popover>
                                                 ) : (
                                                     <>
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity === 0}><MinusCircle className="h-4 w-4" /></Button>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={!currentOrder.items?.some(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))}><MinusCircle className="h-4 w-4" /></Button>
                                                         <span className="font-bold w-4 text-center">{currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity || 0}</span>
                                                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}><PlusCircle className="h-4 w-4" /></Button>
                                                     </>
@@ -415,7 +431,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
              {currentOrder.partialPaymentsTotal && currentOrder.partialPaymentsTotal > 0 && (
                 <div className="flex justify-between w-full text-lg font-semibold text-orange-600">
                     <span>Pagado Parcialmente:</span>
-                    <span>-${currentОrder.partialPaymentsTotal.toFixed(2)}</span>
+                    <span>-${currentOrder.partialPaymentsTotal.toFixed(2)}</span>
                 </div>
             )}
             <div className="flex justify-between w-full text-2xl font-bold text-primary"><span>Total Pendiente:</span><span>${remainingAmountToPay.toFixed(2)}</span></div>
