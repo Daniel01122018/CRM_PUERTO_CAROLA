@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
-import { MENU_ITEMS } from '@/lib/data';
+import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
 import type { Order, OrderItem, MenuItem, PaymentMethod } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -13,12 +13,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, CreditCard, Smartphone, Banknote } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -26,10 +28,8 @@ interface OrderViewProps {
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders } = useAppStore();
+  const { addOrUpdateOrder, cancelOrder, isMounted, currentUser } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
-  const [sentItems, setSentItems] = useState<OrderItem[]>([]);
-  const [hasUnsentChanges, setHasUnsentChanges] = useState(false);
   
   const [customPrice, setCustomPrice] = useState('');
   const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
@@ -39,16 +39,20 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [amountReceived, setAmountReceived] = useState('');
   const [change, setChange] = useState(0);
-  
-  const availableMenuItems = useMemo(() => {
-    if (!currentOrder) return [];
-    const isTakeaway = currentOrder.tableId === 'takeaway';
-    return isTakeaway 
-        ? MENU_ITEMS 
-        : MENU_ITEMS.filter(item => !item.takeawayOnly);
-  }, [currentOrder]);
-  
-  const menuCategories = useMemo(() => [...new Set(availableMenuItems.map(item => item.category))], [availableMenuItems]);
+
+  const orders = useLiveQuery(() => db.orders.toArray(), []);
+
+  const isTakeawayOrder = useMemo(() => {
+    if (orderIdOrTableId.startsWith('new-')) {
+      return orderIdOrTableId.substring(4) === 'takeaway';
+    }
+    const existingOrder = orders?.find(o => o.id === orderIdOrTableId);
+    return existingOrder?.tableId === 'takeaway';
+  }, [orderIdOrTableId, orders]);
+
+  const allMenuItems = useMemo(() => isTakeawayOrder ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS, [isTakeawayOrder]);
+
+  const menuCategories = useMemo(() => [...new Set(allMenuItems.map(item => item.category))], [allMenuItems]);
 
   useEffect(() => {
     if (!isMounted || !currentUser) {
@@ -56,9 +60,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       return;
     }
 
-    // Do not proceed if orders are not loaded yet, unless it's a new order
-    if (orders.length === 0 && !orderIdOrTableId.startsWith('new-')) {
-        return;
+    if (!orders) {
+      return;
     }
 
     if (orderIdOrTableId.startsWith('new-')) {
@@ -86,18 +89,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         partialPayments: [],
         partialPaymentsTotal: 0,
       });
-      setSentItems([]);
-      setHasUnsentChanges(false);
     } 
     else {
       const existingOrder = orders.find(o => o.id === orderIdOrTableId);
       
       if (existingOrder) {
           setCurrentOrder(existingOrder);
-          const lastSentItems = (existingOrder.status === 'preparing' || existingOrder.status === 'completed')
-            ? [...existingOrder.items]
-            : [];
-          setSentItems(lastSentItems);
       } else {
         toast({
           variant: "destructive",
@@ -113,20 +110,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }
   }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
 
-  useEffect(() => {
-    if (currentOrder?.status !== 'active') {
-        setHasUnsentChanges(false);
-    }
-  }, [currentOrder?.status]);
 
   const total = useMemo(() => {
     if (!currentOrder || !currentOrder.items) return 0;
     return currentOrder.items.reduce((acc, orderItem) => {
-      const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
+      const menuItem = allMenuItems.find(mi => mi.id === orderItem.menuItemId);
       const price = orderItem.customPrice || (menuItem ? menuItem.precio : 0);
       return acc + (price * orderItem.quantity);
     }, 0);
-  }, [currentOrder]);
+  }, [currentOrder, allMenuItems]);
   
   const remainingAmountToPay = useMemo(() => {
       return total - (currentOrder?.partialPaymentsTotal || 0);
@@ -160,9 +152,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         const newItem: OrderItem = { menuItemId, quantity: change, notes };
         newItems.push(newItem);
       }
-
-      setHasUnsentChanges(true);
-
       return { ...prev, items: newItems };
     });
   };
@@ -173,7 +162,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         if (!prev) return null;
         const newItems = [...(prev.items || [])];
         newItems.splice(itemIndex, 1);
-        setHasUnsentChanges(true);
         return { ...prev, items: newItems };
     });
   }
@@ -191,7 +179,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         } else {
             newItems[itemIndex] = { ...itemToUpdate, quantity: newQuantity };
         }
-        setHasUnsentChanges(true);
         return { ...prev, items: newItems };
     });
   }
@@ -216,7 +203,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             customPrice: price,
         };
         const newItems = [...(prev.items || []), newItem];
-        setHasUnsentChanges(true);
         return { ...prev, items: newItems };
     });
     setCustomPrice('');
@@ -225,13 +211,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }
 
   
-  const handleSendToKitchen = () => {
+  const handleSendToKitchen = async () => {
     if (!currentOrder || !currentOrder.id || !currentOrder.items || currentOrder.items.length === 0) {
         toast({ variant: "destructive", title: "Pedido vacío", description: "No se puede enviar un pedido sin artículos." });
         return;
     }
     const orderToSave: Order = { ...currentOrder, total, status: 'preparing' } as Order;
-    addOrUpdateOrder(orderToSave);
+    await addOrUpdateOrder(orderToSave);
     
     toast({ title: "Pedido enviado a cocina", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido enviado.` });
     
@@ -239,10 +225,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     else router.push('/dashboard');
   };
 
-  const handleSendUpdateToKitchen = () => {
+  const handleSendUpdateToKitchen = async () => {
     if (!currentOrder || !currentOrder.id || !currentOrder.items) return;
     const orderToSave: Order = { ...currentOrder, total } as Order;
-    addOrUpdateOrder(orderToSave);
+    await addOrUpdateOrder(orderToSave);
     
     toast({ title: "Actualización enviada", description: "Nuevos artículos enviados a cocina." });
     if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
@@ -252,13 +238,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (!currentOrder) return;
     setCurrentOrder({ ...currentOrder, notes: e.target.value });
-    setHasUnsentChanges(true);
   };
   
-  const handleFullPayment = (paymentMethod: PaymentMethod) => {
+  const handleFullPayment = async (paymentMethod: PaymentMethod) => {
      if (!currentOrder || !currentOrder.id) return;
      const orderToSave: Order = { ...currentOrder, total, status: 'completed', paymentMethod: paymentMethod } as Order;
-     addOrUpdateOrder(orderToSave);
+     await addOrUpdateOrder(orderToSave);
      toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado.` });
      setPaymentDialogOpen(false);
      setAmountReceived('');
@@ -267,28 +252,29 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }
 
 
-  const handleCancelOrder = () => {
+  const handleCancelOrder = async () => {
     if (!currentOrder || !currentOrder.id) return;
-    cancelOrder(currentOrder.id);
+    await cancelOrder(currentOrder.id);
     toast({ variant: "destructive", title: "Pedido Cancelado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.` });
     if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
     else router.push('/dashboard');
   }
 
-  const handleBack = () => {
-    if (currentOrder?.status === 'active' && hasUnsentChanges && (currentOrder.items?.length || 0) > 0) {
-       addOrUpdateOrder({ ...currentOrder, total } as Order);
+  const handleBack = async () => {
+    if (currentOrder?.status === 'active' && (currentOrder.items?.length || 0) > 0) {
+       await addOrUpdateOrder({ ...currentOrder, total } as Order);
     }
     if (currentOrder?.tableId === 'takeaway') router.push('/takeaway');
     else router.push('/dashboard');
   }
 
-  if (!isMounted || !currentOrder) {
+  if (!isMounted || !currentOrder || !orders) {
     return <div className="flex h-screen items-center justify-center">Cargando pedido...</div>;
   }
   
   const tableId = currentOrder.tableId;
   const isNotesDisabled = currentOrder.status === 'preparing' || currentOrder.status === 'completed';
+  const hasUnsentChanges = JSON.stringify(currentOrder.items) !== JSON.stringify(orders.find(o => o.id === currentOrder.id)?.items ?? []);
 
   return (
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
@@ -307,7 +293,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                        <ScrollArea className="h-[50vh]">
                            <div className="space-y-6 pr-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {availableMenuItems.filter(item => item.category === category).map(item => 
+                                {allMenuItems.filter(item => item.category === category).map(item => 
                                     item.customPrice ? (
                                         <Card key={item.id} className="overflow-hidden">
                                             <CardContent className="p-4 flex flex-col justify-between h-full">
@@ -386,7 +372,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               {currentOrder.items && currentOrder.items.length > 0 ? (
                 <div className="space-y-4 pr-4">
                   {currentOrder.items.map((orderItem, index) => {
-                    const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
+                    const menuItem = allMenuItems.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
 
                     const isCustomPrice = !!orderItem.customPrice;
@@ -429,13 +415,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
              {currentOrder.partialPaymentsTotal && currentOrder.partialPaymentsTotal > 0 && (
                 <div className="flex justify-between w-full text-lg font-semibold text-orange-600">
                     <span>Pagado Parcialmente:</span>
-                    <span>-${currentOrder.partialPaymentsTotal.toFixed(2)}</span>
+                    <span>-${currentОrder.partialPaymentsTotal.toFixed(2)}</span>
                 </div>
             )}
             <div className="flex justify-between w-full text-2xl font-bold text-primary"><span>Total Pendiente:</span><span>${remainingAmountToPay.toFixed(2)}</span></div>
 
             <div className="grid grid-cols-1 gap-2 w-full">
-               {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0 || !hasUnsentChanges}><Send className="mr-2 h-4 w-4"/> Enviar a Cocina</Button>)}
+               {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4"/> Enviar a Cocina</Button>)}
               {currentOrder.status === 'preparing' && (
                   <div className="grid grid-cols-1 gap-2 w-full">
                       {hasUnsentChanges && (<Button size="lg" onClick={handleSendUpdateToKitchen}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
@@ -443,10 +429,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)}>Finalizar y Cobrar</Button>
 
                       <AlertDialog>
-                        <AlertDialogTrigger asChild><Button size="lg" variant="destructive"><XCircle className="mr-2 h-4 w-4"/> Cancelar Pedido</Button></AlertDialogTrigger>
+                        <AlertDialogTrigger asChild><Button size="lg" variant="destructive"><XCircle className="mr-2 h-4 w-4"/> Desechar Pedido</Button></AlertDialogTrigger>
                         <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de cancelar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible. El pedido será marcado como cancelado y se notificará a la cocina. No aparecerá en el historial de ventas.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, cancelar pedido</AlertDialogAction></AlertDialogFooter>
+                            <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de desechar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible y solo debe hacerse si el cliente ya no quiere el pedido. El pedido será marcado como cancelado y se notificará a la cocina.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, desechar pedido</AlertDialogAction></AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
                   </div>
@@ -515,5 +501,3 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
-
-    

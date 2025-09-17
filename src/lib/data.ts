@@ -17,7 +17,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 12, nombre: "ENCOCADO DE ALBACORA", precio: 3.50, category: 'Platos' },
   { id: 13, nombre: "ENCOCADO DE CAMARÓN", precio: 4.00, category: 'Platos' },
   { id: 14, nombre: "ENCOCADO MIXTO CAMARÓN Y PESCADO", precio: 4.50, category: 'Platos' },
-  { id: 15, nombre: "CAZUELA DE ALBACORA", precio: 3.50, category: 'Platos' },
+  { id: 15, "nombre": "CAZUELA DE ALBACORA", "precio": 3.50, "category": "Platos" },
   { id: 16, nombre: "CAZUELA DE CAMARÓN", precio: 4.00, category: 'Platos' },
   { id: 17, nombre: "CAZUELA MIXTA CAMARÓN Y PESCADO", precio: 4.50, category: 'Platos' },
   { id: 18, nombre: "TORTILLA DE CAMARONES", precio: 4.00, category: 'Platos' },
@@ -35,18 +35,55 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 24, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"] },
   { id: 25, nombre: "BATIDO", precio: 1.50, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
   { id: 26, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
-  { id: 32, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
-  { id: 33, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
   { id: 36, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },
+  { id: 37, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
+  { id: 38, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
   
-  // Platos solo para llevar
+  // Platos solo para llevar (obsoletos con la nueva lista, pero se mantienen por si acaso)
   { id: 27, nombre: "Guatita Media tarrina", precio: 3.25, category: 'Platos', takeawayOnly: true },
   { id: 28, nombre: "Guatita Tarrina LLena", precio: 6.25, category: 'Platos', takeawayOnly: true },
-  { id: 29, nombre: "Cazuela Media Tarrina", precio: 6.50, category: 'Platos', takeawayOnly: true },
-  { id: 30, nombre: "Cazuela Tarrina LLena", precio: 6.50, category: 'Platos', takeawayOnly: true },
+  { id: 29, nombre: "Cazuela Media Tarrina", precio: 3.50, category: 'Platos', takeawayOnly: true },
+  { id: 30, nombre: "Cazuela Tarrina LLena", precio: 7.00, category: 'Platos', takeawayOnly: true },
   { id: 31, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true, takeawayOnly: true },
-  { id: 33, nombre: "ENCEBOLLADO T. LLENA", precio: 2.50, category: 'Platos', takeawayOnly: true },
+  { id: 33, nombre: "ENCEBOLLADO T. LLENA", precio: 3.00, category: 'Platos', takeawayOnly: true },
 ];
+
+export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
+  // Aquí va tu nueva lista de platos para llevar con precios actualizados.
+  // He copiado algunos como ejemplo. ¡Modifícalos y añade los que faltan!
+  // Los ID deben ser únicos en esta lista, pero no tienen que coincidir con los de la lista principal.
+
+  // Platos para Llevar
+  { id: 101, nombre: "ENCEBOLLADO Jr (Llevar)", precio: 2.25, category: 'Platos' },
+  { id: 102, nombre: "ENCEBOLLADO (Llevar)", precio: 2.75, category: 'Platos' },
+  { id: 103, nombre: "ENCEBOLLADO MIXTO (Llevar)", precio: 4.25, category: 'Platos' },
+  { id: 104, nombre: "GUATITA CON ARROZ (Llevar)", precio: 3.25, category: 'Platos' },
+  { id: 105, nombre: "BOLLO DE PESCADO (Llevar)", precio: 3.25, category: 'Platos' },
+  { id: 106, nombre: "BOLLO MIXTO CON CAMARÓN (Llevar)", precio: 4.75, category: 'Platos' },
+  { id: 107, nombre: "ENCEBOLLADO T. LLENA (Llevar)", precio: 3.00, category: 'Platos' },
+  { id: 108, nombre: "Guatita Media tarrina", precio: 3.25, category: 'Platos' },
+  { id: 109, nombre: "Guatita Tarrina LLena", precio: 6.25, category: 'Platos' },
+  { id: 110, nombre: "Cazuela Media Tarrina", precio: 3.50, category: 'Platos' },
+  { id: 111, nombre: "Cazuela Tarrina LLena", precio: 7.00, category: 'Platos' },
+  { id: 112, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true },
+
+  // Adicionales y Bebidas (puedes copiarlos de la lista principal si tienen el mismo precio)
+  { id: 201, nombre: "PORCIÓN DE ARROZ", precio: 0.50, category: 'Adicionales' },
+  { id: 202, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales' },
+  { id: 203, nombre: "PAN", precio: 0.25, category: 'Adicionales' },
+  { id: 204, nombre: "MAIZ TOSTADO", precio: 0.25, category: 'Adicionales' },
+  { id: 205, nombre: "TARRINA/CONTENEDOR", precio: 0.25, category: 'Adicionales' },
+  { id: 206, nombre: "TOSTADA DE QUESO", precio: 1.00, category: 'Adicionales' },
+  { id: 207, nombre: "TOSTADA MIXTA", precio: 1.25, category: 'Adicionales' },
+
+  { id: 301, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"] },
+  { id: 302, nombre: "BATIDO", precio: 1.50, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
+  { id: 303, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
+  { id: 304, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },
+  { id: 305, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
+  { id: 306, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
+];
+
 
 export const USERS = {
     'Elena': { id: 'user-elena', password: '0123456789', role: 'waiter' as const },
