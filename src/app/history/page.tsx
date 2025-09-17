@@ -17,10 +17,10 @@ import { MENU_ITEMS } from '@/lib/data';
 import type { Order } from '@/types';
 import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, History as HistoryIcon, Search, DollarSign, ShoppingBag, FileText, XCircle, Banknote, CreditCard, Smartphone } from 'lucide-react';
+import { ArrowLeft, History as HistoryIcon, Search, DollarSign, ShoppingBag, FileText, XCircle, Banknote, CreditCard, Smartphone, Wallet, PiggyBank } from 'lucide-react';
 
 export default function HistoryPage() {
-  const { isMounted, currentUser, orders, cancelOrder } = useAppStore();
+  const { isMounted, currentUser, orders, expenses, cancelOrder } = useAppStore();
   const router = useRouter();
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -33,6 +33,8 @@ export default function HistoryPage() {
     totalCashToday: number;
     totalCardToday: number;
     totalTransferToday: number;
+    totalExpensesToday: number;
+    expectedCashInDrawer: number;
     ordersTodayCount: number;
     weeklyData: { date: string; Ventas: number }[];
   }>({
@@ -40,6 +42,8 @@ export default function HistoryPage() {
     totalCashToday: 0,
     totalCardToday: 0,
     totalTransferToday: 0,
+    totalExpensesToday: 0,
+    expectedCashInDrawer: 0,
     ordersTodayCount: 0,
     weeklyData: [],
   });
@@ -80,7 +84,7 @@ export default function HistoryPage() {
   }, [completedOrders, searchTerm, filter]);
 
   useEffect(() => {
-    if (!isMounted || !completedOrders) return;
+    if (!isMounted || !completedOrders || !expenses) return;
 
     const today = new Date();
     const todayStart = startOfDay(today);
@@ -97,6 +101,11 @@ export default function HistoryPage() {
     const totalTransferToday = todaysOrders
       .filter(o => o.paymentMethod === 'Transferencia')
       .reduce((sum, o) => sum + o.total, 0);
+    
+    const todaysExpenses = expenses.filter(e => isSameDay(new Date(e.createdAt), todayStart));
+    const totalExpensesToday = todaysExpenses.reduce((sum, e) => sum + e.amount, 0);
+    
+    const expectedCashInDrawer = totalCashToday - totalExpensesToday;
 
     const weeklyData: { date: string, Ventas: number }[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -117,10 +126,12 @@ export default function HistoryPage() {
       totalCashToday,
       totalCardToday,
       totalTransferToday,
+      totalExpensesToday,
+      expectedCashInDrawer,
       ordersTodayCount: todaysOrders.length,
       weeklyData,
     });
-  }, [completedOrders, isMounted]);
+  }, [completedOrders, expenses, isMounted]);
   
   const handlePrintReport = () => {
     window.print();
@@ -139,7 +150,7 @@ export default function HistoryPage() {
     setOrderToCancelId(null);
   };
 
-  if (!isMounted || !currentUser || !orders) {
+  if (!isMounted || !currentUser || !orders || !expenses) {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
   
@@ -172,6 +183,16 @@ export default function HistoryPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 print:hidden">
+            <Card className="bg-primary text-primary-foreground">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Efectivo Esperado en Caja</CardTitle>
+                    <PiggyBank className="h-4 w-4 text-primary-foreground/80" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-3xl font-bold">${summaryData.expectedCashInDrawer.toFixed(2)}</div>
+                    <p className="text-xs text-primary-foreground/80">Ventas en efectivo menos gastos de hoy.</p>
+                </CardContent>
+            </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Ventas Totales (Hoy)</CardTitle>
@@ -182,32 +203,22 @@ export default function HistoryPage() {
                     <p className="text-xs text-muted-foreground">{summaryData.ordersTodayCount} pedidos hoy</p>
                 </CardContent>
             </Card>
-            <Card className="bg-green-50 border-green-200">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-green-800">Ventas en Efectivo (Hoy)</CardTitle>
-                    <Banknote className="h-4 w-4 text-green-700" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-green-700">${summaryData.totalCashToday.toFixed(2)}</div>
-                    <p className="text-xs text-green-600">Total para arqueo de caja</p>
-                </CardContent>
-            </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ventas con Tarjeta (Hoy)</CardTitle>
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium">Ventas en Efectivo (Hoy)</CardTitle>
+                    <Banknote className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">${summaryData.totalCardToday.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">${summaryData.totalCashToday.toFixed(2)}</div>
                 </CardContent>
             </Card>
-            <Card>
+             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ventas por Transferencia (Hoy)</CardTitle>
-                    <Smartphone className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium">Gastos Totales (Hoy)</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">${summaryData.totalTransferToday.toFixed(2)}</div>
+                    <div className="text-2xl font-bold text-red-600">-${summaryData.totalExpensesToday.toFixed(2)}</div>
                 </CardContent>
             </Card>
         </div>
