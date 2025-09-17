@@ -38,6 +38,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 36, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },
   { id: 37, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
   { id: 38, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
+  { id: 39, nombre: "AGUA", precio: 0.75, category: 'Bebidas' },
   
   // Platos solo para llevar (obsoletos con la nueva lista, pero se mantienen por si acaso)
   { id: 27, nombre: "Guatita Media tarrina", precio: 3.25, category: 'Platos', takeawayOnly: true },
@@ -54,17 +55,17 @@ export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
   // Los ID deben ser únicos en esta lista, pero no tienen que coincidir con los de la lista principal.
 
   // Platos para Llevar
-  { id: 101, nombre: "ENCEBOLLADO Jr (Llevar)", precio: 2.25, category: 'Platos' },
-  { id: 102, nombre: "ENCEBOLLADO (Llevar)", precio: 2.75, category: 'Platos' },
-  { id: 103, nombre: "ENCEBOLLADO MIXTO (Llevar)", precio: 4.25, category: 'Platos' },
-  { id: 104, nombre: "GUATITA CON ARROZ (Llevar)", precio: 3.25, category: 'Platos' },
-  { id: 105, nombre: "BOLLO DE PESCADO (Llevar)", precio: 3.25, category: 'Platos' },
-  { id: 106, nombre: "BOLLO MIXTO CON CAMARÓN (Llevar)", precio: 4.75, category: 'Platos' },
-  { id: 107, nombre: "ENCEBOLLADO T. LLENA (Llevar)", precio: 3.00, category: 'Platos' },
-  { id: 108, nombre: "Guatita Media tarrina", precio: 3.25, category: 'Platos' },
-  { id: 109, nombre: "Guatita Tarrina LLena", precio: 6.25, category: 'Platos' },
-  { id: 110, nombre: "Cazuela Media Tarrina", precio: 3.50, category: 'Platos' },
-  { id: 111, nombre: "Cazuela Tarrina LLena", precio: 7.00, category: 'Platos' },
+  { id: 101, nombre: "ENCEBOLLADO JR", precio: 2.00, category: 'Platos' },
+  { id: 102, nombre: "ENCEBOLLADO", precio: 2.50, category: 'Platos' },
+  { id: 103, nombre: "ENCEBOLLADO T. LLENA", precio: 3.00, category: 'Platos' },
+  { id: 104, nombre: "ENCEBOLLADO MIXTO", precio: 4.25, category: 'Platos' },
+  { id: 105, nombre: "GUATITA CON ARROZ", precio: 3.25, category: 'Platos' },
+  { id: 106, nombre: "BOLLO DE PESCADO", precio: 3.00, category: 'Platos' },
+  { id: 107, nombre: "BOLLO MIXTO CON CAMARÓN", precio: 4.25, category: 'Platos' },
+  { id: 108, nombre: "GUATITA MEDIA TARRINA", precio: 3.25, category: 'Platos' },
+  { id: 109, nombre: "GUATITA TARRINA LLENA", precio: 6.25, category: 'Platos' },
+  { id: 110, nombre: "CAZUELA MEDIA TARRINA", precio: 3.50, category: 'Platos' },
+  { id: 111, nombre: "CAZUELA T. LLENA", precio: 7.00, category: 'Platos' },
   { id: 112, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true },
 
   // Adicionales y Bebidas (puedes copiarlos de la lista principal si tienen el mismo precio)
