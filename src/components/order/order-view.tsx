@@ -61,17 +61,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }
 
     if (!orders) {
-      return; // Dexie is still loading data
+      return; 
     }
     
-    // Case 1: Creating a new order
     if (orderIdOrTableId.startsWith('new-')) {
       const type = orderIdOrTableId.substring(4);
       let tableId: number | 'takeaway';
 
       if (type !== 'takeaway') {
         tableId = parseInt(type, 10);
-        // Check if there is already an active order for this table
         const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
         if (existingOrderForTable) {
           router.push(`/order/${existingOrderForTable.id}`);
@@ -95,14 +93,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       return;
     }
 
-    // Case 2: Loading an existing order by its ID
     const existingOrderById = orders.find(o => o.id === orderIdOrTableId);
     if (existingOrderById) {
       setCurrentOrder(existingOrderById);
       return;
     }
 
-    // Case 3: Navigating to a table that might have an active order (from dashboard)
     const tableIdAsNumber = parseInt(orderIdOrTableId, 10);
     if (!isNaN(tableIdAsNumber)) {
         const activeOrderForTable = orders.find(o => o.tableId === tableIdAsNumber && (o.status === 'active' || o.status === 'preparing'));
@@ -111,8 +107,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             return;
         }
     }
-
-    // Case 4: Order not found
+    
     toast({
       variant: "destructive",
       title: "Pedido no encontrado",
@@ -499,7 +494,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                   <p className="text-sm text-green-600 font-medium text-center pt-2">Vuelto: ${change.toFixed(2)}</p>
                               )}
                           </div>
-                          <Button className="w-full mt-4" onClick={() => handleFullPayment('Efectivo')} disabled={parseFloat(amountReceived) < remainingAmountToPay}>Pagar con Efectivo</Button>
+                          <Button className="w-full mt-4" onClick={() => handleFullPayment('Efectivo')} disabled={parseFloat(amountReceived) < remainingAmountToPay && amountReceived !== ''}>Pagar con Efectivo</Button>
                       </TabsContent>
                        <TabsContent value="Tarjeta">
                            <Button className="w-full mt-4" onClick={() => handleFullPayment('Tarjeta')}>Pagar con Tarjeta</Button>
@@ -517,3 +512,5 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    

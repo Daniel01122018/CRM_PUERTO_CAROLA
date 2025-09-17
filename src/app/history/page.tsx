@@ -17,7 +17,7 @@ import { MENU_ITEMS } from '@/lib/data';
 import type { Order } from '@/types';
 import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, History as HistoryIcon, Search, DollarSign, ShoppingBag, FileText, XCircle } from 'lucide-react';
+import { ArrowLeft, History as HistoryIcon, Search, DollarSign, ShoppingBag, FileText, XCircle, Banknote, CreditCard, Smartphone } from 'lucide-react';
 
 export default function HistoryPage() {
   const { isMounted, currentUser, orders, cancelOrder } = useAppStore();
@@ -30,10 +30,16 @@ export default function HistoryPage() {
   const [filter, setFilter] = useState<'all' | 'tables' | 'takeaway'>('all');
   const [summaryData, setSummaryData] = useState<{
     totalToday: number;
+    totalCashToday: number;
+    totalCardToday: number;
+    totalTransferToday: number;
     ordersTodayCount: number;
     weeklyData: { date: string; Ventas: number }[];
   }>({
     totalToday: 0,
+    totalCashToday: 0,
+    totalCardToday: 0,
+    totalTransferToday: 0,
     ordersTodayCount: 0,
     weeklyData: [],
   });
@@ -82,6 +88,16 @@ export default function HistoryPage() {
     const todaysOrders = completedOrders.filter(o => isSameDay(new Date(o.createdAt), todayStart));
     const totalToday = todaysOrders.reduce((sum, o) => sum + o.total, 0);
 
+    const totalCashToday = todaysOrders
+      .filter(o => o.paymentMethod === 'Efectivo')
+      .reduce((sum, o) => sum + o.total, 0);
+    const totalCardToday = todaysOrders
+      .filter(o => o.paymentMethod === 'Tarjeta')
+      .reduce((sum, o) => sum + o.total, 0);
+    const totalTransferToday = todaysOrders
+      .filter(o => o.paymentMethod === 'Transferencia')
+      .reduce((sum, o) => sum + o.total, 0);
+
     const weeklyData: { date: string, Ventas: number }[] = [];
     for (let i = 6; i >= 0; i--) {
         const day = subDays(today, i);
@@ -98,6 +114,9 @@ export default function HistoryPage() {
 
     setSummaryData({
       totalToday,
+      totalCashToday,
+      totalCardToday,
+      totalTransferToday,
       ordersTodayCount: todaysOrders.length,
       weeklyData,
     });
@@ -124,7 +143,6 @@ export default function HistoryPage() {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
   
-  // Restrict access to administrators only
   if (isMounted && currentUser && currentUser.role !== 'admin') {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
@@ -156,22 +174,40 @@ export default function HistoryPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 print:hidden">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ventas de Hoy</CardTitle>
+                    <CardTitle className="text-sm font-medium">Ventas Totales (Hoy)</CardTitle>
                     <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Total facturado en el día</p>
+                    <p className="text-xs text-muted-foreground">{summaryData.ordersTodayCount} pedidos hoy</p>
+                </CardContent>
+            </Card>
+            <Card className="bg-green-50 border-green-200">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-green-800">Ventas en Efectivo (Hoy)</CardTitle>
+                    <Banknote className="h-4 w-4 text-green-700" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold text-green-700">${summaryData.totalCashToday.toFixed(2)}</div>
+                    <p className="text-xs text-green-600">Total para arqueo de caja</p>
                 </CardContent>
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pedidos de Hoy</CardTitle>
-                    <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                    <CardTitle className="text-sm font-medium">Ventas con Tarjeta (Hoy)</CardTitle>
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">{summaryData.ordersTodayCount}</div>
-                    <p className="text-xs text-muted-foreground">Número de pedidos completados</p>
+                    <div className="text-2xl font-bold">${summaryData.totalCardToday.toFixed(2)}</div>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Ventas por Transferencia (Hoy)</CardTitle>
+                    <Smartphone className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">${summaryData.totalTransferToday.toFixed(2)}</div>
                 </CardContent>
             </Card>
         </div>
@@ -294,6 +330,7 @@ export default function HistoryPage() {
                                         {format(new Date(selectedOrder.createdAt), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
                                     </p>
                                     <p className="text-xs text-muted-foreground">ID: {selectedOrder.id}</p>
+                                    {selectedOrder.paymentMethod && <p className="text-sm font-medium">Pagado con: {selectedOrder.paymentMethod}</p>}
                                 </div>
                                 {selectedOrder.notes && (
                                     <div className="text-sm border-t border-b py-2">
@@ -413,3 +450,5 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    
