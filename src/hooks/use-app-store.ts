@@ -2,6 +2,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 import type { Order, Table, User, Expense, Employee } from '@/types';
 import { TOTAL_TABLES, USERS as staticUsers } from '@/lib/data';
 
@@ -30,35 +32,25 @@ const setStateToLocalStorage = <T,>(key: string, value: T) => {
 
 
 export function useAppStore() {
-  const [orders, setOrders] = useState<Order[]>(() => getInitialState<Order[]>('orders', []));
-  const [expenses, setExpenses] = useState<Expense[]>(() => getInitialState<Expense[]>('expenses', []));
-  const [manualEmployees, setManualEmployees] = useState<Employee[]>(() => getInitialState<Employee[]>('employees', []));
   const [currentUser, setCurrentUser] = useState<User | null>(() => getInitialState<User | null>('currentUser', null));
   const [isMounted, setIsMounted] = useState(false);
+
+  const orders = useLiveQuery(() => db.orders.toArray());
+  const expenses = useLiveQuery(() => db.expenses.toArray());
+  const manualEmployees = useLiveQuery(() => db.employees.toArray());
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  // Write state to localStorage whenever it changes
-  useEffect(() => {
-    if (isMounted) setStateToLocalStorage('orders', orders);
-  }, [orders, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) setStateToLocalStorage('expenses', expenses);
-  }, [expenses, isMounted]);
-  
-  useEffect(() => {
-    if (isMounted) setStateToLocalStorage('employees', manualEmployees);
-  }, [manualEmployees, isMounted]);
 
   useEffect(() => {
     if (isMounted) setStateToLocalStorage('currentUser', currentUser);
   }, [currentUser, isMounted]);
 
 
-  const employees: Employee[] = useMemo(() => {
+  const employees: Employee[] | undefined = useMemo(() => {
+    if (!manualEmployees) return undefined;
+    
     const allEmployees = [...manualEmployees];
     Object.entries(staticUsers)
       .filter(([_, user]) => user.role !== 'kitchen')
@@ -75,7 +67,9 @@ export function useAppStore() {
     return allEmployees;
   }, [manualEmployees]);
 
-  const tables = useMemo<Table[]>(() => {
+  const tables = useMemo<Table[] | undefined>(() => {
+    if (!orders) return undefined;
+
     const initialTables: Table[] = Array.from({ length: TOTAL_TABLES }, (_, i) => ({
       id: i + 1,
       status: 'available',
@@ -104,27 +98,15 @@ export function useAppStore() {
     setCurrentUser(null);
   }, []);
 
-  const addOrUpdateOrder = useCallback((order: Order) => {
-    setOrders(prevOrders => {
-      const existingOrderIndex = prevOrders.findIndex(o => o.id === order.id);
-      if (existingOrderIndex > -1) {
-        const newOrders = [...prevOrders];
-        newOrders[existingOrderIndex] = order;
-        return newOrders;
-      }
-      return [...prevOrders, order];
-    });
+  const addOrUpdateOrder = useCallback(async (order: Order) => {
+    await db.orders.put(order);
   }, []);
   
   const cancelOrder = useCallback(async (orderId: string) => {
-    setOrders(prevOrders => prevOrders.map(o => 
-        o.id === orderId 
-        ? { ...o, status: 'cancelled' as const, cancelledAt: Date.now() } 
-        : o
-    ));
+    await db.orders.update(orderId, { status: 'cancelled', cancelledAt: Date.now() });
   }, []);
 
-  const addExpense = useCallback((expense: Omit<Expense, 'id' | 'createdAt' | 'createdBy'>) => {
+  const addExpense = useCallback(async (expense: Omit<Expense, 'id' | 'createdAt' | 'createdBy'>) => {
     if (!currentUser) {
         console.error("No user logged in to create an expense.");
         return;
@@ -135,10 +117,10 @@ export function useAppStore() {
       createdAt: Date.now(),
       createdBy: currentUser.username,
     };
-    setExpenses(prev => [...prev, newExpense]);
+    await db.expenses.add(newExpense);
   }, [currentUser]);
 
-  const addEmployee = useCallback((employee: Omit<Employee, 'id' | 'createdAt'>) => {
+  const addEmployee = useCallback(async (employee: Omit<Employee, 'id' | 'createdAt'>) => {
      if (!currentUser || currentUser.role !== 'admin') {
         console.error("Only admins can add employees.");
         throw new Error("Acción no permitida.");
@@ -148,7 +130,7 @@ export function useAppStore() {
          ...employee,
          createdAt: Date.now(),
      };
-     setManualEmployees(prev => [...prev, newEmployee]);
+     await db.employees.add(newEmployee);
   }, [currentUser]);
 
   return { 

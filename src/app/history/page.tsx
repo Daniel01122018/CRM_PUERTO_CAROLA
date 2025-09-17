@@ -44,9 +44,12 @@ export default function HistoryPage() {
     }
   }, [currentUser, isMounted, router]);
   
-  const completedOrders = useMemo(() => orders
-    .filter(o => o.status === 'completed')
-    .sort((a, b) => b.createdAt - a.createdAt), [orders]);
+  const completedOrders = useMemo(() => {
+    if (!orders) return [];
+    return orders
+      .filter(o => o.status === 'completed')
+      .sort((a, b) => b.createdAt - a.createdAt);
+  }, [orders]);
 
   const filteredOrders = useMemo(() => {
     const baseOrders = completedOrders.filter(order => {
@@ -71,7 +74,7 @@ export default function HistoryPage() {
   }, [completedOrders, searchTerm, filter]);
 
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !completedOrders) return;
 
     const today = new Date();
     const todayStart = startOfDay(today);
@@ -117,7 +120,7 @@ export default function HistoryPage() {
     setOrderToCancelId(null);
   };
 
-  if (!isMounted || !currentUser) {
+  if (!isMounted || !currentUser || !orders) {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
   

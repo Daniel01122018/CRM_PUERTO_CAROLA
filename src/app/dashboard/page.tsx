@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -19,7 +20,7 @@ export default function DashboardPage() {
     }
   }, [currentUser, isMounted, router]);
 
-  if (!isMounted || !currentUser) {
+  if (!isMounted || !currentUser || !tables) {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
   

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -27,7 +28,7 @@ export default function KitchenPage() {
   }, [currentUser, isMounted, router]);
   
   useEffect(() => {
-    if (!isMounted) return;
+    if (!isMounted || !orders) return;
 
     const getVisible = () => {
       const now = Date.now();
@@ -49,7 +50,7 @@ export default function KitchenPage() {
   }, [orders, isMounted]);
 
 
-  if (!isMounted || !currentUser) {
+  if (!isMounted || !currentUser || !orders) {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
 

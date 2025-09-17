@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useMemo, useEffect } from 'react';
@@ -25,13 +26,13 @@ export default function TakeawayQueuePage() {
   }, [currentUser, isMounted, router]);
 
   const activeTakeawayOrders = useMemo(() => {
-    if (!isMounted) return [];
+    if (!isMounted || !orders) return [];
     return orders
       .filter(o => o.tableId === 'takeaway' && (o.status === 'active' || o.status === 'preparing'))
       .sort((a, b) => a.createdAt - b.createdAt);
   }, [orders, isMounted]);
 
-  if (!isMounted || !currentUser) {
+  if (!isMounted || !currentUser || !orders) {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
 

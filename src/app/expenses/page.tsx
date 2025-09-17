@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -50,6 +51,7 @@ export default function ExpensesPage() {
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
   
   const allCategories = useMemo(() => {
+    if (!expenses) return PREDEFINED_CATEGORIES;
     const dynamicCategories = expenses.map(e => e.category);
     return [...new Set([...PREDEFINED_CATEGORIES, ...dynamicCategories])];
   }, [expenses]);
@@ -67,6 +69,7 @@ export default function ExpensesPage() {
   const categoryWatch = form.watch('category');
 
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
+    if (!employees) return;
     try {
       let expenseData: any = {
         amount: values.amount,
@@ -121,6 +124,7 @@ export default function ExpensesPage() {
   }, [filterPreset, customDateRange]);
 
   const filteredExpenses = useMemo(() => {
+    if (!expenses) return [];
     return expenses
       .filter(expense => {
         const categoryMatch = filterCategory === 'all' || expense.category === filterCategory;
@@ -138,7 +142,7 @@ export default function ExpensesPage() {
 
 
   const summaryData = useMemo(() => {
-    if (!isMounted) return { totalToday: 0, totalMonth: 0 };
+    if (!isMounted || !expenses) return { totalToday: 0, totalMonth: 0 };
     
     const now = new Date();
     const today = startOfDay(now);
@@ -165,14 +169,18 @@ export default function ExpensesPage() {
     setCustomDateRange(undefined);
   };
 
-  if (!isMounted || !currentUser || currentUser.role !== 'admin') {
+  if (!isMounted || !currentUser || !expenses || !employees || currentUser.role !== 'admin') {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
         <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-semibold mb-4">Acceso solo para administradores.</h1>
-        <Link href="/dashboard">
-          <Button>Volver al Salón</Button>
-        </Link>
+        <h1 className="text-2xl font-semibold mb-4">
+          {currentUser?.role !== 'admin' ? 'Acceso solo para administradores.' : 'Cargando...'}
+        </h1>
+        {currentUser?.role !== 'admin' && (
+          <Link href="/dashboard">
+            <Button>Volver al Salón</Button>
+          </Link>
+        )}
       </div>
     );
   }
