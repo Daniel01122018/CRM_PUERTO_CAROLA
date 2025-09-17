@@ -172,12 +172,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     setCurrentOrder(prev => {
         if (!prev) return null;
         const newItems = [...(prev.items || [])];
-        const itemToRemove = newItems[itemIndex];
-        const sentItem = sentItems.find(i => i.menuItemId === itemToRemove.menuItemId && i.notes === itemToRemove.notes && i.customPrice === itemToRemove.customPrice);
-        if (sentItem) {
-            toast({ variant: "destructive", title: "Acción no permitida", description: "No se puede eliminar un artículo que ya fue enviado a cocina." });
-            return prev;
-        }
         newItems.splice(itemIndex, 1);
         setHasUnsentChanges(true);
         return { ...prev, items: newItems };
@@ -190,25 +184,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         if (!prev) return null;
         const newItems = [...(prev.items || [])];
         const itemToUpdate = newItems[itemIndex];
-        const sentItem = sentItems.find(i => i.menuItemId === itemToUpdate.menuItemId && i.notes === itemToUpdate.notes);
-        
-        let sentQuantity = 0;
-        if (sentItem) {
-          sentQuantity = sentItem.quantity;
-        }
-
         const newQuantity = itemToUpdate.quantity + change;
 
-        if (newQuantity < sentQuantity) {
-            toast({ variant: "destructive", title: "Acción no permitida", description: "No se puede reducir la cantidad de un artículo ya enviado." });
-            return prev;
-        }
-
         if (newQuantity <= 0) {
-            if (sentItem) {
-                 toast({ variant: "destructive", title: "Acción no permitida", description: "No se puede eliminar un artículo que ya fue enviado a cocina." });
-                 return prev;
-            }
             newItems.splice(itemIndex, 1);
         } else {
             newItems[itemIndex] = { ...itemToUpdate, quantity: newQuantity };
@@ -411,10 +389,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                     const menuItem = MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
 
-                    const sentItem = sentItems.find(si => si.menuItemId === orderItem.menuItemId && si.notes === orderItem.notes && si.customPrice === orderItem.customPrice);
-                    const sentQuantity = sentItem?.quantity || 0;
-                    const isLocked = sentQuantity > 0 && orderItem.quantity <= sentQuantity;
-
                     const isCustomPrice = !!orderItem.customPrice;
 
                     return (
@@ -427,10 +401,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                 <p className="font-semibold">${((orderItem.customPrice || menuItem.precio) * orderItem.quantity).toFixed(2)}</p>
                             </div>
                             <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItemByIndex(index)} disabled={!!sentItem}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItemByIndex(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                 {!isCustomPrice && (
                                     <>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantityByIndex(index, -1)} disabled={isLocked}><MinusCircle className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantityByIndex(index, -1)}><MinusCircle className="h-4 w-4" /></Button>
                                         <span className="font-bold text-sm">{orderItem.quantity}</span>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantityByIndex(index, 1)}><PlusCircle className="h-4 w-4" /></Button>
                                     </>
@@ -541,3 +515,5 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    

@@ -2,6 +2,7 @@ import type { MenuItem } from '@/types';
 
 export const MENU_ITEMS: MenuItem[] = [
   // Platos
+  { id: 32, nombre: "ENCEBOLLADO Jr", precio: 2.00, category: 'Platos' },
   { id: 1, nombre: "ENCEBOLLADO", precio: 2.50, category: 'Platos' },
   { id: 2, nombre: "ENCEBOLLADO MIXTO", precio: 4.00, category: 'Platos' },
   { id: 3, nombre: "GUATITA CON ARROZ", precio: 3.00, category: 'Platos' },
@@ -32,7 +33,7 @@ export const MENU_ITEMS: MenuItem[] = [
 
   // Bebidas
   { id: 24, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"] },
-  { id: 25, nombre: "BATIDO", precio: 1.25, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
+  { id: 25, nombre: "BATIDO", precio: 1.50, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
   { id: 26, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
   { id: 32, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
   { id: 33, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
@@ -44,6 +45,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 29, nombre: "Cazuela Media Tarrina", precio: 6.50, category: 'Platos', takeawayOnly: true },
   { id: 30, nombre: "Cazuela Tarrina LLena", precio: 6.50, category: 'Platos', takeawayOnly: true },
   { id: 31, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true, takeawayOnly: true },
+  { id: 33, nombre: "ENCEBOLLADO T. LLENA", precio: 2.50, category: 'Platos', takeawayOnly: true },
 ];
 
 export const USERS = {
