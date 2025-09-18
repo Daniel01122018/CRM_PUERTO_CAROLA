@@ -55,50 +55,44 @@ const FloatingActionMenu = () => {
   const isAdmin = currentUser?.role === 'admin';
 
   const actions = [
-    ...(isAdmin ? [
-      { label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports'), className: "bg-indigo-600 hover:bg-indigo-700" },
-      { label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses'), className: "bg-red-600 hover:bg-red-700" },
-    ] : []),
-    { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen'), className: "bg-secondary text-secondary-foreground hover:bg-secondary/80" },
     { label: "Historial", icon: History, onClick: () => router.push('/history'), className: "bg-primary text-primary-foreground hover:bg-primary/90" },
-  ].reverse(); // Reverse to stack from bottom-up
+    { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen'), className: "bg-secondary text-secondary-foreground hover:bg-secondary/80" },
+    ...(isAdmin ? [
+      { label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses'), className: "bg-red-600 hover:bg-red-700" },
+      { label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports'), className: "bg-indigo-600 hover:bg-indigo-700" },
+    ] : []),
+  ];
   
-  const buttonSpacing = 68; // Space between buttons (60px height + 8px margin)
-
   return (
-    <div 
-      className="fixed bottom-8 right-8 z-50"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <div className="relative flex flex-col items-center gap-2">
-        {actions.map((action, index) => {
-            const translateY = (index + 1) * buttonSpacing;
+    <div className="fixed bottom-8 right-8 z-50">
+      <div className="relative flex flex-col-reverse items-center gap-2">
+        {actions.map((action, index) => (
+          <div
+            key={action.label}
+            className="transition-all duration-300 ease-in-out"
+            style={{
+              transform: isOpen ? `translateY(0)` : `translateY(${(index + 1) * 20}px)`,
+              opacity: isOpen ? 1 : 0,
+              visibility: isOpen ? 'visible' : 'hidden',
+              transitionDelay: isOpen ? `${index * 50}ms` : '0ms'
+            }}
+          >
+            <Button
+              size="lg"
+              variant="secondary"
+              className={`rounded-full w-14 h-14 shadow-lg text-white ${action.className}`}
+              aria-label={action.label}
+              onClick={() => {
+                action.onClick();
+                setIsOpen(false);
+              }}
+              tabIndex={isOpen ? 0 : -1}
+            >
+              <action.icon className="h-7 w-7" />
+            </Button>
+          </div>
+        ))}
 
-            return (
-              <div 
-                key={action.label} 
-                className="transition-all duration-300 ease-in-out"
-                style={{
-                  transform: isOpen ? `translateY(${-translateY}px)` : 'translateY(0)',
-                  opacity: isOpen ? 1 : 0,
-                  pointerEvents: isOpen ? 'auto' : 'none',
-                  position: 'absolute',
-                  bottom: '1rem', // Start from slightly above the main button
-                }}
-                >
-                <Button
-                    size="lg"
-                    variant="secondary"
-                    className={`rounded-full w-14 h-14 shadow-lg text-white ${action.className}`}
-                    aria-label={action.label}
-                    onClick={action.onClick}
-                >
-                    <action.icon className="h-7 w-7" />
-                </Button>
-              </div>
-            );
-        })}
         <Button
           size="lg"
           className="rounded-full w-20 h-20 shadow-lg text-2xl z-10"
