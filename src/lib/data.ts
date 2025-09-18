@@ -46,7 +46,6 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 29, nombre: "Cazuela Media Tarrina", precio: 3.50, category: 'Platos', takeawayOnly: true },
   { id: 30, nombre: "Cazuela Tarrina LLena", precio: 7.00, category: 'Platos', takeawayOnly: true },
   { id: 31, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true, takeawayOnly: true },
-  { id: 33, nombre: "ENCEBOLLADO T. LLENA", precio: 3.00, category: 'Platos', takeawayOnly: true },
 ];
 
 export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
