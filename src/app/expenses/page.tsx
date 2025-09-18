@@ -36,7 +36,7 @@ const expenseSchema = z.object({
 
 const PREDEFINED_CATEGORIES: ExpenseCategory[] = [
     "Pescado", "Chifles", "Supermercado", "Mercado Montebello", "Sueldos", 
-    "Yuca", "Camarón", "Pedido de Colas", "Pan", "Gas", "Gasto Personal"
+    "Yuca", "Camarón", "Pedido de Colas", "Pan", "Gas", "Gasto Personal", "Pasajes"
 ];
 
 type FilterPreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_7_days' | 'this_month' | 'last_month' | 'custom';

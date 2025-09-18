@@ -8,7 +8,7 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/app-header';
-import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat, Wallet } from 'lucide-react';
+import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat, Wallet, BarChartBig } from 'lucide-react';
 
 export default function DashboardPage() {
   const { isMounted, currentUser, tables } = useAppStore();
@@ -78,15 +78,26 @@ export default function DashboardPage() {
       </main>
       <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse gap-4">
         {currentUser.role === 'admin' && (
-          <Button 
-            size="lg" 
-            variant="secondary"
-            className="rounded-full w-16 h-16 shadow-lg bg-red-600 hover:bg-red-700 text-white" 
-            aria-label="Gestión de Gastos"
-            onClick={() => router.push('/expenses')}
-            >
-              <Wallet className="h-8 w-8" />
-          </Button>
+          <>
+            <Button 
+              size="lg" 
+              variant="secondary"
+              className="rounded-full w-16 h-16 shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white" 
+              aria-label="Reportes Financieros"
+              onClick={() => router.push('/reports')}
+              >
+                <BarChartBig className="h-8 w-8" />
+            </Button>
+            <Button 
+              size="lg" 
+              variant="secondary"
+              className="rounded-full w-16 h-16 shadow-lg bg-red-600 hover:bg-red-700 text-white" 
+              aria-label="Gestión de Gastos"
+              onClick={() => router.push('/expenses')}
+              >
+                <Wallet className="h-8 w-8" />
+            </Button>
+          </>
         )}
         <Button 
           size="lg" 
