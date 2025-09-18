@@ -47,7 +47,7 @@ function TableCard({ table }: { table: Table }) {
     );
 }
 
-const FloatingActionMenu = () => {
+const ActionMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { currentUser } = useAppStore();
   const router = useRouter();
@@ -55,53 +55,49 @@ const FloatingActionMenu = () => {
   const isAdmin = currentUser?.role === 'admin';
 
   const actions = [
-    { label: "Historial", icon: History, onClick: () => router.push('/history'), className: "bg-primary text-primary-foreground hover:bg-primary/90" },
-    { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen'), className: "bg-secondary text-secondary-foreground hover:bg-secondary/80" },
     ...(isAdmin ? [
-      { label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses'), className: "bg-red-600 hover:bg-red-700" },
-      { label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports'), className: "bg-indigo-600 hover:bg-indigo-700" },
+      { label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports') },
+      { label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses') },
     ] : []),
+    { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen') },
+    { label: "Historial", icon: History, onClick: () => router.push('/history') },
   ];
   
   return (
-    <div className="fixed bottom-8 right-8 z-50">
-      <div className="relative flex flex-col-reverse items-center gap-2">
-        {actions.map((action, index) => (
-          <div
+    <div className="relative inline-flex items-center gap-2">
+      <div 
+        className="flex items-center gap-2 transition-all duration-300 ease-in-out"
+        style={{
+          width: isOpen ? `${actions.length * 4}rem` : '0rem', // Adjust width based on number of actions
+          opacity: isOpen ? 1 : 0,
+          overflow: 'hidden'
+        }}
+      >
+        {actions.map((action) => (
+          <Button
             key={action.label}
-            className="transition-all duration-300 ease-in-out"
-            style={{
-              transform: isOpen ? `translateY(0)` : `translateY(${(index + 1) * 20}px)`,
-              opacity: isOpen ? 1 : 0,
-              visibility: isOpen ? 'visible' : 'hidden',
-              transitionDelay: isOpen ? `${index * 50}ms` : '0ms'
+            variant="outline"
+            size="icon"
+            aria-label={action.label}
+            onClick={() => {
+              action.onClick();
+              setIsOpen(false);
             }}
+            tabIndex={isOpen ? 0 : -1}
           >
-            <Button
-              size="lg"
-              variant="secondary"
-              className={`rounded-full w-14 h-14 shadow-lg text-white ${action.className}`}
-              aria-label={action.label}
-              onClick={() => {
-                action.onClick();
-                setIsOpen(false);
-              }}
-              tabIndex={isOpen ? 0 : -1}
-            >
-              <action.icon className="h-7 w-7" />
-            </Button>
-          </div>
+            <action.icon className="h-5 w-5" />
+          </Button>
         ))}
-
-        <Button
-          size="lg"
-          className="rounded-full w-20 h-20 shadow-lg text-2xl z-10"
-          aria-label="Menú de acciones"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {isOpen ? <X className="h-9 w-9" /> : <Menu className="h-9 w-9" />}
-        </Button>
       </div>
+
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label="Menú de acciones"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </Button>
     </div>
   );
 };
@@ -132,12 +128,15 @@ export default function DashboardPage() {
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold">Salón de Mesas</h1>
-            <Link href="/takeaway">
-                <Button className="flex items-center gap-2">
-                    <ShoppingBag className="h-5 w-5" />
-                    Para Llevar
-                </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+                <ActionMenu />
+                <Link href="/takeaway">
+                    <Button className="flex items-center gap-2">
+                        <ShoppingBag className="h-5 w-5" />
+                        Para Llevar
+                    </Button>
+                </Link>
+            </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 min-h-[70vh]">
           {tables.map((table) => (
@@ -145,7 +144,6 @@ export default function DashboardPage() {
           ))}
         </div>
       </main>
-      <FloatingActionMenu />
     </div>
   );
 }
