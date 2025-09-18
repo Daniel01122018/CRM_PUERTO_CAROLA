@@ -49,6 +49,7 @@ export default function ExpensesPage() {
   const [filterCategory, setFilterCategory] = useState<ExpenseCategory | 'all'>('all');
   const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_month');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
+  const [isCategoryPopoverOpen, setIsCategoryPopoverOpen] = useState(false);
   
   const allCategories = useMemo(() => {
     if (!expenses) return PREDEFINED_CATEGORIES;
@@ -244,7 +245,7 @@ export default function ExpensesPage() {
                         render={({ field }) => (
                             <FormItem className="flex flex-col">
                             <FormLabel>Categoría</FormLabel>
-                             <Popover>
+                             <Popover open={isCategoryPopoverOpen} onOpenChange={setIsCategoryPopoverOpen}>
                                 <PopoverTrigger asChild>
                                 <FormControl>
                                     <Button
@@ -284,6 +285,7 @@ export default function ExpensesPage() {
                                                 key={cat}
                                                 onSelect={() => {
                                                     form.setValue("category", cat)
+                                                    setIsCategoryPopoverOpen(false);
                                                 }}
                                                 >
                                                 <Check
