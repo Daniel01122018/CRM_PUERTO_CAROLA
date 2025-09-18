@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
@@ -10,11 +10,64 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { MENU_ITEMS } from '@/lib/data';
-import type { Order } from '@/types';
+import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
+import type { Order, MenuItem } from '@/types';
 import { Utensils, Clock, StickyNote, ArrowLeft, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+const KitchenOrderCard = ({ order }: { order: Order }) => {
+    const isCancelled = order.status === 'cancelled';
+    const menuList: MenuItem[] = order.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+
+    return (
+        <Card className={`flex flex-col ${isCancelled ? 'bg-red-100 border-red-300 shadow-lg' : ''}`}>
+            <CardHeader>
+                <CardTitle className="flex justify-between items-center">
+                    <span className={`${isCancelled ? 'text-red-700' : ''}`}>
+                        {order.tableId === 'takeaway' ? `LLEVAR #${order.id.slice(-4)}` : `Mesa ${order.tableId}`}
+                    </span>
+                    <span className={`text-sm font-normal flex items-center gap-1 ${isCancelled ? 'text-red-600' : 'text-muted-foreground'}`}>
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(order.createdAt), "HH:mm", { locale: es })}
+                    </span>
+                </CardTitle>
+                {isCancelled ? (
+                    <CardDescription className="flex items-center gap-2 font-bold text-red-700 pt-1">
+                        <XCircle className="h-5 w-5" />
+                        ORDEN DESECHADA
+                    </CardDescription>
+                ) : (
+                    <CardDescription>ID: {order.id}</CardDescription>
+                )}
+            </CardHeader>
+            <CardContent className="flex-1">
+                <Separator className="mb-4" />
+                <ul className="space-y-3">
+                    {order.items.map((item, index) => {
+                        const menuItem = menuList.find(mi => mi.id === item.menuItemId);
+                        return (
+                            <li key={`${item.menuItemId}-${index}`} className="flex items-start">
+                                <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500' : 'text-primary'}`} />
+                                <div>
+                                    <p className="font-semibold">{menuItem?.nombre} <span className={`font-bold ${isCancelled ? 'text-red-700' : 'text-primary'}`}>x{item.quantity}</span></p>
+                                    {item.notes && <p className="text-xs text-amber-700">Sabor/Nota: {item.notes}</p>}
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+                {order.notes && (
+                    <div className="mt-4 pt-4 border-t border-dashed">
+                        <p className="font-semibold flex items-center gap-2"><StickyNote className="h-4 w-4"/> Notas Generales:</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{order.notes}</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+};
+
 
 export default function KitchenPage() {
   const { isMounted, currentUser, orders } = useAppStore();
@@ -73,55 +126,7 @@ export default function KitchenPage() {
         {visibleOrders.length > 0 ? (
           <ScrollArea className="h-[calc(100vh-150px)]">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleOrders.map(order => {
-                    const isCancelled = order.status === 'cancelled';
-                    return (
-                        <Card key={order.id} className={`flex flex-col ${isCancelled ? 'bg-red-100 border-red-300 shadow-lg' : ''}`}>
-                            <CardHeader>
-                                <CardTitle className="flex justify-between items-center">
-                                    <span className={`${isCancelled ? 'text-red-700' : ''}`}>
-                                        {order.tableId === 'takeaway' ? 'PARA LLEVAR' : `Mesa ${order.tableId}`}
-                                    </span>
-                                    <span className={`text-sm font-normal flex items-center gap-1 ${isCancelled ? 'text-red-600' : 'text-muted-foreground'}`}>
-                                        <Clock className="h-3 w-3" />
-                                        {format(new Date(order.createdAt), "HH:mm", { locale: es })}
-                                    </span>
-                                </CardTitle>
-                                {isCancelled ? (
-                                    <CardDescription className="flex items-center gap-2 font-bold text-red-700 pt-1">
-                                        <XCircle className="h-5 w-5" />
-                                        ORDEN DESECHADA
-                                    </CardDescription>
-                                ) : (
-                                    <CardDescription>ID: {order.id}</CardDescription>
-                                )}
-                            </CardHeader>
-                            <CardContent className="flex-1">
-                                <Separator className="mb-4" />
-                                <ul className="space-y-3">
-                                    {order.items.map((item, index) => {
-                                        const menuItem = MENU_ITEMS.find(mi => mi.id === item.menuItemId);
-                                        return (
-                                            <li key={`${item.menuItemId}-${index}`} className="flex items-start">
-                                                <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500' : 'text-primary'}`} />
-                                                <div>
-                                                    <p className="font-semibold">{menuItem?.nombre} <span className={`font-bold ${isCancelled ? 'text-red-700' : 'text-primary'}`}>x{item.quantity}</span></p>
-                                                    {item.notes && <p className="text-xs text-amber-700">Sabor/Nota: {item.notes}</p>}
-                                                </div>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                                {order.notes && (
-                                    <div className="mt-4 pt-4 border-t border-dashed">
-                                        <p className="font-semibold flex items-center gap-2"><StickyNote className="h-4 w-4"/> Notas Generales:</p>
-                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{order.notes}</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    )
-                 })}
+              {visibleOrders.map(order => <KitchenOrderCard key={order.id} order={order} />)}
             </div>
           </ScrollArea>
         ) : (
