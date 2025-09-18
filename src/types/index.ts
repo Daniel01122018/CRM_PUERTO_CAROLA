@@ -32,15 +32,8 @@ export interface Order {
   partialPaymentsTotal?: number;
 }
 
-export interface TableLayout {
+export interface Table {
   id: number;
-  gridRow: string;
-  gridCol: string;
-  rowSpan?: number;
-  colSpan?: number;
-}
-
-export interface Table extends TableLayout {
   status: 'available' | 'occupied';
   orderId?: string;
 }

@@ -28,12 +28,6 @@ function TableCard({ table }: { table: Table }) {
       <Link 
         key={table.id} 
         href={`/order/${table.orderId || `new-${table.id}`}`}
-        style={{ 
-            gridRow: table.gridRow, 
-            gridColumn: table.gridCol,
-            gridRowEnd: table.rowSpan ? `span ${table.rowSpan}` : undefined,
-            gridColumnEnd: table.colSpan ? `span ${table.colSpan}` : undefined,
-        }}
         className="min-h-[110px]"
       >
         <Card className={`transition-all hover:shadow-lg hover:-translate-y-1 h-full ${cardClass}`}>
@@ -85,12 +79,10 @@ export default function DashboardPage() {
                 </Button>
             </Link>
         </div>
-        <div className="p-4 border-2 border-dashed rounded-lg">
-            <div className="grid grid-cols-12 grid-rows-8 gap-4 min-h-[70vh]">
-            {tables.map((table) => (
-                <TableCard key={table.id} table={table} />
-            ))}
-            </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {tables.map((table) => (
+            <TableCard key={table.id} table={table} />
+          ))}
         </div>
       </main>
       <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse gap-4">

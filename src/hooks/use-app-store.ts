@@ -5,8 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import type { Order, Table, User, Expense, Employee } from '@/types';
-import { USERS as staticUsers } from '@/lib/data';
-import { TABLE_LAYOUT } from '@/lib/layout';
+import { USERS as staticUsers, TOTAL_TABLES } from '@/lib/data';
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
   if (typeof window === 'undefined') {
@@ -71,10 +70,11 @@ export function useAppStore() {
   const tables = useMemo<Table[] | undefined>(() => {
     if (!orders) return undefined;
 
-    return TABLE_LAYOUT.map(layout => {
-        const occupiedOrder = orders.find(o => o.tableId === layout.id && (o.status === 'active' || o.status === 'preparing'));
+    return Array.from({ length: TOTAL_TABLES }, (_, i) => {
+        const tableId = i + 1;
+        const occupiedOrder = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
         return {
-            ...layout,
+            id: tableId,
             status: occupiedOrder ? 'occupied' : 'available',
             orderId: occupiedOrder?.id
         };
