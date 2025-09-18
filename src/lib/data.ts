@@ -93,4 +93,4 @@ export const USERS = {
     'cocina': { id: 'user-cocina', password: 'cocina01', role: 'kitchen' as const }
 };
 
-export const TOTAL_TABLES = 14;
+export const TOTAL_TABLES = 12;

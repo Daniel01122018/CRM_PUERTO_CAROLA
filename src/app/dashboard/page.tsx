@@ -1,14 +1,14 @@
 
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/app-header';
-import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat, Wallet, BarChartBig } from 'lucide-react';
+import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat, Wallet, BarChartBig, Menu, X } from 'lucide-react';
 import type { Table } from '@/types';
 
 function TableCard({ table }: { table: Table }) {
@@ -47,6 +47,70 @@ function TableCard({ table }: { table: Table }) {
     );
 }
 
+const FloatingActionMenu = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const { currentUser } = useAppStore();
+  const router = useRouter();
+
+  const isAdmin = currentUser?.role === 'admin';
+
+  const actions = [
+    ...(isAdmin ? [
+      { label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports'), className: "bg-indigo-600 hover:bg-indigo-700" },
+      { label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses'), className: "bg-red-600 hover:bg-red-700" },
+    ] : []),
+    { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen'), className: "bg-secondary text-secondary-foreground hover:bg-secondary/80" },
+    { label: "Historial", icon: History, onClick: () => router.push('/history'), className: "bg-primary text-primary-foreground hover:bg-primary/90" },
+  ];
+  
+  const baseAngle = 90; 
+  const angleIncrement = 40; 
+  const radius = 100;
+
+  return (
+    <div 
+      className="fixed bottom-8 right-8 z-50"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <div className="relative flex items-center justify-center">
+        {actions.map((action, index) => {
+            const angle = baseAngle + (index * angleIncrement);
+            const x = radius * Math.cos(angle * Math.PI / 180);
+            const y = radius * Math.sin(angle * Math.PI / 180);
+
+            return (
+              <Button
+                key={action.label}
+                size="lg"
+                variant="secondary"
+                className={`rounded-full w-14 h-14 shadow-lg text-white absolute transition-all duration-300 ease-in-out ${action.className}`}
+                aria-label={action.label}
+                onClick={action.onClick}
+                style={{
+                  transform: isOpen ? `translate(${-x}px, ${-y}px)` : 'translate(0, 0)',
+                  opacity: isOpen ? 1 : 0,
+                  pointerEvents: isOpen ? 'auto' : 'none'
+                }}
+              >
+                <action.icon className="h-7 w-7" />
+              </Button>
+            );
+        })}
+        <Button
+          size="lg"
+          className="rounded-full w-20 h-20 shadow-lg text-2xl z-10"
+          aria-label="Menú de acciones"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          {isOpen ? <X className="h-9 w-9" /> : <Menu className="h-9 w-9" />}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+
 export default function DashboardPage() {
   const { isMounted, currentUser, tables } = useAppStore();
   const router = useRouter();
@@ -79,53 +143,13 @@ export default function DashboardPage() {
                 </Button>
             </Link>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 min-h-[70vh]">
           {tables.map((table) => (
             <TableCard key={table.id} table={table} />
           ))}
         </div>
       </main>
-      <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse gap-4">
-        {currentUser.role === 'admin' && (
-          <>
-            <Button 
-              size="lg" 
-              variant="secondary"
-              className="rounded-full w-16 h-16 shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white" 
-              aria-label="Reportes Financieros"
-              onClick={() => router.push('/reports')}
-              >
-                <BarChartBig className="h-8 w-8" />
-            </Button>
-            <Button 
-              size="lg" 
-              variant="secondary"
-              className="rounded-full w-16 h-16 shadow-lg bg-red-600 hover:bg-red-700 text-white" 
-              aria-label="Gestión de Gastos"
-              onClick={() => router.push('/expenses')}
-              >
-                <Wallet className="h-8 w-8" />
-            </Button>
-          </>
-        )}
-        <Button 
-          size="lg" 
-          className="rounded-full w-16 h-16 shadow-lg" 
-          aria-label="Historial de pedidos"
-          onClick={() => router.push('/history')}
-          >
-            <History className="h-8 w-8" />
-        </Button>
-        <Button 
-          size="lg" 
-          variant="secondary"
-          className="rounded-full w-16 h-16 shadow-lg" 
-          aria-label="Vista de Cocina"
-          onClick={() => router.push('/kitchen')}
-          >
-            <ChefHat className="h-8 w-8" />
-        </Button>
-      </div>
+      <FloatingActionMenu />
     </div>
   );
 }
