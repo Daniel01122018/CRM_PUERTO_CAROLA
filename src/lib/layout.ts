@@ -5,9 +5,9 @@ import type { TableLayout } from '@/types';
 // La cuadrícula base es de 8 columnas y 6 filas.
 
 export const TABLE_LAYOUT: TableLayout[] = [
-  { id: 1, gridRow: '1', gridCol: '1' },
-  { id: 2, gridRow: '1', gridCol: '2' },
-  { id: 3, gridRow: '1', gridCol: '3' },
+  { id: 1, gridRow: '1', gridCol: '3', colSpan: 2 },
+  { id: 2, gridRow: '1', gridCol: '1' },
+  { id: 3, gridRow: '1', gridCol: '5' },
   { id: 4, gridRow: '2', gridCol: '1' },
   { id: 5, gridRow: '2', gridCol: '2' },
   { id: 6, gridRow: '2', gridCol: '3' },

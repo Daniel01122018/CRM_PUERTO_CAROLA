@@ -86,7 +86,7 @@ export default function DashboardPage() {
             </Link>
         </div>
         <div className="p-4 border-2 border-dashed rounded-lg">
-            <div className="grid grid-cols-8 grid-rows-6 gap-4 min-h-[70vh]">
+            <div className="grid grid-cols-12 grid-rows-8 gap-4 min-h-[70vh]">
             {tables.map((table) => (
                 <TableCard key={table.id} table={table} />
             ))}
