@@ -37,7 +37,7 @@ export default function KitchenPage() {
           o.status === 'preparing' || 
           (o.status === 'cancelled' && o.cancelledAt && (now - o.cancelledAt < 30000))
         )
-        .sort((a, b) => a.createdAt - b.createdAt);
+        .sort((a, b) => b.createdAt - a.createdAt);
     };
     
     setVisibleOrders(getVisible());

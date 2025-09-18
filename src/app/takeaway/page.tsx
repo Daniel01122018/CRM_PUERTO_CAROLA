@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { MENU_ITEMS } from '@/lib/data';
+import { TAKEAWAY_MENU_ITEMS } from '@/lib/data';
 import { Utensils, Clock, ArrowLeft, PlusCircle, ShoppingBag } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -82,7 +82,7 @@ export default function TakeawayQueuePage() {
                             <Separator className="mb-4" />
                             <ul className="space-y-2">
                                 {order.items.slice(0, 3).map((item, index) => {
-                                    const menuItem = MENU_ITEMS.find(mi => mi.id === item.menuItemId);
+                                    const menuItem = TAKEAWAY_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
                                     return (
                                         <li key={`${item.menuItemId}-${index}`} className="flex items-start text-sm">
                                             <Utensils className="h-4 w-4 mr-3 mt-1 text-primary" />
