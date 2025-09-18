@@ -61,11 +61,9 @@ const FloatingActionMenu = () => {
     ] : []),
     { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen'), className: "bg-secondary text-secondary-foreground hover:bg-secondary/80" },
     { label: "Historial", icon: History, onClick: () => router.push('/history'), className: "bg-primary text-primary-foreground hover:bg-primary/90" },
-  ];
+  ].reverse(); // Reverse to stack from bottom-up
   
-  const baseAngle = 90; 
-  const angleIncrement = 40; 
-  const radius = 100;
+  const buttonSpacing = 68; // Space between buttons (60px height + 8px margin)
 
   return (
     <div 
@@ -73,28 +71,32 @@ const FloatingActionMenu = () => {
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
     >
-      <div className="relative flex items-center justify-center">
+      <div className="relative flex flex-col items-center gap-2">
         {actions.map((action, index) => {
-            const angle = baseAngle + (index * angleIncrement);
-            const x = radius * Math.cos(angle * Math.PI / 180);
-            const y = radius * Math.sin(angle * Math.PI / 180);
+            const translateY = (index + 1) * buttonSpacing;
 
             return (
-              <Button
-                key={action.label}
-                size="lg"
-                variant="secondary"
-                className={`rounded-full w-14 h-14 shadow-lg text-white absolute transition-all duration-300 ease-in-out ${action.className}`}
-                aria-label={action.label}
-                onClick={action.onClick}
+              <div 
+                key={action.label} 
+                className="transition-all duration-300 ease-in-out"
                 style={{
-                  transform: isOpen ? `translate(${-x}px, ${-y}px)` : 'translate(0, 0)',
+                  transform: isOpen ? `translateY(${-translateY}px)` : 'translateY(0)',
                   opacity: isOpen ? 1 : 0,
-                  pointerEvents: isOpen ? 'auto' : 'none'
+                  pointerEvents: isOpen ? 'auto' : 'none',
+                  position: 'absolute',
+                  bottom: '1rem', // Start from slightly above the main button
                 }}
-              >
-                <action.icon className="h-7 w-7" />
-              </Button>
+                >
+                <Button
+                    size="lg"
+                    variant="secondary"
+                    className={`rounded-full w-14 h-14 shadow-lg text-white ${action.className}`}
+                    aria-label={action.label}
+                    onClick={action.onClick}
+                >
+                    <action.icon className="h-7 w-7" />
+                </Button>
+              </div>
             );
         })}
         <Button
