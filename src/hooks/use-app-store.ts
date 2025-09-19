@@ -119,6 +119,21 @@ export function useAppStore() {
     await db.expenses.add(newExpense);
   }, [currentUser]);
 
+  const updateExpense = useCallback(async (expenseId: string, updatedData: Partial<Omit<Expense, 'id'>>) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw new Error("Solo los administradores pueden actualizar gastos.");
+    }
+    await db.expenses.update(expenseId, updatedData);
+  }, [currentUser]);
+
+  const deleteExpense = useCallback(async (expenseId: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw new Error("Solo los administradores pueden eliminar gastos.");
+    }
+    await db.expenses.delete(expenseId);
+  }, [currentUser]);
+
+
   const addEmployee = useCallback(async (employee: Omit<Employee, 'id' | 'createdAt'>) => {
      if (!currentUser || currentUser.role !== 'admin') {
         console.error("Only admins can add employees.");
@@ -155,6 +170,8 @@ export function useAppStore() {
     cancelOrder,
     expenses,
     addExpense,
+    updateExpense,
+    deleteExpense,
     employees,
     addEmployee,
     dailyData,
