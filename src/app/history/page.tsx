@@ -37,6 +37,8 @@ export default function HistoryPage() {
   useEffect(() => {
     if (dailyData) {
       setInitialCashInput(dailyData.initialCash.toString());
+    } else {
+        setInitialCashInput('0');
     }
   }, [dailyData]);
 
@@ -66,26 +68,6 @@ export default function HistoryPage() {
   };
 
 
-  const [summaryData, setSummaryData] = useState<{
-    totalToday: number;
-    totalCashToday: number;
-    totalCardToday: number;
-    totalTransferToday: number;
-    totalExpensesToday: number;
-    expectedCashInDrawer: number;
-    ordersTodayCount: number;
-    weeklyData: { date: string; Ventas: number }[];
-  }>({
-    totalToday: 0,
-    totalCashToday: 0,
-    totalCardToday: 0,
-    totalTransferToday: 0,
-    totalExpensesToday: 0,
-    expectedCashInDrawer: 0,
-    ordersTodayCount: 0,
-    weeklyData: [],
-  });
-
   useEffect(() => {
     if (isMounted && !currentUser) {
       router.push('/');
@@ -98,6 +80,57 @@ export default function HistoryPage() {
       .filter(o => o.status === 'completed')
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [orders]);
+
+  const summaryData = useMemo(() => {
+    if (!isMounted || !completedOrders || !expenses) {
+        return {
+            totalToday: 0,
+            ordersTodayCount: 0,
+            expectedCashInDrawer: 0,
+            weeklyData: [],
+        };
+    }
+
+    const today = new Date();
+    const todayStart = startOfDay(today);
+    
+    const todaysOrders = completedOrders.filter(o => isSameDay(new Date(o.createdAt), todayStart));
+    const totalToday = todaysOrders.reduce((sum, o) => sum + o.total, 0);
+
+    const totalCashToday = todaysOrders
+      .filter(o => o.paymentMethod === 'Efectivo')
+      .reduce((sum, o) => sum + o.total, 0);
+
+    const cashExpensesToday = (expenses || [])
+      .filter(e => isSameDay(new Date(e.createdAt), todayStart) && e.source === 'caja')
+      .reduce((sum, e) => sum + e.amount, 0);
+      
+    const initialCashToday = dailyData?.initialCash || 0;
+
+    const expectedCashInDrawer = (initialCashToday + totalCashToday) - cashExpensesToday;
+
+    const weeklyData: { date: string, Ventas: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+        const day = subDays(today, i);
+        const dayStart = startOfDay(day);
+        const dailyTotal = completedOrders
+            .filter(o => isSameDay(new Date(o.createdAt), dayStart))
+            .reduce((sum, o) => sum + o.total, 0);
+        
+        weeklyData.push({
+            date: format(day, 'EEE', { locale: es }),
+            Ventas: parseFloat(dailyTotal.toFixed(2)),
+        });
+    }
+
+    return {
+      totalToday,
+      expectedCashInDrawer,
+      ordersTodayCount: todaysOrders.length,
+      weeklyData,
+    };
+  }, [completedOrders, expenses, isMounted, dailyData]);
+  
 
   const filteredOrders = useMemo(() => {
     const baseOrders = completedOrders.filter(order => {
@@ -122,67 +155,19 @@ export default function HistoryPage() {
     });
   }, [completedOrders, searchTerm, filter]);
 
-  useEffect(() => {
-    if (!isMounted || !completedOrders || !expenses || !dailyData) return;
-
-    const today = new Date();
-    const todayStart = startOfDay(today);
-    
-    const todaysOrders = completedOrders.filter(o => isSameDay(new Date(o.createdAt), todayStart));
-    const totalToday = todaysOrders.reduce((sum, o) => sum + o.total, 0);
-
-    const totalCashToday = todaysOrders
-      .filter(o => o.paymentMethod === 'Efectivo')
-      .reduce((sum, o) => sum + o.total, 0);
-    const totalCardToday = todaysOrders
-      .filter(o => o.paymentMethod === 'Tarjeta')
-      .reduce((sum, o) => sum + o.total, 0);
-    const totalTransferToday = todaysOrders
-      .filter(o => o.paymentMethod === 'Transferencia')
-      .reduce((sum, o) => sum + o.total, 0);
-    
-    const todaysExpenses = expenses.filter(e => isSameDay(new Date(e.createdAt), todayStart));
-    const totalExpensesToday = todaysExpenses.reduce((sum, e) => sum + e.amount, 0);
-
-    const cashExpensesToday = todaysExpenses
-      .filter(e => e.source === 'caja')
-      .reduce((sum, e) => sum + e.amount, 0);
-      
-    const initialCashToday = dailyData?.initialCash || 0;
-
-    const expectedCashInDrawer = (initialCashToday + totalCashToday) - cashExpensesToday;
-
-    const weeklyData: { date: string, Ventas: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-        const day = subDays(today, i);
-        const dayStart = startOfDay(day);
-        const dailyTotal = completedOrders
-            .filter(o => isSameDay(new Date(o.createdAt), dayStart))
-            .reduce((sum, o) => sum + o.total, 0);
-        
-        weeklyData.push({
-            date: format(day, 'EEE', { locale: es }),
-            Ventas: parseFloat(dailyTotal.toFixed(2)),
-        });
-    }
-
-    setSummaryData({
-      totalToday,
-      totalCashToday,
-      totalCardToday,
-      totalTransferToday,
-      totalExpensesToday,
-      expectedCashInDrawer,
-      ordersTodayCount: todaysOrders.length,
-      weeklyData,
-    });
-  }, [completedOrders, expenses, isMounted, dailyData]);
-  
   const handlePrintReport = () => {
     window.print();
   };
 
   const handleCancelOrder = (orderId: string) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      toast({
+        variant: 'destructive',
+        title: 'Acción no permitida',
+        description: 'Solo los administradores pueden anular pedidos.',
+      });
+      return;
+    }
     setOrderToCancelId(orderId);
     setIsAlertDialogOpen(true);
   };
@@ -231,7 +216,7 @@ export default function HistoryPage() {
                     <div className="text-3xl font-bold">${summaryData.expectedCashInDrawer.toFixed(2)}</div>
                     <p className="text-xs text-primary-foreground/80">
                         (Caja Inicial + Ventas Efectivo) - Gastos de Caja.
-                        {dailyData?.initialCash && <span><br />+ ${dailyData.initialCash.toFixed(2)} de caja inicial</span>}
+                        {(dailyData?.initialCash || 0) > 0 && <span><br />+ ${dailyData.initialCash.toFixed(2)} de caja inicial</span>}
                     </p>
                 </CardContent>
             </Card>
