@@ -250,69 +250,76 @@ export default function HistoryPage() {
                     </p>
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ventas Totales (Hoy)</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">{summaryData.ordersTodayCount} pedidos hoy</p>
-                </CardContent>
-            </Card>
-             {currentUser.role === 'admin' && (
-              <Card>
-                  <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium flex items-center justify-between">
-                          Configurar Caja Inicial
-                          <Edit className="h-4 w-4 text-muted-foreground"/>
-                      </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                      <div className="flex items-center gap-2">
-                          <Input
-                              type="number"
-                              placeholder="Monto inicial..."
-                              value={initialCashInput}
-                              onChange={(e) => setInitialCashInput(e.target.value)}
-                              className="h-9"
-                          />
-                          <Button size="sm" onClick={handleSetInitialCash}>Guardar</Button>
-                      </div>
-                  </CardContent>
-              </Card>
-            )}
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Gastos de Caja (Hoy)</CardTitle>
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold text-red-600">-${(expenses?.filter(e => isSameDay(new Date(e.createdAt), new Date()) && e.source === 'caja').reduce((s, e) => s + e.amount, 0) || 0).toFixed(2)}</div>
-                </CardContent>
-            </Card>
-        </div>
-        
-        <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
-            <div className="lg:col-span-2 xl:col-span-3 space-y-4">
+            
+            {currentUser.role === 'admin' && (
+              <>
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Ventas de la Última Semana</CardTitle>
-                        <CardDescription>Resumen de ingresos de los últimos 7 días.</CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Ventas Totales (Hoy)</CardTitle>
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
-                    <CardContent className="pl-2">
-                        <ChartContainer config={{ Ventas: { label: "Ventas", color: "hsl(var(--primary))" } }} className="h-[250px] w-full">
-                            <BarChart accessibilityLayer data={summaryData.weeklyData}>
-                                <CartesianGrid vertical={false} />
-                                <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                <Bar dataKey="Ventas" fill="var(--color-Ventas)" radius={4} />
-                            </BarChart>
-                        </ChartContainer>
+                    <CardContent>
+                        <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
+                        <p className="text-xs text-muted-foreground">{summaryData.ordersTodayCount} pedidos hoy</p>
                     </CardContent>
                 </Card>
-
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium flex items-center justify-between">
+                            Configurar Caja Inicial
+                            <Edit className="h-4 w-4 text-muted-foreground"/>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center gap-2">
+                            <Input
+                                type="number"
+                                placeholder="Monto inicial..."
+                                value={initialCashInput}
+                                onChange={(e) => setInitialCashInput(e.target.value)}
+                                className="h-9"
+                            />
+                            <Button size="sm" onClick={handleSetInitialCash}>Guardar</Button>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Gastos de Caja (Hoy)</CardTitle>
+                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-red-600">-${(expenses?.filter(e => isSameDay(new Date(e.createdAt), new Date()) && e.source === 'caja').reduce((s, e) => s + e.amount, 0) || 0).toFixed(2)}</div>
+                    </CardContent>
+                </Card>
+              </>
+            )}
+        </div>
+        
+        <div className={`grid gap-4 ${currentUser.role === 'admin' ? 'lg:grid-cols-3 xl:grid-cols-5' : 'md:grid-cols-2'}`}>
+            {currentUser.role === 'admin' && (
+                <div className="lg:col-span-2 xl:col-span-3 space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Ventas de la Última Semana</CardTitle>
+                            <CardDescription>Resumen de ingresos de los últimos 7 días.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pl-2">
+                            <ChartContainer config={{ Ventas: { label: "Ventas", color: "hsl(var(--primary))" } }} className="h-[250px] w-full">
+                                <BarChart accessibilityLayer data={summaryData.weeklyData}>
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                    <Bar dataKey="Ventas" fill="var(--color-Ventas)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
+            
+            <div className={currentUser.role === 'admin' ? "lg:col-span-2 xl:col-span-3" : "md:col-span-1"}>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between print:hidden">
                         <div>
@@ -404,7 +411,7 @@ export default function HistoryPage() {
                 </Card>
             </div>
             
-            <div className="lg:col-span-1 xl:col-span-2 print:hidden">
+            <div className={currentUser.role === 'admin' ? "lg:col-span-1 xl:col-span-2 print:hidden" : "md:col-span-1 print:hidden"}>
                 <Card className="sticky top-24">
                     <CardHeader className="flex flex-row items-center justify-between">
                          <CardTitle>Detalles del Pedido</CardTitle>
@@ -546,6 +553,8 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    
 
     
 
