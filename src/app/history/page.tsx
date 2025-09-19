@@ -10,24 +10,62 @@ import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/app-header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { MENU_ITEMS } from '@/lib/data';
 import type { Order } from '@/types';
 import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, History as HistoryIcon, Search, DollarSign, ShoppingBag, FileText, XCircle, Banknote, CreditCard, Smartphone, Wallet, PiggyBank } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, History as HistoryIcon, Search, DollarSign, FileText, XCircle, Banknote, Wallet, PiggyBank, Edit } from 'lucide-react';
 
 export default function HistoryPage() {
-  const { isMounted, currentUser, orders, expenses, cancelOrder } = useAppStore();
+  const { isMounted, currentUser, orders, expenses, cancelOrder, dailyData, setInitialCash } = useAppStore();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [orderToCancelId, setOrderToCancelId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'tables' | 'takeaway'>('all');
+
+  const [initialCashInput, setInitialCashInput] = useState('');
+
+  useEffect(() => {
+    if (dailyData) {
+      setInitialCashInput(dailyData.initialCash.toString());
+    }
+  }, [dailyData]);
+
+  const handleSetInitialCash = async () => {
+    const amount = parseFloat(initialCashInput);
+    if (isNaN(amount) || amount < 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Monto inválido',
+        description: 'Por favor, ingrese un número positivo.',
+      });
+      return;
+    }
+    try {
+      await setInitialCash(amount);
+      toast({
+        title: 'Caja Inicial Guardada',
+        description: `Se estableció la caja inicial en $${amount.toFixed(2)}.`,
+      });
+    } catch (error: any) {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'No se pudo guardar el monto.',
+      });
+    }
+  };
+
+
   const [summaryData, setSummaryData] = useState<{
     totalToday: number;
     totalCashToday: number;
@@ -84,7 +122,7 @@ export default function HistoryPage() {
   }, [completedOrders, searchTerm, filter]);
 
   useEffect(() => {
-    if (!isMounted || !completedOrders || !expenses) return;
+    if (!isMounted || !completedOrders || !expenses || !dailyData) return;
 
     const today = new Date();
     const todayStart = startOfDay(today);
@@ -108,8 +146,10 @@ export default function HistoryPage() {
     const cashExpensesToday = todaysExpenses
       .filter(e => e.source === 'caja')
       .reduce((sum, e) => sum + e.amount, 0);
+      
+    const initialCashToday = dailyData?.initialCash || 0;
 
-    const expectedCashInDrawer = totalCashToday - cashExpensesToday;
+    const expectedCashInDrawer = (initialCashToday + totalCashToday) - cashExpensesToday;
 
     const weeklyData: { date: string, Ventas: number }[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -135,7 +175,7 @@ export default function HistoryPage() {
       ordersTodayCount: todaysOrders.length,
       weeklyData,
     });
-  }, [completedOrders, expenses, isMounted]);
+  }, [completedOrders, expenses, isMounted, dailyData]);
   
   const handlePrintReport = () => {
     window.print();
@@ -166,7 +206,7 @@ export default function HistoryPage() {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
         <HistoryIcon className="h-16 w-16 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-semibold mb-4">Acceso solo para administradores.</h1>
+        <h1 className="text-2xl font-semibold mb-4">Acceso denegado.</h1>
         <Link href="/dashboard">
           <Button>Volver al Salón</Button>
         </Link>
@@ -198,7 +238,10 @@ export default function HistoryPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-3xl font-bold">${summaryData.expectedCashInDrawer.toFixed(2)}</div>
-                    <p className="text-xs text-primary-foreground/80">Ventas en efectivo menos gastos de caja de hoy.</p>
+                    <p className="text-xs text-primary-foreground/80">
+                        (Caja Inicial + Ventas Efectivo) - Gastos de Caja.
+                        {dailyData?.initialCash && <span><br />+ ${dailyData.initialCash.toFixed(2)} de caja inicial</span>}
+                    </p>
                 </CardContent>
             </Card>
             <Card>
@@ -211,22 +254,35 @@ export default function HistoryPage() {
                     <p className="text-xs text-muted-foreground">{summaryData.ordersTodayCount} pedidos hoy</p>
                 </CardContent>
             </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Ventas en Efectivo (Hoy)</CardTitle>
-                    <Banknote className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">${summaryData.totalCashToday.toFixed(2)}</div>
-                </CardContent>
-            </Card>
+             {currentUser.role === 'admin' && (
+              <Card>
+                  <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium flex items-center justify-between">
+                          Configurar Caja Inicial
+                          <Edit className="h-4 w-4 text-muted-foreground"/>
+                      </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                      <div className="flex items-center gap-2">
+                          <Input
+                              type="number"
+                              placeholder="Monto inicial..."
+                              value={initialCashInput}
+                              onChange={(e) => setInitialCashInput(e.target.value)}
+                              className="h-9"
+                          />
+                          <Button size="sm" onClick={handleSetInitialCash}>Guardar</Button>
+                      </div>
+                  </CardContent>
+              </Card>
+            )}
              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Gastos Totales (Hoy)</CardTitle>
+                    <CardTitle className="text-sm font-medium">Gastos de Caja (Hoy)</CardTitle>
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold text-red-600">-${summaryData.totalExpensesToday.toFixed(2)}</div>
+                    <div className="text-2xl font-bold text-red-600">-${(expenses?.filter(e => isSameDay(new Date(e.createdAt), new Date()) && e.source === 'caja').reduce((s, e) => s + e.amount, 0) || 0).toFixed(2)}</div>
                 </CardContent>
             </Card>
         </div>

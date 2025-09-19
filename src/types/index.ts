@@ -63,3 +63,8 @@ export interface Expense {
     employeeId?: string;
     employeeName?: string;
 }
+
+export interface DailyData {
+    date: string; // YYYY-MM-DD format
+    initialCash: number;
+}

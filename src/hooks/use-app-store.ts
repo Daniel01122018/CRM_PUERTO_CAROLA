@@ -4,8 +4,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Order, Table, User, Expense, Employee, ExpenseSource } from '@/types';
+import type { Order, Table, User, Expense, Employee, DailyData } from '@/types';
 import { USERS as staticUsers, TOTAL_TABLES } from '@/lib/data';
+import { format } from 'date-fns';
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
   if (typeof window === 'undefined') {
@@ -38,6 +39,9 @@ export function useAppStore() {
   const orders = useLiveQuery(() => db.orders.toArray());
   const expenses = useLiveQuery(() => db.expenses.toArray());
   const manualEmployees = useLiveQuery(() => db.employees.toArray());
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const dailyData = useLiveQuery(() => db.dailyData.get(todayStr), [todayStr]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -128,6 +132,18 @@ export function useAppStore() {
      await db.employees.add(newEmployee);
   }, [currentUser]);
 
+  const setInitialCash = useCallback(async (amount: number) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+        throw new Error("Solo los administradores pueden establecer la caja inicial.");
+    }
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const data: DailyData = {
+        date: today,
+        initialCash: amount,
+    };
+    await db.dailyData.put(data);
+  }, [currentUser]);
+
   return { 
     isMounted,
     currentUser,
@@ -141,5 +157,7 @@ export function useAppStore() {
     addExpense,
     employees,
     addEmployee,
+    dailyData,
+    setInitialCash,
   };
 }
