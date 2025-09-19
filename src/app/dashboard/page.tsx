@@ -53,12 +53,11 @@ const ActionMenu = () => {
   const router = useRouter();
 
   const isAdmin = currentUser?.role === 'admin';
+  const isEmployee = currentUser?.role === 'employee';
 
   const actions = [
-    ...(isAdmin ? [
-      { label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports') },
-      { label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses') },
-    ] : []),
+    ...(isAdmin ? [{ label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports') }] : []),
+    ...(isAdmin || isEmployee ? [{ label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses') }] : []),
     { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen') },
     { label: "Historial", icon: History, onClick: () => router.push('/history') },
   ];
