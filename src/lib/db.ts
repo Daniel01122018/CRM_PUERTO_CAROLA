@@ -28,6 +28,13 @@ class ElPuertoDeCarolaDB extends Dexie {
             expenses: 'id, category, createdAt',
             employees: 'id, name, createdAt'
         });
+        
+        // Nueva versión para añadir el índice 'source' a la tabla de gastos
+        this.version(2).stores({
+            orders: 'id, tableId, status, createdAt',
+            expenses: 'id, category, createdAt, source',
+            employees: 'id, name, createdAt'
+        });
     }
 }
 

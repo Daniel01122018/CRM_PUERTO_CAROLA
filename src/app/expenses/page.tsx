@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -23,7 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, startOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfYesterday, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX, ChevronsUpDown, Check, Users } from 'lucide-react';
-import type { ExpenseCategory, Employee } from '@/types';
+import type { ExpenseCategory, Employee, ExpenseSource } from '@/types';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 const expenseSchema = z.object({
   amount: z.coerce.number().positive({ message: 'El monto debe ser positivo.' }),
   category: z.string().min(1, { message: 'Debe seleccionar o ingresar una categoría.' }),
+  source: z.enum(['caja', 'caja_chica']),
   employeeId: z.string().optional(),
 });
 
@@ -63,6 +64,7 @@ export default function ExpensesPage() {
     defaultValues: {
       amount: 0,
       category: '',
+      source: currentUser?.role === 'admin' ? 'caja' : 'caja',
       employeeId: '',
     },
   });
@@ -70,11 +72,12 @@ export default function ExpensesPage() {
   const categoryWatch = form.watch('category');
 
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
-    if (!employees) return;
+    if (!employees || !currentUser) return;
     try {
       let expenseData: any = {
         amount: values.amount,
         category: values.category,
+        source: currentUser.role === 'admin' ? values.source : 'caja',
       };
 
       if (values.category === 'Sueldos' && values.employeeId) {
@@ -90,12 +93,12 @@ export default function ExpensesPage() {
         title: 'Gasto Registrado',
         description: `Se ha añadido un gasto en "${values.category}" por un monto de $${values.amount.toFixed(2)}.`,
       });
-      form.reset({ amount: 0, category: '', employeeId: '' });
-    } catch (error) {
+      form.reset({ amount: 0, category: '', source: 'caja', employeeId: '' });
+    } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Error al registrar',
-        description: 'No se pudo guardar el gasto. Intente nuevamente.',
+        description: error.message || 'No se pudo guardar el gasto. Intente nuevamente.',
       });
     }
   };
@@ -239,75 +242,109 @@ export default function ExpensesPage() {
                     <CardTitle>Registrar Nuevo Gasto</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                     <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                            <FormLabel>Categoría</FormLabel>
-                             <Popover open={isCategoryPopoverOpen} onOpenChange={setIsCategoryPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                <FormControl>
-                                    <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    className={cn(
-                                        "w-full justify-between",
-                                        !field.value && "text-muted-foreground"
-                                    )}
-                                    >
-                                    {field.value
-                                        ? allCategories.find(
-                                            (cat) => cat === field.value
-                                        )
-                                        : "Seleccionar o escribir categoría"}
-                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                <Command shouldFilter={false}>
-                                    <CommandInput 
-                                      placeholder="Buscar o crear categoría..."
-                                      onValueChange={(search) => {
-                                        const exists = allCategories.some(cat => cat.toLowerCase() === search.toLowerCase());
-                                        if (!exists) {
-                                            form.setValue("category", search);
-                                        }
-                                      }}
-                                    />
-                                    <CommandList>
-                                        <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
-                                        <CommandGroup>
-                                        {allCategories.map((cat) => (
-                                            <CommandItem
-                                                value={cat}
-                                                key={cat}
-                                                onSelect={() => {
-                                                    form.setValue("category", cat)
-                                                    setIsCategoryPopoverOpen(false);
-                                                }}
-                                                >
-                                                <Check
-                                                className={cn(
-                                                    "mr-2 h-4 w-4",
-                                                    cat === field.value
-                                                    ? "opacity-100"
-                                                    : "opacity-0"
-                                                )}
-                                                />
-                                                {cat}
-                                            </CommandItem>
-                                        ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                </Command>
-                                </PopoverContent>
-                            </Popover>
-                            <FormMessage />
-                            </FormItem>
-                        )}
+                    {currentUser.role === 'admin' && (
+                        <FormField
+                            control={form.control}
+                            name="source"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Fuente del Gasto</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Seleccione una fuente" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="caja">Caja Registradora</SelectItem>
+                                            <SelectItem value="caja_chica">Caja Chica</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
                         />
+                    )}
+                    <FormField
+                      control={form.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Monto ($)</FormLabel>
+                          <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                          <FormLabel>Categoría</FormLabel>
+                            <Popover open={isCategoryPopoverOpen} onOpenChange={setIsCategoryPopoverOpen}>
+                              <PopoverTrigger asChild>
+                              <FormControl>
+                                  <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  className={cn(
+                                      "w-full justify-between",
+                                      !field.value && "text-muted-foreground"
+                                  )}
+                                  >
+                                  {field.value
+                                      ? allCategories.find(
+                                          (cat) => cat === field.value
+                                      )
+                                      : "Seleccionar o escribir categoría"}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                              </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                              <Command shouldFilter={false}>
+                                  <CommandInput 
+                                    placeholder="Buscar o crear categoría..."
+                                    onValueChange={(search) => {
+                                      const exists = allCategories.some(cat => cat.toLowerCase() === search.toLowerCase());
+                                      if (!exists) {
+                                          form.setValue("category", search);
+                                      }
+                                    }}
+                                  />
+                                  <CommandList>
+                                      <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
+                                      <CommandGroup>
+                                      {allCategories.map((cat) => (
+                                          <CommandItem
+                                              value={cat}
+                                              key={cat}
+                                              onSelect={() => {
+                                                  form.setValue("category", cat)
+                                                  setIsCategoryPopoverOpen(false);
+                                              }}
+                                              >
+                                              <Check
+                                              className={cn(
+                                                  "mr-2 h-4 w-4",
+                                                  cat === field.value
+                                                  ? "opacity-100"
+                                                  : "opacity-0"
+                                              )}
+                                              />
+                                              {cat}
+                                          </CommandItem>
+                                      ))}
+                                      </CommandGroup>
+                                  </CommandList>
+                              </Command>
+                              </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                          </FormItem>
+                      )}
+                      />
                      {categoryWatch === 'Sueldos' && (
                          <FormField
                             control={form.control}
@@ -332,17 +369,6 @@ export default function ExpensesPage() {
                             )}
                         />
                      )}
-                    <FormField
-                      control={form.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Monto ($)</FormLabel>
-                          <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} /></FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </CardContent>
                   <CardFooter>
                     <Button type="submit" className="w-full">
@@ -427,7 +453,7 @@ export default function ExpensesPage() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Fecha</TableHead>
-                                        <TableHead>Categoría</TableHead>
+                                        <TableHead>Categoría / Fuente</TableHead>
                                         <TableHead className="text-right">Monto</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -443,6 +469,7 @@ export default function ExpensesPage() {
                                                     {expense.employeeName && (
                                                         <div className="text-xs text-muted-foreground">{expense.employeeName}</div>
                                                     )}
+                                                     <div className="text-xs text-muted-foreground">{expense.source === 'caja_chica' ? 'C. Chica' : 'C. Registradora'}</div>
                                                     <div className="text-xs text-muted-foreground sm:hidden">
                                                         {format(new Date(expense.createdAt), "dd/MM/yy", { locale: es })}
                                                     </div>

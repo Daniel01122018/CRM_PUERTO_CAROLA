@@ -40,10 +40,11 @@ export interface Table {
 
 export interface User {
   username: string;
-  role: 'waiter' | 'admin' | 'kitchen';
+  role: 'employee' | 'admin' | 'kitchen';
 }
 
 export type ExpenseCategory = string;
+export type ExpenseSource = 'caja' | 'caja_chica';
 
 export interface Employee {
     id: string;
@@ -56,6 +57,7 @@ export interface Expense {
     id:string;
     amount: number;
     category: ExpenseCategory;
+    source: ExpenseSource;
     createdAt: number;
     createdBy: string;
     employeeId?: string;

@@ -104,8 +104,12 @@ export default function HistoryPage() {
     
     const todaysExpenses = expenses.filter(e => isSameDay(new Date(e.createdAt), todayStart));
     const totalExpensesToday = todaysExpenses.reduce((sum, e) => sum + e.amount, 0);
-    
-    const expectedCashInDrawer = totalCashToday - totalExpensesToday;
+
+    const cashExpensesToday = todaysExpenses
+      .filter(e => e.source === 'caja')
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const expectedCashInDrawer = totalCashToday - cashExpensesToday;
 
     const weeklyData: { date: string, Ventas: number }[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -154,7 +158,7 @@ export default function HistoryPage() {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
   }
   
-  if (isMounted && currentUser && currentUser.role !== 'admin') {
+  if (isMounted && currentUser && currentUser.role === 'employee') {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
         <HistoryIcon className="h-16 w-16 text-muted-foreground mb-4" />
@@ -190,7 +194,7 @@ export default function HistoryPage() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-3xl font-bold">${summaryData.expectedCashInDrawer.toFixed(2)}</div>
-                    <p className="text-xs text-primary-foreground/80">Ventas en efectivo menos gastos de hoy.</p>
+                    <p className="text-xs text-primary-foreground/80">Ventas en efectivo menos gastos de caja de hoy.</p>
                 </CardContent>
             </Card>
             <Card>

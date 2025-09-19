@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
@@ -13,10 +13,9 @@ import { Calendar } from '@/components/ui/calendar';
 import AppHeader from '@/components/app-header';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval, parseISO, isValid } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, BarChart2, Calendar as CalendarIcon, FilterX, DollarSign, Wallet, PiggyBank } from 'lucide-react';
-import type { Order, Expense } from '@/types';
+import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +32,13 @@ export default function ReportsPage() {
 
   const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_month');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
+
+  useEffect(() => {
+    if (isMounted && (!currentUser || currentUser.role !== 'admin')) {
+      router.push('/dashboard');
+    }
+  }, [currentUser, isMounted, router]);
+
 
   const completedOrders = useMemo(() => {
     if (!orders) return [];
@@ -123,13 +129,20 @@ export default function ReportsPage() {
       .sort((a, b) => b.value - a.value);
   }, [filteredData.filteredExpenses]);
 
-  if (!isMounted || !currentUser || !orders || !expenses) {
-    return <div className="flex h-screen items-center justify-center">Cargando reportes...</div>;
-  }
-
-  if (currentUser.role !== 'admin') {
-     router.push('/dashboard');
-     return <div className="flex h-screen items-center justify-center">Acceso no autorizado.</div>;
+  if (!isMounted || !currentUser || !orders || !expenses || currentUser.role !== 'admin') {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center text-center">
+        <BarChart2 className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-4">
+          {currentUser?.role !== 'admin' ? 'Acceso solo para administradores.' : 'Cargando reportes...'}
+        </h1>
+        {currentUser?.role !== 'admin' && (
+          <Link href="/dashboard">
+            <Button>Volver al Salón</Button>
+          </Link>
+        )}
+      </div>
+    );
   }
 
   return (

@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Order, Table, User, Expense, Employee } from '@/types';
+import type { Order, Table, User, Expense, Employee, ExpenseSource } from '@/types';
 import { USERS as staticUsers, TOTAL_TABLES } from '@/lib/data';
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
@@ -53,7 +53,7 @@ export function useAppStore() {
     
     const allEmployees = [...manualEmployees];
     Object.entries(staticUsers)
-      .filter(([_, user]) => user.role !== 'kitchen')
+      .filter(([_, user]) => user.role !== 'kitchen' && user.role !== 'admin')
       .forEach(([name, user]) => {
         if (!allEmployees.some(e => e.name.toLowerCase() === name.toLowerCase())) {
            allEmployees.push({
@@ -102,14 +102,13 @@ export function useAppStore() {
     await db.orders.update(orderId, { status: 'cancelled', cancelledAt: Date.now() });
   }, []);
 
-  const addExpense = useCallback(async (expense: Omit<Expense, 'id' | 'createdAt' | 'createdBy'>) => {
+  const addExpense = useCallback(async (expenseData: Omit<Expense, 'id' | 'createdAt' | 'createdBy'>) => {
     if (!currentUser) {
-        console.error("No user logged in to create an expense.");
-        return;
+        throw new Error("No hay usuario autenticado para registrar un gasto.");
     }
     const newExpense: Expense = {
       id: Date.now().toString(),
-      ...expense,
+      ...expenseData,
       createdAt: Date.now(),
       createdBy: currentUser.username,
     };
