@@ -68,21 +68,27 @@ export default function EmployeesPage() {
     }
   }, [currentUser, isMounted, router]);
 
-  if (!isMounted || !currentUser || !employees || currentUser.role !== 'admin') {
+  if (!isMounted || !currentUser || !employees) {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
         <Users className="h-16 w-16 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-semibold mb-4">
-          {currentUser?.role !== 'admin' ? 'Acceso solo para administradores.' : 'Cargando...'}
-        </h1>
-         {currentUser?.role !== 'admin' && (
-          <Link href="/dashboard">
-            <Button>Volver al Salón</Button>
-          </Link>
-        )}
+        <h1 className="text-2xl font-semibold mb-4">Cargando...</h1>
       </div>
     );
   }
+  
+  if (currentUser.role !== 'admin') {
+     return (
+      <div className="flex h-screen flex-col items-center justify-center text-center">
+        <Users className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-4">Acceso solo para administradores.</h1>
+        <Link href="/dashboard">
+          <Button>Volver al Salón</Button>
+        </Link>
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">

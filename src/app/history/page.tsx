@@ -155,10 +155,14 @@ export default function HistoryPage() {
   };
 
   if (!isMounted || !currentUser || !orders || !expenses) {
-    return <div className="flex h-screen items-center justify-center">Cargando...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <h1 className="text-2xl font-semibold">Cargando...</h1>
+      </div>
+    );
   }
   
-  if (isMounted && currentUser && currentUser.role === 'employee') {
+  if (currentUser.role === 'employee') {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
         <HistoryIcon className="h-16 w-16 text-muted-foreground mb-4" />
@@ -465,5 +469,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    

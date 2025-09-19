@@ -129,18 +129,23 @@ export default function ReportsPage() {
       .sort((a, b) => b.value - a.value);
   }, [filteredData.filteredExpenses]);
 
-  if (!isMounted || !currentUser || !orders || !expenses || currentUser.role !== 'admin') {
+  if (!isMounted || !currentUser || !orders || !expenses) {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
         <BarChart2 className="h-16 w-16 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-semibold mb-4">
-          {currentUser?.role !== 'admin' ? 'Acceso solo para administradores.' : 'Cargando reportes...'}
-        </h1>
-        {currentUser?.role !== 'admin' && (
-          <Link href="/dashboard">
-            <Button>Volver al Salón</Button>
-          </Link>
-        )}
+        <h1 className="text-2xl font-semibold mb-4">Cargando reportes...</h1>
+      </div>
+    );
+  }
+
+  if (currentUser.role !== 'admin') {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center text-center">
+        <BarChart2 className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-4">Acceso solo para administradores.</h1>
+        <Link href="/dashboard">
+          <Button>Volver al Salón</Button>
+        </Link>
       </div>
     );
   }
