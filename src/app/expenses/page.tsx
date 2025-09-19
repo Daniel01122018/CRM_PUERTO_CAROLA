@@ -28,6 +28,7 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { buttonVariants } from '@/components/ui/button';
 
 
 const expenseSchema = z.object({
@@ -70,7 +71,7 @@ export default function ExpensesPage() {
     defaultValues: {
       amount: 0,
       category: '',
-      source: currentUser?.role === 'admin' ? 'caja' : 'caja',
+      source: 'caja',
       employeeId: '',
     },
   });
@@ -204,8 +205,13 @@ export default function ExpensesPage() {
   }, [filterPreset, customDateRange]);
 
   const filteredExpenses = useMemo(() => {
-    if (!expenses) return [];
-    return expenses
+    if (!expenses || !currentUser) return [];
+
+    const userExpenses = currentUser.role === 'admin' 
+        ? expenses 
+        : expenses.filter(e => e.createdBy === currentUser.username);
+
+    return userExpenses
       .filter(expense => {
         const categoryMatch = filterCategory === 'all' || expense.category === filterCategory;
         if (!dateFilterRange || !dateFilterRange.from) return categoryMatch;
@@ -213,7 +219,8 @@ export default function ExpensesPage() {
         return categoryMatch && dateMatch;
       })
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [expenses, filterCategory, dateFilterRange]);
+  }, [expenses, currentUser, filterCategory, dateFilterRange]);
+
   
   const filteredSummary = useMemo(() => {
       const total = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -258,11 +265,11 @@ export default function ExpensesPage() {
     );
   }
 
-  if (currentUser.role !== 'admin') {
+  if (currentUser.role !== 'admin' && currentUser.role !== 'employee') {
     return (
        <div className="flex h-screen flex-col items-center justify-center text-center">
         <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-semibold mb-4">Acceso solo para administradores.</h1>
+        <h1 className="text-2xl font-semibold mb-4">Acceso Denegado.</h1>
         <Link href="/dashboard">
           <Button>Volver al Salón</Button>
         </Link>
@@ -280,39 +287,43 @@ export default function ExpensesPage() {
                 Gestión de Gastos
             </h1>
             <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => router.push('/employees')}>
-                    <Users className="h-5 w-5 mr-2"/>
-                    Gestionar Empleados
-                </Button>
+                {currentUser.role === 'admin' && (
+                  <Button variant="outline" onClick={() => router.push('/employees')}>
+                      <Users className="h-5 w-5 mr-2"/>
+                      Gestionar Empleados
+                  </Button>
+                )}
                 <Link href="/dashboard">
                     <Button variant="outline" className="flex items-center gap-2">
                         <ArrowLeft className="h-5 w-5" />
-                        Volver al Salón
+                        Volver
                     </Button>
                 </Link>
             </div>
         </div>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Gastos de Hoy</CardTitle>
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Gastos del Mes</CardTitle>
-                    <BarChart2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">${summaryData.totalMonth.toFixed(2)}</div>
-                </CardContent>
-            </Card>
-        </div>
+        
+        {currentUser.role === 'admin' && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Gastos de Hoy</CardTitle>
+                      <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                      <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
+                  </CardContent>
+              </Card>
+              <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Gastos del Mes</CardTitle>
+                      <BarChart2 className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                      <div className="text-2xl font-bold">${summaryData.totalMonth.toFixed(2)}</div>
+                  </CardContent>
+              </Card>
+          </div>
+        )}
         
         <div className="grid gap-6 md:grid-cols-5">
           <div className="md:col-span-2 space-y-6">
@@ -423,7 +434,7 @@ export default function ExpensesPage() {
                           </FormItem>
                       )}
                       />
-                     {categoryWatch === 'Sueldos' && (
+                     {categoryWatch === 'Sueldos' && currentUser.role === 'admin' && (
                          <FormField
                             control={form.control}
                             name="employeeId"
@@ -532,6 +543,7 @@ export default function ExpensesPage() {
                                     <TableRow>
                                         <TableHead>Fecha</TableHead>
                                         <TableHead>Categoría / Fuente</TableHead>
+                                        {currentUser.role === 'admin' && <TableHead>Registrado por</TableHead>}
                                         <TableHead className="text-right">Monto</TableHead>
                                         {currentUser.role === 'admin' && <TableHead className="text-right">Acciones</TableHead>}
                                     </TableRow>
@@ -553,6 +565,7 @@ export default function ExpensesPage() {
                                                         {format(new Date(expense.createdAt), "dd/MM/yy", { locale: es })}
                                                     </div>
                                                 </TableCell>
+                                                {currentUser.role === 'admin' && <TableCell>{expense.createdBy}</TableCell>}
                                                 <TableCell className="text-right font-medium">${expense.amount.toFixed(2)}</TableCell>
                                                 {currentUser.role === 'admin' && (
                                                     <TableCell className="text-right">
@@ -568,7 +581,7 @@ export default function ExpensesPage() {
                                         ))
                                     ) : (
                                         <TableRow>
-                                            <TableCell colSpan={currentUser.role === 'admin' ? 4 : 3} className="h-24 text-center">
+                                            <TableCell colSpan={currentUser.role === 'admin' ? 5 : 3} className="h-24 text-center">
                                                 No hay gastos que coincidan con los filtros.
                                             </TableCell>
                                         </TableRow>
@@ -593,7 +606,7 @@ export default function ExpensesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedExpense(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({ variant: "destructive" }))}>Sí, Eliminar</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className={buttonVariants({ variant: "destructive" })}>Sí, Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -682,3 +695,5 @@ export default function ExpensesPage() {
     </div>
   );
 }
+
+    
