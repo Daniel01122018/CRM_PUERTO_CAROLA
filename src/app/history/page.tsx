@@ -196,23 +196,13 @@ export default function HistoryPage() {
 
   if (!isMounted || !currentUser || !orders || !expenses) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <h1 className="text-2xl font-semibold">Cargando...</h1>
+      <div className="flex h-screen flex-col items-center justify-center text-center">
+        <HistoryIcon className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-4">Cargando historial...</h1>
       </div>
     );
   }
   
-  if (currentUser.role === 'employee') {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center text-center">
-        <HistoryIcon className="h-16 w-16 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-semibold mb-4">Acceso denegado.</h1>
-        <Link href="/dashboard">
-          <Button>Volver al Salón</Button>
-        </Link>
-      </div>
-    );
-  }
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AppHeader />
@@ -525,3 +515,5 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    

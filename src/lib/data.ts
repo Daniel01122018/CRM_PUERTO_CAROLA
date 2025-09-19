@@ -87,7 +87,7 @@ export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
 
 
 export const USERS = {
-    'Elena': { id: 'user-elena', password: '0123456789', role: 'employee' as const },
+    'Caja001': { id: 'user-elena', password: '0123456789', role: 'employee' as const },
     'Mesero1': { id: 'user-mesero1', password: '1234567890', role: 'employee' as const },
     'admin1': { id: 'user-admin1', password: 'admin001', role: 'admin' as const },
     'cocina': { id: 'user-cocina', password: 'cocina01', role: 'kitchen' as const }
