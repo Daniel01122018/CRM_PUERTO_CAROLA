@@ -16,7 +16,7 @@ export interface OrderItem {
 }
 
 export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';
-export type PaymentMethod = 'Efectivo' | 'Tarjeta' | 'Transferencia';
+export type PaymentMethod = 'Efectivo' | 'DeUna' | 'Transferencia';
 
 export interface Order {
   id: string; // timestamp based
@@ -68,3 +68,5 @@ export interface DailyData {
     date: string; // YYYY-MM-DD format
     initialCash: number;
 }
+
+    

@@ -15,11 +15,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
-import type { Order } from '@/types';
+import type { Order, PaymentMethod } from '@/types';
 import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, History as HistoryIcon, Search, DollarSign, FileText, XCircle, Banknote, Wallet, PiggyBank, Edit } from 'lucide-react';
+
+type OrderFilter = 'all' | 'tables' | 'takeaway';
+type PaymentFilter = 'all' | PaymentMethod;
 
 export default function HistoryPage() {
   const { isMounted, currentUser, orders, expenses, cancelOrder, dailyData, setInitialCash } = useAppStore();
@@ -30,17 +33,24 @@ export default function HistoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [orderToCancelId, setOrderToCancelId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'tables' | 'takeaway'>('all');
+  const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
 
   const [initialCashInput, setInitialCashInput] = useState('');
 
+  useEffect(() => {
+    if (isMounted && !currentUser) {
+      router.push('/');
+    }
+  }, [currentUser, isMounted, router]);
+  
   useEffect(() => {
     if (dailyData) {
       setInitialCashInput(dailyData.initialCash.toString());
     } else {
         setInitialCashInput('0');
     }
-  }, [dailyData]);
+  }, [dailyData, isMounted]);
 
   const handleSetInitialCash = async () => {
     const amount = parseFloat(initialCashInput);
@@ -68,12 +78,6 @@ export default function HistoryPage() {
   };
 
 
-  useEffect(() => {
-    if (isMounted && !currentUser) {
-      router.push('/');
-    }
-  }, [currentUser, isMounted, router]);
-  
   const completedOrders = useMemo(() => {
     if (!orders) return [];
     return orders
@@ -133,12 +137,21 @@ export default function HistoryPage() {
   
 
   const filteredOrders = useMemo(() => {
-    const baseOrders = completedOrders.filter(order => {
-      if (filter === 'tables') return order.tableId !== 'takeaway';
-      if (filter === 'takeaway') return order.tableId === 'takeaway';
-      return true;
-    });
+    let baseOrders = [...completedOrders];
 
+    // Filter by order type
+    if (orderFilter === 'tables') {
+        baseOrders = baseOrders.filter(order => order.tableId !== 'takeaway');
+    } else if (orderFilter === 'takeaway') {
+        baseOrders = baseOrders.filter(order => order.tableId === 'takeaway');
+    }
+
+    // Filter by payment method
+    if (paymentFilter !== 'all') {
+        baseOrders = baseOrders.filter(order => order.paymentMethod === paymentFilter);
+    }
+    
+    // Filter by search term
     if (!searchTerm) return baseOrders;
     
     return baseOrders.filter(order => {
@@ -153,7 +166,8 @@ export default function HistoryPage() {
         });
         return tableIdMatch || orderIdMatch || totalMatch || itemMatch;
     });
-  }, [completedOrders, searchTerm, filter]);
+  }, [completedOrders, searchTerm, orderFilter, paymentFilter]);
+
 
   const handlePrintReport = () => {
     window.print();
@@ -179,6 +193,17 @@ export default function HistoryPage() {
     setIsAlertDialogOpen(false);
     setOrderToCancelId(null);
   };
+  
+  const handleOrderFilterChange = (filter: OrderFilter) => {
+    setOrderFilter(filter);
+    setPaymentFilter('all'); // Reset payment filter when order type changes
+  };
+
+  const handlePaymentFilterChange = (filter: PaymentFilter) => {
+    setPaymentFilter(filter);
+    setOrderFilter('all'); // Reset order type filter
+  };
+
 
   if (!isMounted || !currentUser || !orders || !expenses) {
     return (
@@ -198,6 +223,11 @@ export default function HistoryPage() {
                 <HistoryIcon className="h-6 w-6" />
                 Historial y Reportes
             </h1>
+            {currentUser && currentUser.role === 'admin' && (
+              <Link href="/reports">
+                <Button variant="outline">Ver Reportes Financieros</Button>
+              </Link>
+            )}
             <Link href="/dashboard">
                 <Button variant="outline" className="flex items-center gap-2">
                     <ArrowLeft className="h-5 w-5" />
@@ -295,13 +325,20 @@ export default function HistoryPage() {
                         </Button>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col sm:flex-row gap-4 mb-4 print:hidden">
-                            <div className="flex items-center gap-2">
-                                <Button size="sm" variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')}>Todos</Button>
-                                <Button size="sm" variant={filter === 'tables' ? 'default' : 'outline'} onClick={() => setFilter('tables')}>Mesas</Button>
-                                <Button size="sm" variant={filter === 'takeaway' ? 'default' : 'outline'} onClick={() => setFilter('takeaway')}>Para Llevar</Button>
+                        <div className="flex flex-col gap-2 mb-4 print:hidden">
+                          <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-semibold">Filtrar por:</span>
+                                <Button size="sm" variant={orderFilter === 'all' && paymentFilter === 'all' ? 'default' : 'outline'} onClick={() => { setOrderFilter('all'); setPaymentFilter('all'); }}>Todos</Button>
+                                <Button size="sm" variant={orderFilter === 'tables' ? 'default' : 'outline'} onClick={() => handleOrderFilterChange('tables')}>Mesas</Button>
+                                <Button size="sm" variant={orderFilter === 'takeaway' ? 'default' : 'outline'} onClick={() => handleOrderFilterChange('takeaway')}>Para Llevar</Button>
                             </div>
-                            <div className="relative flex-1">
+                           <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-semibold">Método de Pago:</span>
+                                <Button size="sm" variant={paymentFilter === 'Efectivo' ? 'secondary' : 'outline'} onClick={() => handlePaymentFilterChange('Efectivo')}>Efectivo</Button>
+                                <Button size="sm" variant={paymentFilter === 'DeUna' ? 'secondary' : 'outline'} onClick={() => handlePaymentFilterChange('DeUna')}>DeUna</Button>
+                                <Button size="sm" variant={paymentFilter === 'Transferencia' ? 'secondary' : 'outline'} onClick={() => handlePaymentFilterChange('Transferencia')}>Transferencia</Button>
+                           </div>
+                           <div className="relative flex-1 min-w-[200px]">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input 
                                     type="search"
@@ -312,13 +349,14 @@ export default function HistoryPage() {
                                 />
                             </div>
                         </div>
+
                         <ScrollArea className="h-[40vh]">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Pedido</TableHead>
                                         <TableHead className="w-[150px] hidden sm:table-cell">Fecha</TableHead>
-                                        <TableHead className="w-[100px]">Estado</TableHead>
+                                        <TableHead>Pago</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
                                         {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center print:hidden">Acción</TableHead>}
                                     </TableRow>
@@ -338,9 +376,13 @@ export default function HistoryPage() {
                                                 {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}
                                             </TableCell>
                                             <TableCell>
-                                                {order.status === 'completed' && <span className="text-green-600">Completado</span>}
-                                                {order.status === 'cancelled' && <span className="text-red-600">Cancelado</span>}
-                                                {/* Add other statuses if needed */}
+                                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                                                    order.paymentMethod === 'Efectivo' ? 'bg-green-100 text-green-800' :
+                                                    order.paymentMethod === 'DeUna' ? 'bg-blue-100 text-blue-800' :
+                                                    order.paymentMethod === 'Transferencia' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                    {order.paymentMethod || 'N/A'}
+                                                </span>
                                             </TableCell>
                                             <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
                                             {currentUser?.role === 'admin' && order.status === 'completed' && (
@@ -504,5 +546,7 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    
 
     

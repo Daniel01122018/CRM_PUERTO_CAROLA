@@ -482,9 +482,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   <Tabs defaultValue="Efectivo" className="w-full">
                       <TabsList className="grid w-full grid-cols-3">
                           <TabsTrigger value="Efectivo"><Banknote className="h-5 w-5"/></TabsTrigger>
-                          <TabsTrigger value="Tarjeta"><CreditCard className="h-5 w-5"/></TabsTrigger>
+                          <TabsTrigger value="DeUna"><CreditCard className="h-5 w-5"/></TabsTrigger>
                           <TabsTrigger value="Transferencia"><Smartphone className="h-5 w-5"/></TabsTrigger>
-                          
                       </TabsList>
                       <TabsContent value="Efectivo">
                           <div className="space-y-2 mt-4">
@@ -496,8 +495,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                           </div>
                           <Button className="w-full mt-4" onClick={() => handleFullPayment('Efectivo')} disabled={parseFloat(amountReceived) < remainingAmountToPay && amountReceived !== ''}>Pagar con Efectivo</Button>
                       </TabsContent>
-                       <TabsContent value="Tarjeta">
-                           <Button className="w-full mt-4" onClick={() => handleFullPayment('Tarjeta')}>Pagar con Tarjeta</Button>
+                       <TabsContent value="DeUna">
+                           <Button className="w-full mt-4" onClick={() => handleFullPayment('DeUna')}>Pagar con DeUna</Button>
                        </TabsContent>
                        <TabsContent value="Transferencia">
                            <Button className="w-full mt-4" onClick={() => handleFullPayment('Transferencia')}>Pagar con Transferencia</Button>
