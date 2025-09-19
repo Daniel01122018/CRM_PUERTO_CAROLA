@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { MENU_ITEMS } from '@/lib/data';
+import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
 import type { Order } from '@/types';
 import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -114,7 +114,8 @@ export default function HistoryPage() {
         const orderIdMatch = order.id.toString().includes(lowerCaseSearch);
         const totalMatch = order.total.toFixed(2).includes(lowerCaseSearch);
         const itemMatch = order.items.some(item => {
-            const menuItem = MENU_ITEMS.find(mi => mi.id === item.menuItemId);
+            const menuList = order.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+            const menuItem = menuList.find(mi => mi.id === item.menuItemId);
             return menuItem?.nombre.toLowerCase().includes(lowerCaseSearch);
         });
         return tableIdMatch || orderIdMatch || totalMatch || itemMatch;
@@ -364,7 +365,7 @@ export default function HistoryPage() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={5} className="h-24 text-center">
+                                            <TableCell colSpan={currentUser?.role === 'admin' ? 5 : 4} className="h-24 text-center">
                                                 No se encontraron resultados.
                                             </TableCell>
                                         </TableRow>
@@ -406,14 +407,16 @@ export default function HistoryPage() {
                                 <ScrollArea className="h-[45vh]">
                                     <ul className="space-y-2 text-sm pr-4">
                                         {selectedOrder.items.map((item, index) => {
-                                            const menuItem = MENU_ITEMS.find(mi => mi.id === item.menuItemId);
+                                            const menuList = selectedOrder.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+                                            const menuItem = menuList.find(mi => mi.id === item.menuItemId);
+                                            const price = item.customPrice || (menuItem ? menuItem.precio : 0);
                                             return (
                                                 <li key={`${item.menuItemId}-${index}`} className="flex justify-between border-b pb-2">
                                                     <div>
                                                         <span className="font-medium">{menuItem?.nombre} x{item.quantity}</span>
                                                         {item.notes && <p className="text-xs text-amber-700">Nota: {item.notes}</p>}
                                                     </div>
-                                                    <span>${(menuItem ? menuItem.precio * item.quantity : 0).toFixed(2)}</span>
+                                                    <span>${(price * item.quantity).toFixed(2)}</span>
                                                 </li>
                                             );
                                         })}
@@ -478,7 +481,8 @@ export default function HistoryPage() {
                                 <TableCell>
                                     <ul className="text-xs">
                                         {order.items.map((item, index) => {
-                                            const menuItem = MENU_ITEMS.find(mi => mi.id === item.menuItemId);
+                                            const menuList = order.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+                                            const menuItem = menuList.find(mi => mi.id === item.menuItemId);
                                             return <li key={index}>{menuItem?.nombre} x{item.quantity} {item.notes ? `(${item.notes})` : ''}</li>;
                                         })}
                                     </ul>
