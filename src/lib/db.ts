@@ -2,7 +2,7 @@
 "use client";
 
 import Dexie, { type EntityTable } from 'dexie';
-import type { Order, Expense, Employee, DailyData } from '@/types';
+import type { Order, Expense, Employee, DailyData, InventoryItem } from '@/types';
 
 // 1. Define la clase de la base de datos
 // Hereda de Dexie y le da un nombre 'ElPuertoDeCarolaDB'.
@@ -14,6 +14,7 @@ class ElPuertoDeCarolaDB extends Dexie {
     expenses!: EntityTable<Expense, 'id'>;
     employees!: EntityTable<Employee, 'id'>;
     dailyData!: EntityTable<DailyData, 'date'>;
+    inventory!: EntityTable<InventoryItem, 'id'>;
 
     constructor() {
         super('ElPuertoDeCarolaDB');
@@ -39,6 +40,10 @@ class ElPuertoDeCarolaDB extends Dexie {
 
         this.version(3).stores({
             dailyData: '&date', // 'date' es la clave primaria (YYYY-MM-DD)
+        });
+
+        this.version(4).stores({
+            inventory: 'id, name, createdAt'
         });
     }
 }

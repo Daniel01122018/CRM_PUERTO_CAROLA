@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Order, Table, User, Expense, Employee, DailyData } from '@/types';
+import type { Order, Table, User, Expense, Employee, DailyData, InventoryItem } from '@/types';
 import { USERS as staticUsers, TOTAL_TABLES } from '@/lib/data';
 import { format } from 'date-fns';
 
@@ -39,6 +39,7 @@ export function useAppStore() {
   const orders = useLiveQuery(() => db.orders.toArray());
   const expenses = useLiveQuery(() => db.expenses.toArray());
   const manualEmployees = useLiveQuery(() => db.employees.toArray());
+  const inventoryItems = useLiveQuery(() => db.inventory.toArray());
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const dailyData = useLiveQuery(() => db.dailyData.get(todayStr), [todayStr]);
@@ -159,6 +160,26 @@ export function useAppStore() {
     await db.dailyData.put(data);
   }, [currentUser]);
 
+  const addInventoryItem = useCallback(async (item: Omit<InventoryItem, 'id' | 'createdAt'>) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw new Error("Solo los administradores pueden añadir artículos al inventario.");
+    }
+    const newItem: InventoryItem = {
+      id: Date.now().toString(),
+      ...item,
+      createdAt: Date.now(),
+    };
+    await db.inventory.add(newItem);
+  }, [currentUser]);
+
+  const updateInventoryItem = useCallback(async (itemId: string, updates: Partial<Omit<InventoryItem, 'id'>>) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw new Error("Solo los administradores pueden actualizar el inventario.");
+    }
+    await db.inventory.update(itemId, updates);
+  }, [currentUser]);
+
+
   return { 
     isMounted,
     currentUser,
@@ -176,5 +197,8 @@ export function useAppStore() {
     addEmployee,
     dailyData,
     setInitialCash,
+    inventoryItems,
+    addInventoryItem,
+    updateInventoryItem
   };
 }

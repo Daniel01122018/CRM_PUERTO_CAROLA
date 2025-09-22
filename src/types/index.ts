@@ -69,4 +69,11 @@ export interface DailyData {
     initialCash: number;
 }
 
-    
+export interface InventoryItem {
+    id: string;
+    name: string;
+    stock: number;
+    unit: string; // 'unidades', 'libras', 'litros', etc.
+    lowStockThreshold: number;
+    createdAt: number;
+}

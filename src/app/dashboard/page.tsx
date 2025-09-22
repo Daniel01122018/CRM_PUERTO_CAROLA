@@ -8,7 +8,7 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/app-header';
-import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat, Wallet, BarChartBig, Menu, X } from 'lucide-react';
+import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat, Wallet, BarChartBig, Menu, X, ClipboardList } from 'lucide-react';
 import type { Table } from '@/types';
 
 function TableCard({ table }: { table: Table }) {
@@ -56,6 +56,7 @@ const ActionMenu = () => {
   const isEmployee = currentUser?.role === 'employee';
 
   const actions = [
+    ...(isAdmin ? [{ label: "Inventario", icon: ClipboardList, onClick: () => router.push('/inventory') }] : []),
     ...(isAdmin ? [{ label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports') }] : []),
     ...(isAdmin || isEmployee ? [{ label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses') }] : []),
     { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen') },
