@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import AppHeader from '@/components/app-header';
 import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, History, ChefHat, Wallet, BarChartBig, Menu, X, ClipboardList } from 'lucide-react';
 import type { Table } from '@/types';
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
 
 function TableCard({ table }: { table: Table }) {
     let cardClass = 'bg-green-100 border-green-300';
@@ -50,7 +52,6 @@ function TableCard({ table }: { table: Table }) {
 const ActionMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { currentUser } = useAppStore();
-  const router = useRouter();
 
   const isAdmin = currentUser?.role === 'admin';
   const isEmployee = currentUser?.role === 'employee';
@@ -62,11 +63,6 @@ const ActionMenu = () => {
     { label: "Cocina", icon: ChefHat, path: '/kitchen' },
     { label: "Historial", icon: History, path: '/history' },
   ];
-
-  const handleActionClick = (path: string) => {
-    setIsOpen(false);
-    router.push(path);
-  };
   
   return (
     <div className="relative inline-flex items-center gap-2">
@@ -79,16 +75,15 @@ const ActionMenu = () => {
         }}
       >
         {actions.map((action) => (
-          <Button
+          <Link
             key={action.label}
-            variant="outline"
-            size="icon"
+            href={action.path}
+            className={cn(buttonVariants({ variant: 'outline', size: 'icon' }))}
             aria-label={action.label}
-            onClick={() => handleActionClick(action.path)}
             tabIndex={isOpen ? 0 : -1}
           >
             <action.icon className="h-5 w-5" />
-          </Button>
+          </Link>
         ))}
       </div>
 
