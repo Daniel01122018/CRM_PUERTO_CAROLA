@@ -5,17 +5,18 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import AppHeader from '@/components/app-header';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank } from 'lucide-react';
+import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 
@@ -65,7 +66,7 @@ export default function ReportsPage() {
           to: customDateRange.to ? endOfDay(customDateRange.to) : endOfDay(customDateRange.from) 
         };
       default:
-        return null;
+        return { from: startOfMonth(now), to: endOfMonth(now) };
     }
   }, [filterPreset, customDateRange]);
 
@@ -89,7 +90,7 @@ export default function ReportsPage() {
     const totalIncome = filteredData.filteredOrders.reduce((sum, order) => sum + order.total, 0);
     const totalExpenses = filteredData.filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const netProfit = totalIncome - totalExpenses;
-    return { totalIncome, totalExpenses, netProfit };
+    return { totalIncome, totalExpenses, netProfit, totalOrders: filteredData.filteredOrders.length };
   }, [filteredData]);
   
   const dailyChartData = useMemo(() => {
@@ -129,6 +130,19 @@ export default function ReportsPage() {
       .sort((a, b) => b.value - a.value);
   }, [filteredData.filteredExpenses]);
 
+  const handlePrintReport = () => {
+    window.print();
+  };
+
+  const getFilterDateRangeString = () => {
+    if (!dateFilterRange?.from) return "Rango no definido";
+    const fromStr = format(dateFilterRange.from, 'dd/MM/yyyy');
+    if (!dateFilterRange.to || isSameDay(dateFilterRange.from, dateFilterRange.to)) return fromStr;
+    const toStr = format(dateFilterRange.to, 'dd/MM/yyyy');
+    return `${fromStr} - ${toStr}`;
+  };
+
+
   if (!isMounted || !currentUser || !orders || !expenses) {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
@@ -153,119 +167,126 @@ export default function ReportsPage() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AppHeader />
-      <main className="flex-1 p-4 sm:p-6 md:p-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-            <BarChart2 className="h-8 w-8" />
-            Reportes Financieros
-          </h1>
-          <Link href="/dashboard">
-            <Button variant="outline" className="flex items-center gap-2">
-              <ArrowLeft className="h-5 w-5" />
-              Volver al Salón
-            </Button>
-          </Link>
-        </div>
-
-        <Card className="mb-6">
-            <CardContent className="p-4 flex flex-col sm:flex-row gap-2 items-center">
-                 <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
-                    <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="this_week">Esta semana</SelectItem>
-                        <SelectItem value="last_week">Semana pasada</SelectItem>
-                        <SelectItem value="this_month">Este mes</SelectItem>
-                        <SelectItem value="last_month">Mes pasado</SelectItem>
-                    </SelectContent>
-                </Select>
-                
-                <Popover>
-                    <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !customDateRange && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {customDateRange?.from ? 
-                            customDateRange.to ? 
-                            `${format(customDateRange.from, 'LLL dd, y')} - ${format(customDateRange.to, 'LLL dd, y')}` : 
-                            format(customDateRange.from, 'LLL dd, y') : 
-                            <span>Rango personalizado</span>}
+      <main className="flex-1 p-4 sm:p-6 md:p-8 print:p-0">
+        <div className="print:hidden">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+              <BarChart2 className="h-8 w-8" />
+              Reportes Financieros
+            </h1>
+            <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handlePrintReport}>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Generar Reporte
+                </Button>
+                <Link href="/dashboard">
+                    <Button variant="outline" className="flex items-center gap-2">
+                    <ArrowLeft className="h-5 w-5" />
+                    Volver al Salón
                     </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={customDateRange?.from}
-                        selected={customDateRange}
-                        onSelect={(range) => { setCustomDateRange(range); if(range?.from) setFilterPreset('custom'); }}
-                        numberOfMonths={2}
-                        locale={es}
-                    />
-                    </PopoverContent>
-                </Popover>
-            </CardContent>
-        </Card>
+                </Link>
+            </div>
+          </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${summaryKpis.totalIncome.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">Suma de todas las ventas completadas</p>
-            </CardContent>
+          <Card className="mb-6">
+              <CardContent className="p-4 flex flex-col sm:flex-row gap-2 items-center">
+                  <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
+                      <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
+                      <SelectContent>
+                          <SelectItem value="this_week">Esta semana</SelectItem>
+                          <SelectItem value="last_week">Semana pasada</SelectItem>
+                          <SelectItem value="this_month">Este mes</SelectItem>
+                          <SelectItem value="last_month">Mes pasado</SelectItem>
+                      </SelectContent>
+                  </Select>
+                  
+                  <Popover>
+                      <PopoverTrigger asChild>
+                      <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !customDateRange && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customDateRange?.from ? 
+                              customDateRange.to ? 
+                              `${format(customDateRange.from, 'LLL dd, y')} - ${format(customDateRange.to, 'LLL dd, y')}` : 
+                              format(customDateRange.from, 'LLL dd, y') : 
+                              <span>Rango personalizado</span>}
+                      </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                          initialFocus
+                          mode="range"
+                          defaultMonth={customDateRange?.from}
+                          selected={customDateRange}
+                          onSelect={(range) => { setCustomDateRange(range); if(range?.from) setFilterPreset('custom'); }}
+                          numberOfMonths={2}
+                          locale={es}
+                      />
+                      </PopoverContent>
+                  </Popover>
+              </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Gastos Totales</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">${summaryKpis.totalExpenses.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">Suma de todos los egresos registrados</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-primary text-primary-foreground">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Utilidad Neta</CardTitle>
-              <PiggyBank className="h-4 w-4 text-primary-foreground/80" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">${summaryKpis.netProfit.toFixed(2)}</div>
-              <p className="text-xs text-primary-foreground/80">Ingresos menos gastos</p>
-            </CardContent>
-          </Card>
-        </div>
 
-        <div className="grid gap-6 lg:grid-cols-5">
-            <Card className="lg:col-span-3">
-                <CardHeader>
-                    <CardTitle>Ingresos vs. Gastos</CardTitle>
-                    <CardDescription>Comparación diaria de ingresos y gastos para el período seleccionado.</CardDescription>
-                </CardHeader>
-                <CardContent className="pl-2">
-                    <ChartContainer config={{ Ingresos: { label: "Ingresos", color: "hsl(var(--chart-1))" }, Gastos: { label: "Gastos", color: "hsl(var(--destructive))" } }} className="h-[300px] w-full">
-                        <BarChart accessibilityLayer data={dailyChartData}>
-                            <CartesianGrid vertical={false} />
-                            <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                            <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                            <Bar dataKey="Ingresos" fill="var(--color-Ingresos)" radius={4} />
-                            <Bar dataKey="Gastos" fill="var(--color-Gastos)" radius={4} />
-                        </BarChart>
-                    </ChartContainer>
-                </CardContent>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${summaryKpis.totalIncome.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">{summaryKpis.totalOrders} ventas completadas</p>
+              </CardContent>
             </Card>
-            
-            <Card className="lg:col-span-2">
-                <CardHeader>
-                    <CardTitle>Desglose de Gastos</CardTitle>
-                    <CardDescription>Distribución de gastos por categoría.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                     {expenseBreakdownData.length > 0 ? (
-                        <ChartContainer config={{}} className="h-[300px] w-full">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gastos Totales</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">${summaryKpis.totalExpenses.toFixed(2)}</div>
+                <p className="text-xs text-muted-foreground">Suma de todos los egresos registrados</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-primary text-primary-foreground">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Utilidad Neta</CardTitle>
+                <PiggyBank className="h-4 w-4 text-primary-foreground/80" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">${summaryKpis.netProfit.toFixed(2)}</div>
+                <p className="text-xs text-primary-foreground/80">Ingresos menos gastos</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-5">
+              <Card className="lg:col-span-3">
+                  <CardHeader>
+                      <CardTitle>Ingresos vs. Gastos</CardTitle>
+                      <CardDescription>Comparación diaria de ingresos y gastos para el período seleccionado.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pl-2">
+                      <ResponsiveContainer width="100%" height={300}>
+                          <BarChart accessibilityLayer data={dailyChartData}>
+                              <CartesianGrid vertical={false} />
+                              <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                              <Bar dataKey="Ingresos" fill="var(--color-Ingresos)" radius={4} />
+                              <Bar dataKey="Gastos" fill="var(--color-Gastos)" radius={4} />
+                          </BarChart>
+                      </ResponsiveContainer>
+                  </CardContent>
+              </Card>
+              
+              <Card className="lg:col-span-2">
+                  <CardHeader>
+                      <CardTitle>Desglose de Gastos</CardTitle>
+                      <CardDescription>Distribución de gastos por categoría.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                      {expenseBreakdownData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
                             <PieChart>
                                 <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
                                 <Pie data={expenseBreakdownData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
@@ -274,14 +295,94 @@ export default function ReportsPage() {
                                     ))}
                                 </Pie>
                             </PieChart>
-                        </ChartContainer>
-                      ) : (
-                        <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                            No hay datos de gastos para mostrar.
-                        </div>
-                      )}
-                </CardContent>
-            </Card>
+                        </ResponsiveContainer>
+                        ) : (
+                          <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                              No hay datos de gastos para mostrar.
+                          </div>
+                        )}
+                  </CardContent>
+              </Card>
+          </div>
+        </div>
+
+        {/* Printable Report Section */}
+        <div className="hidden print:block print-report-container print:p-4">
+            <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold">El Puerto de Carola</h1>
+                <h2 className="text-xl font-semibold">Reporte Financiero</h2>
+                <p className="text-sm">Período: {getFilterDateRangeString()}</p>
+                <p className="text-xs">Generado el: {format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="border p-4 rounded-lg print:border print:shadow-none">
+                  <h3 className="font-semibold text-sm">Ingresos Totales</h3>
+                  <p className="text-xl font-bold">${summaryKpis.totalIncome.toFixed(2)}</p>
+                  <p className="text-xs">{summaryKpis.totalOrders} ventas</p>
+              </div>
+              <div className="border p-4 rounded-lg print:border print:shadow-none">
+                  <h3 className="font-semibold text-sm">Gastos Totales</h3>
+                  <p className="text-xl font-bold">${summaryKpis.totalExpenses.toFixed(2)}</p>
+                  <p className="text-xs">{filteredData.filteredExpenses.length} egresos</p>
+              </div>
+              <div className="border p-4 rounded-lg print:border print:shadow-none print:bg-transparent print:text-black">
+                  <h3 className="font-semibold text-sm">Utilidad Neta</h3>
+                  <p className="text-xl font-bold">${summaryKpis.netProfit.toFixed(2)}</p>
+                  <p className="text-xs">Ingresos - Gastos</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Resumen por Día</h3>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead className="text-right">Ingresos</TableHead>
+                            <TableHead className="text-right">Gastos</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {dailyChartData.map(day => (
+                            <TableRow key={day.date}>
+                                <TableCell>{day.date}</TableCell>
+                                <TableCell className="text-right">${day.Ingresos.toFixed(2)}</TableCell>
+                                <TableCell className="text-right">${day.Gastos.toFixed(2)}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Desglose de Gastos</h3>
+                 <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Categoría</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {expenseBreakdownData.length > 0 ? expenseBreakdownData.map(cat => (
+                            <TableRow key={cat.name}>
+                                <TableCell>{cat.name}</TableCell>
+                                <TableCell className="text-right">${cat.value.toFixed(2)}</TableCell>
+                            </TableRow>
+                        )) : (
+                           <TableRow>
+                             <TableCell colSpan={2} className="text-center h-24">No hay gastos en este período.</TableCell>
+                           </TableRow>
+                        )}
+                         <TableRow className="font-bold bg-muted/50">
+                            <TableCell>Total Gastos</TableCell>
+                            <TableCell className="text-right">${summaryKpis.totalExpenses.toFixed(2)}</TableCell>
+                        </TableRow>
+                    </TableBody>
+                </Table>
+              </div>
+            </div>
         </div>
 
       </main>

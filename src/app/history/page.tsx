@@ -19,7 +19,7 @@ import type { Order, PaymentMethod } from '@/types';
 import { format, subDays, startOfDay, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, History as HistoryIcon, Search, DollarSign, FileText, XCircle, Banknote, Wallet, PiggyBank, Edit } from 'lucide-react';
+import { ArrowLeft, History as HistoryIcon, Search, DollarSign, XCircle, Banknote, Wallet, PiggyBank, Edit } from 'lucide-react';
 
 type OrderFilter = 'all' | 'tables' | 'takeaway';
 type PaymentFilter = 'all' | PaymentMethod;
@@ -50,7 +50,7 @@ export default function HistoryPage() {
     } else {
         setInitialCashInput('0');
     }
-  }, [dailyData, isMounted]);
+  }, [dailyData]);
 
   const handleSetInitialCash = async () => {
     const amount = parseFloat(initialCashInput);
@@ -169,10 +169,6 @@ export default function HistoryPage() {
   }, [completedOrders, searchTerm, orderFilter, paymentFilter]);
 
 
-  const handlePrintReport = () => {
-    window.print();
-  };
-
   const handleCancelOrder = (orderId: string) => {
     if (!currentUser || currentUser.role !== 'admin') {
       toast({
@@ -217,26 +213,28 @@ export default function HistoryPage() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <AppHeader />
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 print:p-0">
-        <div className="flex items-center justify-between print:hidden">
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+        <div className="flex items-center justify-between">
             <h1 className="text-2xl font-semibold flex items-center gap-2">
                 <HistoryIcon className="h-6 w-6" />
                 Historial y Reportes
             </h1>
-            {currentUser && currentUser.role === 'admin' && (
-              <Link href="/reports">
-                <Button variant="outline">Ver Reportes Financieros</Button>
+            <div className="flex items-center gap-2">
+              {currentUser?.role === 'admin' && (
+                <Link href="/reports">
+                  <Button variant="outline">Ver Reportes Financieros</Button>
+                </Link>
+              )}
+              <Link href="/dashboard">
+                  <Button variant="outline" className="flex items-center gap-2">
+                      <ArrowLeft className="h-5 w-5" />
+                      Volver al Salón
+                  </Button>
               </Link>
-            )}
-            <Link href="/dashboard">
-                <Button variant="outline" className="flex items-center gap-2">
-                    <ArrowLeft className="h-5 w-5" />
-                    Volver al Salón
-                </Button>
-            </Link>
+            </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 print:hidden">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="bg-primary text-primary-foreground">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Efectivo Esperado en Caja</CardTitle>
@@ -321,18 +319,12 @@ export default function HistoryPage() {
             
             <div className={currentUser.role === 'admin' ? "lg:col-span-2 xl:col-span-3" : "md:col-span-1"}>
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between print:hidden">
-                        <div>
-                            <CardTitle>Todos los Pedidos</CardTitle>
-                            <CardDescription>Busca y selecciona un pedido para ver los detalles.</CardDescription>
-                        </div>
-                         <Button variant="outline" size="sm" onClick={handlePrintReport}>
-                            <FileText className="mr-2 h-4 w-4" />
-                            Generar Reporte
-                        </Button>
+                    <CardHeader>
+                        <CardTitle>Todos los Pedidos</CardTitle>
+                        <CardDescription>Busca y selecciona un pedido para ver los detalles.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col gap-2 mb-4 print:hidden">
+                        <div className="flex flex-col gap-2 mb-4">
                           <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-semibold">Filtrar por:</span>
                                 <Button size="sm" variant={orderFilter === 'all' && paymentFilter === 'all' ? 'default' : 'outline'} onClick={() => { setOrderFilter('all'); setPaymentFilter('all'); }}>Todos</Button>
@@ -365,7 +357,7 @@ export default function HistoryPage() {
                                         <TableHead className="w-[150px] hidden sm:table-cell">Fecha</TableHead>
                                         <TableHead>Pago</TableHead>
                                         <TableHead className="text-right">Total</TableHead>
-                                        {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center print:hidden">Acción</TableHead>}
+                                        {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center">Acción</TableHead>}
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -393,7 +385,7 @@ export default function HistoryPage() {
                                             </TableCell>
                                             <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
                                             {currentUser?.role === 'admin' && order.status === 'completed' && (
-                                            <TableCell className="text-center print:hidden">
+                                            <TableCell className="text-center">
                                                 <Button variant="destructive" size="sm" onClick={(e) => {e.stopPropagation(); handleCancelOrder(order.id)}}>Anular</Button>
                                             </TableCell>)}
                                         </TableRow>
@@ -411,7 +403,7 @@ export default function HistoryPage() {
                 </Card>
             </div>
             
-            <div className={currentUser.role === 'admin' ? "lg:col-span-1 xl:col-span-2 print:hidden" : "md:col-span-1 print:hidden"}>
+            <div className={currentUser.role === 'admin' ? "lg:col-span-1 xl:col-span-2" : "md:col-span-1"}>
                 <Card className="sticky top-24">
                     <CardHeader className="flex flex-row items-center justify-between">
                          <CardTitle>Detalles del Pedido</CardTitle>
@@ -471,68 +463,6 @@ export default function HistoryPage() {
                 </Card>
             </div>
         </div>
-        
-        {/* Printable report section */}
-        <div className="hidden print:block">
-            <div className="space-y-4 p-4">
-                <div className="text-center">
-                    <h1 className="text-2xl font-bold">El Puerto de Carola</h1>
-                    <h2 className="text-xl font-semibold">Reporte de Ventas</h2>
-                    <p className="text-sm text-muted-foreground">Generado el: {format(new Date(), "dd/MM/yyyy HH:mm")}</p>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 my-4">
-                    <div className="border p-4 rounded-lg">
-                        <h3 className="text-lg font-semibold mb-2">Resumen de Hoy</h3>
-                        <p>Ventas Totales: <strong>${summaryData.totalToday.toFixed(2)}</strong></p>
-                        <p>Pedidos Totales: <strong>{summaryData.ordersTodayCount}</strong></p>
-                    </div>
-                    <div className="border p-4 rounded-lg">
-                        <h3 className="text-lg font-semibold mb-2">Resumen General</h3>
-                        <p>Ventas Totales Históricas: <strong>${completedOrders.reduce((acc, o) => acc + o.total, 0).toFixed(2)}</strong></p>
-                        <p>Pedidos Totales Históricos: <strong>{completedOrders.length}</strong></p>
-                    </div>
-                </div>
-                
-                <h2 className="text-lg font-semibold mb-2">Todos los Pedidos Completados</h2>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Pedido</TableHead>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead>Items</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {completedOrders.map(order => (
-                            <TableRow key={order.id}>
-                                <TableCell className="font-medium">
-                                    {order.tableId === 'takeaway' ? 'LLEVAR' : `Mesa ${order.tableId}`}<br/>
-                                    <span className="text-xs text-muted-foreground">ID: {order.id.slice(-6)}</span>
-                                </TableCell>
-                                <TableCell>{format(new Date(order.createdAt), "dd/MM/yy HH:mm")}</TableCell>
-                                <TableCell>
-                                    <ul className="text-xs">
-                                        {order.items.map((item, index) => {
-                                            const menuList = order.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
-                                            const menuItem = menuList.find(mi => mi.id === item.menuItemId);
-                                            return <li key={index}>{menuItem?.nombre} x{item.quantity} {item.notes ? `(${item.notes})` : ''}</li>;
-                                        })}
-                                    </ul>
-                                    {order.notes && (
-                                        <div className="text-xs mt-1 pt-1 border-t border-dashed">
-                                            <strong>Nota General:</strong> {order.notes}
-                                        </div>
-                                    )}
-                                </TableCell>
-                                <TableCell className="text-right font-medium">${order.total.toFixed(2)}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </div>
-        </div>
 
       </main>
       <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
@@ -553,9 +483,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    
-
-    
-
-    

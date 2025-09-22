@@ -65,8 +65,8 @@ body {
     body {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
-        background-color: #fff;
-        color: #000;
+        background-color: #fff !important;
+        color: #000 !important;
     }
     .print\:hidden {
         display: none !important;
@@ -75,10 +75,19 @@ body {
         display: block !important;
     }
     main, .print-report-container {
-        padding: 0;
-        margin: 0;
-        box-shadow: none;
-        border: none;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    .print\:p-4 {
+        padding: 1rem;
+    }
+    .print\:bg-transparent {
+        background-color: transparent !important;
+    }
+    .print\:text-black {
+        color: #000 !important;
     }
     table {
         width: 100%;
@@ -87,8 +96,15 @@ body {
     th, td {
         border: 1px solid #ddd;
         padding: 8px;
+        text-align: left;
     }
     tr:nth-child(even) {
         background-color: #f2f2f2;
+    }
+    .print\:border {
+      border-width: 1px;
+    }
+    .print\:shadow-none {
+      box-shadow: none;
     }
 }
