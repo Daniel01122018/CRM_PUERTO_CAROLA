@@ -20,30 +20,13 @@ class ElPuertoDeCarolaDB extends Dexie {
         super('ElPuertoDeCarolaDB');
         
         // 3. Define el esquema de la base de datos
-        // Aquí le decimos a Dexie cómo están estructuradas nuestras tablas.
-        // 'id' será la clave primaria (primary key).
-        // 'status', 'createdAt', 'tableId' son "índices" (indexes).
-        // Los índices son cruciales para hacer búsquedas y filtros rápidos
-        // sin tener que leer toda la tabla cada vez.
-        this.version(1).stores({
-            orders: 'id, tableId, status, createdAt',
-            expenses: 'id, category, createdAt',
-            employees: 'id, name, createdAt'
-        });
-        
-        // Nueva versión para añadir el índice 'source' a la tabla de gastos
-        this.version(2).stores({
+        // Se definen todas las tablas y sus índices en una única versión para evitar problemas de migración.
+        this.version(4).stores({
             orders: 'id, tableId, status, createdAt',
             expenses: 'id, category, createdAt, source',
-            employees: 'id, name, createdAt'
-        });
-
-        this.version(3).stores({
+            employees: 'id, name, createdAt',
             dailyData: '&date', // 'date' es la clave primaria (YYYY-MM-DD)
-        });
-
-        this.version(4).stores({
-            inventory: 'id, name, createdAt'
+            inventory: 'id, name' // Índices para búsqueda rápida
         });
     }
 }
