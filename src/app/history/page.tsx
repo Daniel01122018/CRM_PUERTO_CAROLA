@@ -18,7 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
-import type { Order, OrderItem, MenuItem } from '@/types';
+import type { Order, OrderItem, MenuItem, PaymentMethod } from '@/types';
 import { format, subDays, startOfDay, isSameDay, startOfYesterday, endOfDay, endOfYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 
 type OrderFilter = 'all' | 'tables' | 'takeaway';
+type PaymentMethodFilter = 'all' | PaymentMethod;
 type FilterPreset = 'today' | 'yesterday' | 'this_week' | 'last_7_days' | 'this_month' | 'last_month' | 'custom';
 
 interface SoldItemInfo {
@@ -36,6 +37,13 @@ interface SoldItemInfo {
   name: string;
   notesBreakdown: { [note: string]: number };
 }
+
+interface PaymentMethodSummary {
+    totalRevenue: number;
+    orderCount: number;
+    method: PaymentMethod;
+}
+
 
 export default function HistoryPage() {
   const { isMounted, currentUser, orders, expenses, cancelOrder, dailyData, setInitialCash } = useAppStore();
@@ -47,6 +55,7 @@ export default function HistoryPage() {
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [orderToCancelId, setOrderToCancelId] = useState<string | null>(null);
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethodFilter>('all');
   const [filterPreset, setFilterPreset] = useState<FilterPreset>('today');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
   
@@ -136,7 +145,9 @@ export default function HistoryPage() {
   }, [completedOrders, dateFilterRange]);
 
   const summaryData = useMemo(() => {
-    if (!isMounted || !ordersInDateRange || !expenses) {
+    const baseOrders = ordersInDateRange || completedOrders;
+    
+    if (!isMounted || !baseOrders || !expenses) {
         return {
             totalToday: 0,
             ordersTodayCount: 0,
@@ -148,7 +159,7 @@ export default function HistoryPage() {
     const today = new Date();
     const todayStart = startOfDay(today);
     
-    const todaysOrders = completedOrders.filter(o => isSameDay(new Date(o.createdAt), todayStart));
+    const todaysOrders = baseOrders.filter(o => isSameDay(new Date(o.createdAt), todayStart));
     const totalToday = todaysOrders.reduce((sum, o) => sum + o.total, 0);
 
     const totalCashToday = todaysOrders
@@ -185,9 +196,10 @@ export default function HistoryPage() {
     };
   }, [completedOrders, expenses, isMounted, dailyData, ordersInDateRange]);
 
-  const { filteredOrders, soldItemInfo } = useMemo(() => {
+  const { filteredOrders, soldItemInfo, paymentMethodSummary } = useMemo(() => {
     let baseOrders = [...ordersInDateRange];
     let soldItemInfo: SoldItemInfo | null = null;
+    let paymentMethodSummary: PaymentMethodSummary | null = null;
     const lowerCaseSearch = searchTerm.toLowerCase();
 
     // Filter by order type
@@ -196,9 +208,23 @@ export default function HistoryPage() {
     } else if (orderFilter === 'takeaway') {
         baseOrders = baseOrders.filter(order => order.tableId === 'takeaway');
     }
+
+    // Filter by payment method
+    if (paymentMethodFilter !== 'all') {
+      baseOrders = baseOrders.filter(order => order.paymentMethod === paymentMethodFilter);
+    }
+    
+    // Calculate payment method summary if a filter is selected
+    if (paymentMethodFilter !== 'all' && !lowerCaseSearch) {
+        paymentMethodSummary = {
+            method: paymentMethodFilter,
+            orderCount: baseOrders.length,
+            totalRevenue: baseOrders.reduce((sum, order) => sum + order.total, 0),
+        };
+    }
     
     if (!lowerCaseSearch) {
-        return { filteredOrders: baseOrders, soldItemInfo: null };
+        return { filteredOrders: baseOrders, soldItemInfo: null, paymentMethodSummary };
     }
 
     const allMenuItems = [...MENU_ITEMS, ...TAKEAWAY_MENU_ITEMS];
@@ -225,7 +251,7 @@ export default function HistoryPage() {
         });
       });
       soldItemInfo.orderCount = ordersWithItem.size;
-      return { filteredOrders: baseOrders, soldItemInfo };
+      return { filteredOrders: baseOrders, soldItemInfo, paymentMethodSummary };
     }
 
     // Otherwise, filter orders by ID or table
@@ -235,8 +261,8 @@ export default function HistoryPage() {
         return tableIdMatch || orderIdMatch;
     });
 
-    return { filteredOrders: filtered, soldItemInfo: null };
-  }, [ordersInDateRange, searchTerm, orderFilter]);
+    return { filteredOrders: filtered, soldItemInfo: null, paymentMethodSummary };
+  }, [ordersInDateRange, searchTerm, orderFilter, paymentMethodFilter]);
 
   const handleCancelOrder = (orderId: string) => {
     if (!currentUser || currentUser.role !== 'admin') {
@@ -261,6 +287,7 @@ export default function HistoryPage() {
   
   const resetFilters = () => {
     setOrderFilter('all');
+    setPaymentMethodFilter('all');
     setFilterPreset('today');
     setCustomDateRange(undefined);
     setSearchTerm('');
@@ -400,6 +427,16 @@ export default function HistoryPage() {
                                     </SelectContent>
                                 </Select>
 
+                                 <Select value={paymentMethodFilter} onValueChange={(v) => setPaymentMethodFilter(v as PaymentMethodFilter)}>
+                                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Método de pago" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los Pagos</SelectItem>
+                                        <SelectItem value="Efectivo">Efectivo</SelectItem>
+                                        <SelectItem value="DeUna">DeUna</SelectItem>
+                                        <SelectItem value="Transferencia">Transferencia</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
                                 <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
                                     <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
                                     <SelectContent>
@@ -460,6 +497,17 @@ export default function HistoryPage() {
                                 </CardContent>
                             </Card>
                         )}
+                        
+                        {paymentMethodSummary && (
+                            <Card className="mb-4 bg-green-50 border-green-200">
+                                <CardContent className="p-3 text-sm">
+                                    <p>
+                                        Se encontraron <strong>{paymentMethodSummary.orderCount} pedidos</strong> pagados con <strong>{paymentMethodSummary.method}</strong>, sumando un total de <strong className="text-green-800">${paymentMethodSummary.totalRevenue.toFixed(2)}</strong> para el período seleccionado.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        )}
+
 
                         <ScrollArea className="h-[40vh]">
                             <Table>
@@ -595,5 +643,7 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    
 
     
