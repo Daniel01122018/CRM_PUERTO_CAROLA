@@ -42,7 +42,7 @@ export default function ReportsPage() {
   const { isMounted, currentUser, orders, expenses } = useAppStore();
   const router = useRouter();
 
-  const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_month');
+  const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_week');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
@@ -403,3 +403,5 @@ export default function ReportsPage() {
     </div>
   );
 }
+
+    
