@@ -56,19 +56,24 @@ const ActionMenu = () => {
   const isEmployee = currentUser?.role === 'employee';
 
   const actions = [
-    ...(isAdmin ? [{ label: "Inventario", icon: ClipboardList, onClick: () => router.push('/inventory') }] : []),
-    ...(isAdmin ? [{ label: "Reportes", icon: BarChartBig, onClick: () => router.push('/reports') }] : []),
-    ...(isAdmin || isEmployee ? [{ label: "Gastos", icon: Wallet, onClick: () => router.push('/expenses') }] : []),
-    { label: "Cocina", icon: ChefHat, onClick: () => router.push('/kitchen') },
-    { label: "Historial", icon: History, onClick: () => router.push('/history') },
+    ...(isAdmin ? [{ label: "Inventario", icon: ClipboardList, path: '/inventory' }] : []),
+    ...(isAdmin ? [{ label: "Reportes", icon: BarChartBig, path: '/reports' }] : []),
+    ...(isAdmin || isEmployee ? [{ label: "Gastos", icon: Wallet, path: '/expenses' }] : []),
+    { label: "Cocina", icon: ChefHat, path: '/kitchen' },
+    { label: "Historial", icon: History, path: '/history' },
   ];
+
+  const handleActionClick = (path: string) => {
+    setIsOpen(false);
+    router.push(path);
+  };
   
   return (
     <div className="relative inline-flex items-center gap-2">
       <div 
         className="flex items-center gap-2 transition-all duration-300 ease-in-out"
         style={{
-          width: isOpen ? `${actions.length * 4}rem` : '0rem', // Adjust width based on number of actions
+          width: isOpen ? `${actions.length * 3.5}rem` : '0rem', 
           opacity: isOpen ? 1 : 0,
           overflow: 'hidden'
         }}
@@ -79,10 +84,7 @@ const ActionMenu = () => {
             variant="outline"
             size="icon"
             aria-label={action.label}
-            onClick={() => {
-              action.onClick();
-              setIsOpen(false);
-            }}
+            onClick={() => handleActionClick(action.path)}
             tabIndex={isOpen ? 0 : -1}
           >
             <action.icon className="h-5 w-5" />
