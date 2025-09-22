@@ -386,9 +386,9 @@ export default function HistoryPage() {
             )}
         </div>
         
-        <div className={`grid gap-4 ${currentUser.role === 'admin' ? 'lg:grid-cols-3 xl:grid-cols-5' : 'md:grid-cols-2'}`}>
+        <div className={`grid gap-4 ${currentUser.role === 'admin' ? 'lg:grid-cols-2' : 'lg:grid-cols-2'}`}>
             {currentUser.role === 'admin' && (
-                <div className="lg:col-span-2 xl:col-span-3 space-y-4">
+                <div className="space-y-4">
                     <Card>
                         <CardHeader>
                             <CardTitle>Ventas de la Última Semana</CardTitle>
@@ -409,8 +409,8 @@ export default function HistoryPage() {
                 </div>
             )}
             
-            <div className={currentUser.role === 'admin' ? "lg:col-span-2 xl:col-span-3" : "md:col-span-1"}>
-                <Card>
+            <div className={`grid gap-4 ${currentUser.role === 'admin' ? 'lg:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'}`}>
+                <Card className={currentUser.role !== 'admin' ? 'md:col-span-1' : ''}>
                     <CardHeader>
                         <CardTitle>Todos los Pedidos</CardTitle>
                         <CardDescription>Busca y selecciona un pedido para ver los detalles.</CardDescription>
@@ -561,10 +561,8 @@ export default function HistoryPage() {
                         </ScrollArea>
                     </CardContent>
                 </Card>
-            </div>
             
-            <div className={currentUser.role === 'admin' ? "lg:col-span-1 xl:col-span-2" : "md:col-span-1"}>
-                <Card className="sticky top-24">
+                <Card className={`sticky top-24 ${currentUser.role !== 'admin' ? 'md:col-span-1' : ''}`}>
                     <CardHeader className="flex flex-row items-center justify-between">
                          <CardTitle>Detalles del Pedido</CardTitle>
                          {selectedOrder && (
@@ -643,7 +641,5 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    
 
     
