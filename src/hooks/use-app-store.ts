@@ -4,8 +4,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Order, Table, User, Expense, Employee, DailyData, InventoryItem } from '@/types';
-import { USERS as staticUsers, TOTAL_TABLES } from '@/lib/data';
+import type { Order, Table, User, Expense, Employee, DailyData, InventoryItem, OrderItem } from '@/types';
+import { USERS as staticUsers, TOTAL_TABLES, MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
 import { format } from 'date-fns';
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
@@ -99,9 +99,35 @@ export function useAppStore() {
     setCurrentUser(null);
   }, []);
 
+  const updateInventoryFromOrder = useCallback(async (order: Order) => {
+    if (!inventoryItems) return;
+
+    const allMenuItems = [...MENU_ITEMS, ...TAKEAWAY_MENU_ITEMS];
+
+    for (const orderItem of order.items) {
+        const menuItem = allMenuItems.find(mi => mi.id === orderItem.menuItemId);
+
+        if (menuItem && menuItem.inventoryItemId) {
+            const inventoryItem = inventoryItems.find(invItem => invItem.id === menuItem.inventoryItemId);
+
+            if (inventoryItem) {
+                const newStock = inventoryItem.stock - orderItem.quantity;
+                await db.inventory.update(inventoryItem.id, { stock: newStock });
+            }
+        }
+    }
+  }, [inventoryItems]);
+
   const addOrUpdateOrder = useCallback(async (order: Order) => {
+    const existingOrder = await db.orders.get(order.id);
+    
+    // Si el pedido se está completando ahora, y antes no lo estaba, descontar inventario
+    if (order.status === 'completed' && existingOrder?.status !== 'completed') {
+        await updateInventoryFromOrder(order);
+    }
+
     await db.orders.put(order);
-  }, []);
+  }, [updateInventoryFromOrder]);
   
   const cancelOrder = useCallback(async (orderId: string) => {
     await db.orders.update(orderId, { status: 'cancelled', cancelledAt: Date.now() });
@@ -164,8 +190,12 @@ export function useAppStore() {
     if (!currentUser || currentUser.role !== 'admin') {
       throw new Error("Solo los administradores pueden añadir artículos al inventario.");
     }
+    const existingItem = await db.inventory.get(item.name.toLowerCase().replace(/\s+/g, '-'));
+    if(existingItem) {
+        throw new Error("Ya existe un artículo con un nombre similar en el inventario.");
+    }
     const newItem: InventoryItem = {
-      id: Date.now().toString(),
+      id: item.name.toLowerCase().replace(/\s+/g, '-'), // Generar ID a partir del nombre
       ...item,
       createdAt: Date.now(),
     };

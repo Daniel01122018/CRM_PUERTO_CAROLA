@@ -6,6 +6,7 @@ export interface MenuItem {
   sabores?: string[];
   takeawayOnly?: boolean;
   customPrice?: boolean;
+  inventoryItemId?: string; // ID del producto en la tabla de inventario
 }
 
 export interface OrderItem {

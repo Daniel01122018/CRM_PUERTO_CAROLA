@@ -142,7 +142,7 @@ export default function InventoryPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nombre del Producto</FormLabel>
-                          <FormControl><Input placeholder="ej. Chifles, Coca Cola 1.35L" {...field} /></FormControl>
+                          <FormControl><Input placeholder="ej. Chifles Bolsa, Cola Personal Unidad" {...field} /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -202,7 +202,7 @@ export default function InventoryPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Producto</TableHead>
+                                    <TableHead>Producto (ID)</TableHead>
                                     <TableHead className="text-center">Stock</TableHead>
                                     <TableHead>Unidad</TableHead>
                                     <TableHead className="text-right">Acciones</TableHead>
@@ -211,10 +211,11 @@ export default function InventoryPage() {
                              <TableBody>
                                 {sortedInventory.length > 0 ? (
                                     sortedInventory.map(item => (
-                                        <TableRow key={item.id} className={cn(item.stock <= item.lowStockThreshold ? 'bg-red-50 hover:bg-red-100' : '')}>
+                                        <TableRow key={item.id} className={cn(item.stock <= item.lowStockThreshold && item.lowStockThreshold > 0 ? 'bg-red-50 hover:bg-red-100' : '')}>
                                             <TableCell className="font-medium">
                                               {item.name}
-                                              {item.stock <= item.lowStockThreshold && (
+                                              <p className="text-xs text-muted-foreground">{item.id}</p>
+                                              {item.stock <= item.lowStockThreshold && item.lowStockThreshold > 0 && (
                                                 <p className="text-xs text-red-600">Stock bajo</p>
                                               )}
                                             </TableCell>

@@ -24,7 +24,7 @@ export const MENU_ITEMS: MenuItem[] = [
 
   // Adicionales
   { id: 19, nombre: "PORCIÓN DE ARROZ", precio: 0.50, category: 'Adicionales' },
-  { id: 20, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales' },
+  { id: 20, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales', inventoryItemId: 'chifles-bolsa' },
   { id: 21, nombre: "PAN", precio: 0.25, category: 'Adicionales' },
   { id: 22, nombre: "MAIZ TOSTADO", precio: 0.25, category: 'Adicionales' },
   { id: 23, nombre: "TARRINA/CONTENEDOR", precio: 0.25, category: 'Adicionales' },
@@ -32,7 +32,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 35, nombre: "TOSTADA MIXTA", precio: 1.25, category: 'Adicionales' },
 
   // Bebidas
-  { id: 24, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"] },
+  { id: 24, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"], inventoryItemId: 'cola-personal-unidad' },
   { id: 25, nombre: "BATIDO", precio: 1.50, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
   { id: 26, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
   { id: 36, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },
@@ -69,14 +69,14 @@ export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
 
   // Adicionales y Bebidas (puedes copiarlos de la lista principal si tienen el mismo precio)
   { id: 201, nombre: "PORCIÓN DE ARROZ", precio: 0.50, category: 'Adicionales' },
-  { id: 202, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales' },
+  { id: 202, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales', inventoryItemId: 'chifles-bolsa' },
   { id: 203, nombre: "PAN", precio: 0.25, category: 'Adicionales' },
   { id: 204, nombre: "MAIZ TOSTADO", precio: 0.25, category: 'Adicionales' },
   { id: 205, nombre: "TARRINA/CONTENEDOR", precio: 0.25, category: 'Adicionales' },
   { id: 206, nombre: "TOSTADA DE QUESO", precio: 1.00, category: 'Adicionales' },
   { id: 207, nombre: "TOSTADA MIXTA", precio: 1.25, category: 'Adicionales' },
 
-  { id: 301, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"] },
+  { id: 301, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"], inventoryItemId: 'cola-personal-unidad' },
   { id: 302, nombre: "BATIDO", precio: 1.50, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
   { id: 303, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
   { id: 304, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },
