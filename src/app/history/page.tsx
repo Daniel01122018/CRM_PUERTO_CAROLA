@@ -386,31 +386,29 @@ export default function HistoryPage() {
             )}
         </div>
         
-        <div className={`grid gap-4 ${currentUser.role === 'admin' ? 'lg:grid-cols-2' : 'lg:grid-cols-2'}`}>
+        <div className="grid gap-6 lg:grid-cols-1">
             {currentUser.role === 'admin' && (
-                <div className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Ventas de la Última Semana</CardTitle>
-                            <CardDescription>Resumen de ingresos de los últimos 7 días.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="pl-2">
-                            <ChartContainer config={{ Ventas: { label: "Ventas", color: "hsl(var(--primary))" } }} className="h-[250px] w-full">
-                                <BarChart accessibilityLayer data={summaryData.weeklyData}>
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                    <Bar dataKey="Ventas" fill="var(--color-Ventas)" radius={4} />
-                                </BarChart>
-                            </ChartContainer>
-                        </CardContent>
-                    </Card>
-                </div>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Ventas de la Última Semana</CardTitle>
+                        <CardDescription>Resumen de ingresos de los últimos 7 días.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pl-2">
+                        <ChartContainer config={{ Ventas: { label: "Ventas", color: "hsl(var(--primary))" } }} className="h-[250px] w-full">
+                            <BarChart accessibilityLayer data={summaryData.weeklyData}>
+                                <CartesianGrid vertical={false} />
+                                <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                <Bar dataKey="Ventas" fill="var(--color-Ventas)" radius={4} />
+                            </BarChart>
+                        </ChartContainer>
+                    </CardContent>
+                </Card>
             )}
-            
-            <div className={`grid gap-4 ${currentUser.role === 'admin' ? 'lg:grid-cols-2' : 'grid-cols-1 md:grid-cols-2'}`}>
-                <Card className={currentUser.role !== 'admin' ? 'md:col-span-1' : ''}>
+
+            <div className="grid gap-4 md:grid-cols-2">
+                <Card>
                     <CardHeader>
                         <CardTitle>Todos los Pedidos</CardTitle>
                         <CardDescription>Busca y selecciona un pedido para ver los detalles.</CardDescription>
@@ -562,7 +560,7 @@ export default function HistoryPage() {
                     </CardContent>
                 </Card>
             
-                <Card className={`sticky top-24 ${currentUser.role !== 'admin' ? 'md:col-span-1' : ''}`}>
+                <Card className="sticky top-24">
                     <CardHeader className="flex flex-row items-center justify-between">
                          <CardTitle>Detalles del Pedido</CardTitle>
                          {selectedOrder && (
