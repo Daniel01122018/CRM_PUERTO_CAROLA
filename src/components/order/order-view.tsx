@@ -19,8 +19,6 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, CreditCard, Smartphone, Banknote } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -28,7 +26,7 @@ interface OrderViewProps {
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { addOrUpdateOrder, cancelOrder, isMounted, currentUser } = useAppStore();
+  const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
   
   const [customPrice, setCustomPrice] = useState('');
@@ -39,8 +37,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [amountReceived, setAmountReceived] = useState('');
   const [change, setChange] = useState(0);
-
-  const orders = useLiveQuery(() => db.orders.toArray(), []);
 
   const isTakeawayOrder = useMemo(() => {
     if (orderIdOrTableId.startsWith('new-')) {
@@ -511,5 +507,3 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
-
-    

@@ -1,3 +1,6 @@
+
+"use client";
+
 import AppHeader from "@/components/app-header";
 import OrderView from "@/components/order/order-view";
 
@@ -7,7 +10,7 @@ interface OrderPageProps {
     }
 }
 
-export default async function OrderPage({ params }: OrderPageProps) {
+export default function OrderPage({ params }: OrderPageProps) {
   const orderId = params.id;
 
   return (
