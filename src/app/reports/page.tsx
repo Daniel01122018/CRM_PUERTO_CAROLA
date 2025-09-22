@@ -11,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import AppHeader from '@/components/app-header';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText } from 'lucide-react';
@@ -26,6 +26,17 @@ const PIE_CHART_COLORS = [
   "#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8",
   "#fa8072", "#7cebe1", "#ffc0cb", "#bada55", "#4cbb17"
 ];
+
+const chartConfig = {
+  Ingresos: {
+    label: "Ingresos",
+    color: "hsl(var(--primary))",
+  },
+  Gastos: {
+    label: "Gastos",
+    color: "hsl(var(--destructive))",
+  },
+};
 
 export default function ReportsPage() {
   const { isMounted, currentUser, orders, expenses } = useAppStore();
@@ -266,16 +277,17 @@ export default function ReportsPage() {
                       <CardDescription>Comparación diaria de ingresos y gastos para el período seleccionado.</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-2">
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
                           <BarChart accessibilityLayer data={dailyChartData}>
                               <CartesianGrid vertical={false} />
                               <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
                               <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
                               <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                              <Legend content={<ChartLegendContent />} />
                               <Bar dataKey="Ingresos" fill="var(--color-Ingresos)" radius={4} />
                               <Bar dataKey="Gastos" fill="var(--color-Gastos)" radius={4} />
                           </BarChart>
-                      </ResponsiveContainer>
+                      </ChartContainer>
                   </CardContent>
               </Card>
               
@@ -286,16 +298,18 @@ export default function ReportsPage() {
                   </CardHeader>
                   <CardContent>
                       {expenseBreakdownData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={300}>
-                            <PieChart>
-                                <ChartTooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                                <Pie data={expenseBreakdownData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                                    {expenseBreakdownData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
-                                    ))}
-                                </Pie>
-                            </PieChart>
-                        </ResponsiveContainer>
+                        <ChartContainer config={{}} className="h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height={300}>
+                                <PieChart>
+                                    <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                                    <Pie data={expenseBreakdownData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                        {expenseBreakdownData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </ChartContainer>
                         ) : (
                           <div className="flex h-[300px] items-center justify-center text-muted-foreground">
                               No hay datos de gastos para mostrar.
@@ -389,5 +403,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    
