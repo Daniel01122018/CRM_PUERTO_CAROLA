@@ -11,18 +11,31 @@ import AppHeader from '@/components/app-header';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
-import type { Order, PaymentMethod } from '@/types';
-import { format, subDays, startOfDay, isSameDay } from 'date-fns';
+import type { Order, OrderItem, MenuItem } from '@/types';
+import { format, subDays, startOfDay, isSameDay, startOfYesterday, endOfDay, endOfYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, History as HistoryIcon, Search, DollarSign, XCircle, Banknote, Wallet, PiggyBank, Edit } from 'lucide-react';
+import { ArrowLeft, History as HistoryIcon, Search, DollarSign, XCircle, Edit, PiggyBank, Wallet, Calendar as CalendarIcon, FilterX } from 'lucide-react';
+import type { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
 
 type OrderFilter = 'all' | 'tables' | 'takeaway';
-type PaymentFilter = 'all' | PaymentMethod;
+type FilterPreset = 'today' | 'yesterday' | 'this_week' | 'last_7_days' | 'this_month' | 'last_month' | 'custom';
+
+interface SoldItemInfo {
+  totalQuantity: number;
+  totalRevenue: number;
+  orderCount: number;
+  name: string;
+  notesBreakdown: { [note: string]: number };
+}
 
 export default function HistoryPage() {
   const { isMounted, currentUser, orders, expenses, cancelOrder, dailyData, setInitialCash } = useAppStore();
@@ -34,8 +47,9 @@ export default function HistoryPage() {
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [orderToCancelId, setOrderToCancelId] = useState<string | null>(null);
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
-  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>('all');
-
+  const [filterPreset, setFilterPreset] = useState<FilterPreset>('today');
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
+  
   const [initialCashInput, setInitialCashInput] = useState('');
 
   useEffect(() => {
@@ -77,16 +91,52 @@ export default function HistoryPage() {
     }
   };
 
-
   const completedOrders = useMemo(() => {
     if (!orders) return [];
     return orders
       .filter(o => o.status === 'completed')
       .sort((a, b) => b.createdAt - a.createdAt);
   }, [orders]);
+  
+  const dateFilterRange = useMemo(() => {
+    const now = new Date();
+    switch (filterPreset) {
+      case 'today':
+        return { from: startOfDay(now), to: endOfDay(now) };
+      case 'yesterday':
+        const yesterday = startOfYesterday();
+        return { from: yesterday, to: endOfYesterday() };
+      case 'this_week':
+        return { from: startOfWeek(now, { locale: es }), to: endOfWeek(now, { locale: es }) };
+      case 'last_7_days':
+        return { from: subDays(startOfDay(now), 6), to: endOfDay(now) };
+      case 'this_month':
+        return { from: startOfMonth(now), to: endOfMonth(now) };
+      case 'last_month':
+        const lastMonthStart = startOfMonth(subMonths(now, 1));
+        return { from: lastMonthStart, to: endOfMonth(lastMonthStart) };
+      case 'custom':
+        if (!customDateRange?.from) return null;
+        return { 
+          from: startOfDay(customDateRange.from), 
+          to: customDateRange.to ? endOfDay(customDateRange.to) : endOfDay(customDateRange.from) 
+        };
+      default:
+        return null;
+    }
+  }, [filterPreset, customDateRange]);
+
+  const ordersInDateRange = useMemo(() => {
+    if (!completedOrders || !dateFilterRange || !dateFilterRange.from) return completedOrders;
+
+    return completedOrders.filter(order => {
+        const dateMatch = isWithinInterval(new Date(order.createdAt), { start: dateFilterRange.from!, end: dateFilterRange.to! });
+        return dateMatch;
+    });
+  }, [completedOrders, dateFilterRange]);
 
   const summaryData = useMemo(() => {
-    if (!isMounted || !completedOrders || !expenses) {
+    if (!isMounted || !ordersInDateRange || !expenses) {
         return {
             totalToday: 0,
             ordersTodayCount: 0,
@@ -133,11 +183,12 @@ export default function HistoryPage() {
       ordersTodayCount: todaysOrders.length,
       weeklyData,
     };
-  }, [completedOrders, expenses, isMounted, dailyData]);
-  
+  }, [completedOrders, expenses, isMounted, dailyData, ordersInDateRange]);
 
-  const filteredOrders = useMemo(() => {
-    let baseOrders = [...completedOrders];
+  const { filteredOrders, soldItemInfo } = useMemo(() => {
+    let baseOrders = [...ordersInDateRange];
+    let soldItemInfo: SoldItemInfo | null = null;
+    const lowerCaseSearch = searchTerm.toLowerCase();
 
     // Filter by order type
     if (orderFilter === 'tables') {
@@ -145,29 +196,47 @@ export default function HistoryPage() {
     } else if (orderFilter === 'takeaway') {
         baseOrders = baseOrders.filter(order => order.tableId === 'takeaway');
     }
-
-    // Filter by payment method
-    if (paymentFilter !== 'all') {
-        baseOrders = baseOrders.filter(order => order.paymentMethod === paymentFilter);
+    
+    if (!lowerCaseSearch) {
+        return { filteredOrders: baseOrders, soldItemInfo: null };
     }
-    
-    // Filter by search term
-    if (!searchTerm) return baseOrders;
-    
-    return baseOrders.filter(order => {
-        const lowerCaseSearch = searchTerm.toLowerCase();
+
+    const allMenuItems = [...MENU_ITEMS, ...TAKEAWAY_MENU_ITEMS];
+    const matchedMenuItems = allMenuItems.filter(item => item.nombre.toLowerCase().includes(lowerCaseSearch));
+
+    // If search term is a menu item, calculate sales data
+    if (matchedMenuItems.length > 0 && lowerCaseSearch.length > 3) {
+      soldItemInfo = { totalQuantity: 0, totalRevenue: 0, orderCount: 0, name: lowerCaseSearch, notesBreakdown: {} };
+      const ordersWithItem = new Set<string>();
+
+      baseOrders.forEach(order => {
+        const menuList = order.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+        order.items.forEach(item => {
+          const menuItem = menuList.find(mi => mi.id === item.menuItemId);
+          if (menuItem && menuItem.nombre.toLowerCase().includes(lowerCaseSearch)) {
+            soldItemInfo!.totalQuantity += item.quantity;
+            const price = item.customPrice || menuItem.precio;
+            soldItemInfo!.totalRevenue += price * item.quantity;
+            ordersWithItem.add(order.id);
+            if(item.notes) {
+              soldItemInfo!.notesBreakdown[item.notes] = (soldItemInfo!.notesBreakdown[item.notes] || 0) + item.quantity;
+            }
+          }
+        });
+      });
+      soldItemInfo.orderCount = ordersWithItem.size;
+      return { filteredOrders: baseOrders, soldItemInfo };
+    }
+
+    // Otherwise, filter orders by ID or table
+    const filtered = baseOrders.filter(order => {
         const tableIdMatch = `mesa ${order.tableId}`.includes(lowerCaseSearch) || (order.tableId === 'takeaway' && 'para llevar'.includes(lowerCaseSearch));
         const orderIdMatch = order.id.toString().includes(lowerCaseSearch);
-        const totalMatch = order.total.toFixed(2).includes(lowerCaseSearch);
-        const itemMatch = order.items.some(item => {
-            const menuList = order.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
-            const menuItem = menuList.find(mi => mi.id === item.menuItemId);
-            return menuItem?.nombre.toLowerCase().includes(lowerCaseSearch);
-        });
-        return tableIdMatch || orderIdMatch || totalMatch || itemMatch;
+        return tableIdMatch || orderIdMatch;
     });
-  }, [completedOrders, searchTerm, orderFilter, paymentFilter]);
 
+    return { filteredOrders: filtered, soldItemInfo: null };
+  }, [ordersInDateRange, searchTerm, orderFilter]);
 
   const handleCancelOrder = (orderId: string) => {
     if (!currentUser || currentUser.role !== 'admin') {
@@ -190,16 +259,12 @@ export default function HistoryPage() {
     setOrderToCancelId(null);
   };
   
-  const handleOrderFilterChange = (filter: OrderFilter) => {
-    setOrderFilter(filter);
-    setPaymentFilter('all'); // Reset payment filter when order type changes
+  const resetFilters = () => {
+    setOrderFilter('all');
+    setFilterPreset('today');
+    setCustomDateRange(undefined);
+    setSearchTerm('');
   };
-
-  const handlePaymentFilterChange = (filter: PaymentFilter) => {
-    setPaymentFilter(filter);
-    setOrderFilter('all'); // Reset order type filter
-  };
-
 
   if (!isMounted || !currentUser || !orders || !expenses) {
     return (
@@ -324,30 +389,77 @@ export default function HistoryPage() {
                         <CardDescription>Busca y selecciona un pedido para ver los detalles.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col gap-2 mb-4">
-                          <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-semibold">Filtrar por:</span>
-                                <Button size="sm" variant={orderFilter === 'all' && paymentFilter === 'all' ? 'default' : 'outline'} onClick={() => { setOrderFilter('all'); setPaymentFilter('all'); }}>Todos</Button>
-                                <Button size="sm" variant={orderFilter === 'tables' ? 'default' : 'outline'} onClick={() => handleOrderFilterChange('tables')}>Mesas</Button>
-                                <Button size="sm" variant={orderFilter === 'takeaway' ? 'default' : 'outline'} onClick={() => handleOrderFilterChange('takeaway')}>Para Llevar</Button>
+                        <div className="space-y-2 mb-4">
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <Select value={orderFilter} onValueChange={(v) => setOrderFilter(v as OrderFilter)}>
+                                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Tipo de pedido" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Todos los pedidos</SelectItem>
+                                        <SelectItem value="tables">Mesas</SelectItem>
+                                        <SelectItem value="takeaway">Para Llevar</SelectItem>
+                                    </SelectContent>
+                                </Select>
+
+                                <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
+                                    <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="today">Hoy</SelectItem>
+                                        <SelectItem value="yesterday">Ayer</SelectItem>
+                                        <SelectItem value="this_week">Esta semana</SelectItem>
+                                        <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
+                                        <SelectItem value="this_month">Este mes</SelectItem>
+                                        <SelectItem value="last_month">Mes pasado</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <Button variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !customDateRange && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {customDateRange?.from ? 
+                                            customDateRange.to ? `${format(customDateRange.from, 'LLL dd')} - ${format(customDateRange.to, 'LLL dd, y')}` : format(customDateRange.from, 'LLL dd, y') :
+                                            <span>Rango personalizado</span>}
+                                    </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        initialFocus mode="range"
+                                        defaultMonth={customDateRange?.from}
+                                        selected={customDateRange}
+                                        onSelect={(range) => { setCustomDateRange(range); if (range?.from) setFilterPreset('custom'); }}
+                                        numberOfMonths={2} locale={es}
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                
+                                <Button variant="ghost" size="icon" onClick={resetFilters}><FilterX className="h-4 w-4" /></Button>
                             </div>
-                           <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-semibold">Método de Pago:</span>
-                                <Button size="sm" variant={paymentFilter === 'Efectivo' ? 'secondary' : 'outline'} onClick={() => handlePaymentFilterChange('Efectivo')}>Efectivo</Button>
-                                <Button size="sm" variant={paymentFilter === 'DeUna' ? 'secondary' : 'outline'} onClick={() => handlePaymentFilterChange('DeUna')}>DeUna</Button>
-                                <Button size="sm" variant={paymentFilter === 'Transferencia' ? 'secondary' : 'outline'} onClick={() => handlePaymentFilterChange('Transferencia')}>Transferencia</Button>
-                           </div>
-                           <div className="relative flex-1 min-w-[200px]">
+                            <div className="relative flex-1">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input 
                                     type="search"
-                                    placeholder="Buscar por mesa, ID, total o artículo..."
+                                    placeholder="Buscar por artículo, ID de pedido o mesa..."
                                     className="pl-8"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
                         </div>
+
+                        {soldItemInfo && soldItemInfo.totalQuantity > 0 && (
+                            <Card className="mb-4 bg-blue-50 border-blue-200">
+                                <CardContent className="p-3 text-sm">
+                                    <p>
+                                        Se vendieron <strong>{soldItemInfo.totalQuantity} '{soldItemInfo.name}'</strong> en <strong>{soldItemInfo.orderCount}</strong> pedidos, generando un total de <strong className="text-blue-800">${soldItemInfo.totalRevenue.toFixed(2)}</strong>.
+                                    </p>
+                                    {Object.keys(soldItemInfo.notesBreakdown).length > 0 && (
+                                        <div className="mt-2 text-xs">
+                                            <strong>Desglose:</strong> {Object.entries(soldItemInfo.notesBreakdown).map(([note, qty]) => `${note} (x${qty})`).join(', ')}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
 
                         <ScrollArea className="h-[40vh]">
                             <Table>
@@ -483,3 +595,5 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    
