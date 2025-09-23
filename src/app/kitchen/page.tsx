@@ -18,7 +18,6 @@ import { es } from 'date-fns/locale';
 
 const KitchenOrderCard = ({ order }: { order: Order }) => {
     const isCancelled = order.status === 'cancelled';
-    const menuList: MenuItem[] = order.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
 
     return (
         <Card className={`flex flex-col ${isCancelled ? 'bg-red-100 border-red-300 shadow-lg' : ''}`}>
@@ -45,12 +44,17 @@ const KitchenOrderCard = ({ order }: { order: Order }) => {
                 <Separator className="mb-4" />
                 <ul className="space-y-3">
                     {order.items.map((item, index) => {
+                        const menuList = item.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
                         const menuItem = menuList.find(mi => mi.id === item.menuItemId);
+                        
                         return (
                             <li key={`${item.menuItemId}-${index}`} className="flex items-start">
                                 <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500' : 'text-primary'}`} />
                                 <div>
-                                    <p className="font-semibold">{menuItem?.nombre} <span className={`font-bold ${isCancelled ? 'text-red-700' : 'text-primary'}`}>x{item.quantity}</span></p>
+                                    <p className="font-semibold">
+                                        {menuItem?.nombre} <span className={`font-bold ${isCancelled ? 'text-red-700' : 'text-primary'}`}>x{item.quantity}</span>
+                                        {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
+                                    </p>
                                     {item.notes && <p className="text-xs text-amber-700">Sabor/Nota: {item.notes}</p>}
                                 </div>
                             </li>
