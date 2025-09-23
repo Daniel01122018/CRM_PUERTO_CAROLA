@@ -2,7 +2,7 @@ import LoginForm from '@/components/login-form';
 
 export default function LoginPage() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center bg-[url('/MainPAge.jpg')] bg-cover bg-center p-4">
+    <main className="relative flex min-h-screen flex-col items-center justify-center bg-[url('/MainPage.jpg')] bg-cover bg-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div className="relative z-10 w-full max-w-sm">
         <div className="text-center mb-8">
