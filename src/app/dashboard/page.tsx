@@ -14,16 +14,16 @@ import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 
 function TableCard({ table }: { table: Table }) {
-    let cardClass = 'bg-green-100 border-green-300';
+    let cardClass = 'bg-green-100/80 border-green-300 backdrop-blur-sm';
     let statusText = 'Disponible';
     let statusSubText = 'Lista para un nuevo pedido';
-    let statusIcon = <CheckSquare className="h-3 w-3 text-green-600" />;
+    let statusIcon = <CheckSquare className="h-3 w-3 text-green-800" />;
 
     if (table.status === 'occupied') {
-        cardClass = 'bg-amber-100 border-amber-300';
+        cardClass = 'bg-amber-100/80 border-amber-300 backdrop-blur-sm';
         statusText = 'Ocupada';
         statusSubText = 'Pedido en curso';
-        statusIcon = <Square className="h-3 w-3 text-amber-600" />;
+        statusIcon = <Square className="h-3 w-3 text-amber-800" />;
     }
     
     return (
@@ -120,27 +120,30 @@ export default function DashboardPage() {
   }
   
   return (
-    <div className="flex min-h-screen w-full flex-col">
-      <AppHeader />
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold">Salón de Mesas</h1>
-            <div className="flex items-center gap-2">
-                <ActionMenu />
-                <Link href="/takeaway">
-                    <Button className="flex items-center gap-2">
-                        <ShoppingBag className="h-5 w-5" />
-                        Para Llevar
-                    </Button>
-                </Link>
-            </div>
+    <div className="relative min-h-screen w-full bg-[url('/SalonPage.jpg')] bg-cover bg-fixed">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <div className="relative z-10 flex min-h-screen w-full flex-col">
+            <AppHeader />
+            <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+                <div className="flex items-center justify-between">
+                    <h1 className="text-2xl font-semibold text-white">Salón de Mesas</h1>
+                    <div className="flex items-center gap-2">
+                        <ActionMenu />
+                        <Link href="/takeaway">
+                            <Button className="flex items-center gap-2">
+                                <ShoppingBag className="h-5 w-5" />
+                                Para Llevar
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 min-h-[70vh]">
+                {tables.map((table) => (
+                    <TableCard key={table.id} table={table} />
+                ))}
+                </div>
+            </main>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 min-h-[70vh]">
-          {tables.map((table) => (
-            <TableCard key={table.id} table={table} />
-          ))}
-        </div>
-      </main>
     </div>
   );
 }
