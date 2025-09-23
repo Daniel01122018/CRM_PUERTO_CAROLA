@@ -236,8 +236,8 @@ export default function HistoryPage() {
       const ordersWithItem = new Set<string>();
 
       baseOrders.forEach(order => {
-        const menuList = order.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
         order.items.forEach(item => {
+          const menuList = item.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
           const menuItem = menuList.find(mi => mi.id === item.menuItemId);
           if (menuItem && menuItem.nombre.toLowerCase().includes(lowerCaseSearch)) {
             soldItemInfo!.totalQuantity += item.quantity;
@@ -589,13 +589,16 @@ export default function HistoryPage() {
                                 <ScrollArea className="h-[45vh]">
                                     <ul className="space-y-2 text-sm pr-4">
                                         {selectedOrder.items.map((item, index) => {
-                                            const menuList = selectedOrder.tableId === 'takeaway' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+                                            const menuList = item.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
                                             const menuItem = menuList.find(mi => mi.id === item.menuItemId);
                                             const price = item.customPrice || (menuItem ? menuItem.precio : 0);
                                             return (
                                                 <li key={`${item.menuItemId}-${index}`} className="flex justify-between border-b pb-2">
                                                     <div>
-                                                        <span className="font-medium">{menuItem?.nombre} x{item.quantity}</span>
+                                                        <span className="font-medium">
+                                                            {menuItem?.nombre} x{item.quantity}
+                                                            {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
+                                                        </span>
                                                         {item.notes && <p className="text-xs text-amber-700">Nota: {item.notes}</p>}
                                                     </div>
                                                     <span>${(price * item.quantity).toFixed(2)}</span>
@@ -639,5 +642,7 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    
 
     
