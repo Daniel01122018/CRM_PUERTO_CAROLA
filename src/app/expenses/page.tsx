@@ -39,7 +39,7 @@ const expenseSchema = z.object({
 });
 
 const PREDEFINED_CATEGORIES: ExpenseCategory[] = [
-    "Pescado", "Chifles", "Supermercado", "Mercado Montebello", "Sueldos", 
+    "Comida de Empleado", "Pescado", "Chifles", "Supermercado", "Mercado Montebello", "Sueldos", 
     "Yuca", "Camarón", "Pedido de Colas", "Pan", "Gas", "Gasto Personal", "Pasajes", "Bollos"
 ];
 
@@ -104,7 +104,7 @@ export default function ExpensesPage() {
         source: currentUser.role === 'admin' ? values.source : 'caja',
       };
 
-      if (values.category === 'Sueldos' && values.employeeId) {
+      if ((values.category === 'Sueldos' || values.category === 'Comida de Empleado') && values.employeeId) {
         const employee = employees.find(e => e.id === values.employeeId);
         if(employee) {
           expenseData.employeeId = employee.id;
@@ -135,7 +135,7 @@ export default function ExpensesPage() {
         employeeName: undefined,
     };
     
-    if (values.category === 'Sueldos' && values.employeeId) {
+    if ((values.category === 'Sueldos' || values.category === 'Comida de Empleado') && values.employeeId) {
         const employee = employees?.find(e => e.id === values.employeeId);
         if (employee) {
             updatedData.employeeName = employee.name;
@@ -434,7 +434,7 @@ export default function ExpensesPage() {
                           </FormItem>
                       )}
                       />
-                     {categoryWatch === 'Sueldos' && currentUser.role === 'admin' && (
+                     {(categoryWatch === 'Sueldos' || categoryWatch === 'Comida de Empleado') && currentUser.role === 'admin' && (
                          <FormField
                             control={form.control}
                             name="employeeId"
@@ -661,7 +661,7 @@ export default function ExpensesPage() {
                                 </FormItem>
                             )}
                         />
-                        {editCategoryWatch === 'Sueldos' && (
+                        {(editCategoryWatch === 'Sueldos' || editCategoryWatch === 'Comida de Empleado') && (
                             <FormField
                                 control={editForm.control}
                                 name="employeeId"
