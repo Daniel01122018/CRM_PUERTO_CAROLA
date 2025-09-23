@@ -5,6 +5,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 32, nombre: "ENCEBOLLADO Jr", precio: 2.00, category: 'Platos' },
   { id: 1, nombre: "ENCEBOLLADO", precio: 2.50, category: 'Platos' },
   { id: 2, nombre: "ENCEBOLLADO MIXTO", precio: 4.00, category: 'Platos' },
+  { id: 40, nombre: "ENCEBOLLADO MIXTO PEQ.", precio: 3.00, category: 'Platos' },
   { id: 3, nombre: "GUATITA CON ARROZ", precio: 3.00, category: 'Platos' },
   { id: 4, nombre: "BOLLO DE PESCADO", precio: 3.00, category: 'Platos' },
   { id: 5, nombre: "BOLLO MIXTO CON CAMARÓN", precio: 4.50, category: 'Platos' },
@@ -39,13 +40,8 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 37, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
   { id: 38, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
   { id: 39, nombre: "AGUA", precio: 0.75, category: 'Bebidas' },
+  { id: 40, nombre: "FUZE TEA", precio: 0.75, category: 'Bebidas' },
   
-  // Platos solo para llevar (obsoletos con la nueva lista, pero se mantienen por si acaso)
-  { id: 27, nombre: "Guatita Media tarrina", precio: 3.25, category: 'Platos', takeawayOnly: true },
-  { id: 28, nombre: "Guatita Tarrina LLena", precio: 6.25, category: 'Platos', takeawayOnly: true },
-  { id: 29, nombre: "Cazuela Media Tarrina", precio: 3.50, category: 'Platos', takeawayOnly: true },
-  { id: 30, nombre: "Cazuela Tarrina LLena", precio: 7.00, category: 'Platos', takeawayOnly: true },
-  { id: 31, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true, takeawayOnly: true },
 ];
 
 export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
@@ -66,9 +62,22 @@ export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
   { id: 110, nombre: "CAZUELA MEDIA TARRINA", precio: 3.50, category: 'Platos' },
   { id: 111, nombre: "CAZUELA T. LLENA", precio: 7.00, category: 'Platos' },
   { id: 112, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true },
+  { id: 113, nombre: "BANDERA 2 INGREDIENTES", precio: 4.25, category: 'Platos' },
+  { id: 114, nombre: "BANDERA TRADICIONAL", precio: 4.75, category: 'Platos' },
+  { id: 115, nombre: "BANDERA 4 INGREDIENTES", precio: 5.25, category: 'Platos' },
+  { id: 116, nombre: "BANDERA COMPLETA", precio: 5.75, category: 'Platos' },
+  { id: 117, nombre: "CEVICHE DE CAMARÓN", precio: 5.25, category: 'Platos' },
+  { id: 118, nombre: "ENCOCADO DE ALBACORA", precio: 3.75, category: 'Platos' },
+  { id: 119, nombre: "ENCOCADO DE CAMARÓN", precio: 4.25, category: 'Platos' },
+  { id: 120, nombre: "ENCOCADO MIXTO CAMARÓN Y PESCADO", precio: 4.75, category: 'Platos' },
+  { id: 121, nombre: "CAZUELA DE ALBACORA", "precio": 3.75, "category": "Platos" },
+  { id: 122, nombre: "CAZUELA DE CAMARÓN", precio: 4.25, category: 'Platos' },
+  { id: 123, nombre: "CAZUELA MIXTA CAMARÓN Y PESCADO", precio: 4.75, category: 'Platos' },
+  { id: 124, nombre: "TORTILLA DE CAMARONES", precio: 4.25, category: 'Platos' },
 
   // Adicionales y Bebidas (puedes copiarlos de la lista principal si tienen el mismo precio)
   { id: 201, nombre: "PORCIÓN DE ARROZ", precio: 0.50, category: 'Adicionales' },
+  { id: 208, nombre: "TARRINA DE ARROZ", precio: 1.25, category: 'Adicionales' },
   { id: 202, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales', inventoryItemId: 'chifles-bolsa' },
   { id: 203, nombre: "PAN", precio: 0.25, category: 'Adicionales' },
   { id: 204, nombre: "MAIZ TOSTADO", precio: 0.25, category: 'Adicionales' },
@@ -83,6 +92,7 @@ export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
   { id: 305, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
   { id: 306, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
   { id: 307, nombre: "AGUA", precio: 0.75, category: 'Bebidas' },
+  { id: 308, nombre: "FUZE TEA", precio: 0.75, category: 'Bebidas' },
 ];
 
 

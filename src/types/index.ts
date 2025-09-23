@@ -14,6 +14,7 @@ export interface OrderItem {
   quantity: number;
   notes: string;
   customPrice?: number;
+  contexto?: 'salon' | 'llevar'; // Para diferenciar precios de salón y llevar en una misma orden
 }
 
 export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';

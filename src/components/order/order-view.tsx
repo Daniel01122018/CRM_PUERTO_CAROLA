@@ -23,6 +23,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 interface OrderViewProps {
   orderIdOrTableId: string;
 }
+
+type MenuContext = 'salon' | 'llevar';
+
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -38,6 +41,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [amountReceived, setAmountReceived] = useState('');
   const [change, setChange] = useState(0);
 
+  const [activeMenuContext, setActiveMenuContext] = useState<MenuContext>('salon');
+
   const isTakeawayOrder = useMemo(() => {
     if (orderIdOrTableId.startsWith('new-')) {
       return orderIdOrTableId.substring(4) === 'takeaway';
@@ -46,9 +51,18 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     return existingOrder?.tableId === 'takeaway';
   }, [orderIdOrTableId, orders]);
 
-  const allMenuItems = useMemo(() => isTakeawayOrder ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS, [isTakeawayOrder]);
+  useEffect(() => {
+      if(isTakeawayOrder) {
+          setActiveMenuContext('llevar');
+      }
+  }, [isTakeawayOrder]);
 
-  const menuCategories = useMemo(() => [...new Set(allMenuItems.map(item => item.category))], [allMenuItems]);
+  const { currentMenuItems, currentMenuCategories } = useMemo(() => {
+    const menu = activeMenuContext === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+    const categories = [...new Set(menu.map(item => item.category))];
+    return { currentMenuItems: menu, currentMenuCategories: categories };
+  }, [activeMenuContext]);
+
 
   useEffect(() => {
     if (!isMounted || !currentUser) {
@@ -121,11 +135,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const total = useMemo(() => {
     if (!currentOrder || !currentOrder.items) return 0;
     return currentOrder.items.reduce((acc, orderItem) => {
-      const menuItem = allMenuItems.find(mi => mi.id === orderItem.menuItemId);
+      const menuList = orderItem.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+      const menuItem = menuList.find(mi => mi.id === orderItem.menuItemId);
       const price = orderItem.customPrice || (menuItem ? menuItem.precio : 0);
       return acc + (price * orderItem.quantity);
     }, 0);
-  }, [currentOrder, allMenuItems]);
+  }, [currentOrder]);
   
   const remainingAmountToPay = useMemo(() => {
       return total - (currentOrder?.partialPaymentsTotal || 0);
@@ -146,7 +161,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     setCurrentOrder(prev => {
       if (!prev) return null;
       const prevItems = prev.items || [];
-      const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes && !i.customPrice);
+      const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes && !i.customPrice && i.contexto === activeMenuContext);
       let newItems = [...prevItems];
       if (itemIndex > -1) {
         const newQuantity = newItems[itemIndex].quantity + change;
@@ -156,7 +171,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           newItems[itemIndex] = {...newItems[itemIndex], quantity: newQuantity};
         }
       } else if (change > 0) {
-        const newItem: OrderItem = { menuItemId, quantity: change, notes };
+        const newItem: OrderItem = { menuItemId, quantity: change, notes, contexto: activeMenuContext };
         newItems.push(newItem);
       }
       return { ...prev, items: newItems };
@@ -208,6 +223,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             quantity: 1,
             notes: '',
             customPrice: price,
+            contexto: activeMenuContext,
         };
         const newItems = [...(prev.items || []), newItem];
         return { ...prev, items: newItems };
@@ -287,20 +303,30 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
       <div className="lg:col-span-2">
         <Card>
-          <CardHeader><CardTitle>Menú</CardTitle></CardHeader>
+            <CardHeader>
+                <CardTitle>Menú</CardTitle>
+                {!isTakeawayOrder && (
+                     <Tabs value={activeMenuContext} onValueChange={(value) => setActiveMenuContext(value as MenuContext)} className="w-full pt-2">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="salon">Menú Salón</TabsTrigger>
+                            <TabsTrigger value="llevar">Menú para Llevar</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                )}
+            </CardHeader>
           <CardContent>
-             <Tabs defaultValue={menuCategories[0]} className="w-full">
+             <Tabs defaultValue={currentMenuCategories[0]} className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
-                  {menuCategories.map(category => (
+                  {currentMenuCategories.map(category => (
                       <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
                   ))}
                 </TabsList>
-                {menuCategories.map(category => (
+                {currentMenuCategories.map(category => (
                     <TabsContent key={category} value={category}>
                        <ScrollArea className="h-[50vh]">
                            <div className="space-y-6 pr-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {allMenuItems.filter(item => item.category === category).map(item => 
+                                {currentMenuItems.filter(item => item.category === category).map(item => 
                                     item.customPrice ? (
                                         <Card key={item.id} className="overflow-hidden">
                                             <CardContent className="p-4 flex flex-col justify-between h-full">
@@ -349,8 +375,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                                     </Popover>
                                                 ) : (
                                                     <>
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={!currentOrder.items?.some(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))}><MinusCircle className="h-4 w-4" /></Button>
-                                                        <span className="font-bold w-4 text-center">{currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes))?.quantity || 0}</span>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={!currentOrder.items?.some(i => i.menuItemId === item.id && (i.notes === '' || !i.notes) && i.contexto === activeMenuContext)}><MinusCircle className="h-4 w-4" /></Button>
+                                                        <span className="font-bold w-4 text-center">{currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes) && i.contexto === activeMenuContext)?.quantity || 0}</span>
                                                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}><PlusCircle className="h-4 w-4" /></Button>
                                                     </>
                                                 )}
@@ -379,7 +405,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               {currentOrder.items && currentOrder.items.length > 0 ? (
                 <div className="space-y-4 pr-4">
                   {currentOrder.items.map((orderItem, index) => {
-                    const menuItem = allMenuItems.find(mi => mi.id === orderItem.menuItemId);
+                    const menuList = orderItem.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
+                    const menuItem = menuList.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
 
                     const isCustomPrice = !!orderItem.customPrice;
@@ -388,7 +415,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                         <div key={`${menuItem.id}-${orderItem.notes || ''}-${index}`} className="space-y-2">
                             <div className="flex justify-between items-start">
                                 <div>
-                                    <p className="font-medium">{menuItem.nombre} {orderItem.notes ? `(${orderItem.notes})` : ''}</p>
+                                    <p className="font-medium">
+                                        {menuItem.nombre} {orderItem.notes ? `(${orderItem.notes})` : ''}
+                                        {orderItem.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
+                                    </p>
                                     <p className="text-sm text-muted-foreground">{orderItem.quantity} x ${(orderItem.customPrice || menuItem.precio).toFixed(2)}</p>
                                 </div>
                                 <p className="font-semibold">${((orderItem.customPrice || menuItem.precio) * orderItem.quantity).toFixed(2)}</p>
