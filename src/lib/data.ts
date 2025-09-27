@@ -50,9 +50,9 @@ export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
   // Los ID deben ser únicos en esta lista, pero no tienen que coincidir con los de la lista principal.
 
   // Platos para Llevar
-  { id: 101, nombre: "ENCEBOLLADO JR", precio: 2.00, category: 'Platos' },
-  { id: 102, nombre: "ENCEBOLLADO", precio: 2.50, category: 'Platos' },
-  { id: 103, nombre: "ENCEBOLLADO T. LLENA", precio: 3.00, category: 'Platos' },
+  { id: 101, nombre: "ENCEBOLLADO JR", precio: 2.25, category: 'Platos' },
+  { id: 102, nombre: "ENCEBOLLADO", precio: 2.75, category: 'Platos' },
+  { id: 103, nombre: "ENCEBOLLADO T. LLENA", precio: 3.25, category: 'Platos' },
   { id: 104, nombre: "ENCEBOLLADO MIXTO", precio: 4.25, category: 'Platos' },
   { id: 105, nombre: "GUATITA CON ARROZ", precio: 3.25, category: 'Platos' },
   { id: 106, nombre: "BOLLO DE PESCADO", precio: 3.00, category: 'Platos' },
