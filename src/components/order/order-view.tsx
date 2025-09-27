@@ -298,13 +298,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
       <div className="lg:col-span-2">
         <Card>
-            <CardHeader>
+             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Menú</CardTitle>
                 {!isTakeawayOrder && (
-                     <Tabs value={activeMenuContext} onValueChange={(value) => setActiveMenuContext(value as MenuContext)} className="w-full pt-2">
+                    <Tabs value={activeMenuContext} onValueChange={(value) => setActiveMenuContext(value as MenuContext)} className="w-[220px]">
                         <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="salon">Menú Salón</TabsTrigger>
-                            <TabsTrigger value="llevar">Menú para Llevar</TabsTrigger>
+                            <TabsTrigger value="salon">Salón</TabsTrigger>
+                            <TabsTrigger value="llevar">Llevar</TabsTrigger>
                         </TabsList>
                     </Tabs>
                 )}
@@ -318,7 +318,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 </TabsList>
                 {currentMenuCategories.map(category => (
                     <TabsContent key={category} value={category}>
-                       <ScrollArea className="h-[50vh]">
+                       <ScrollArea className="h-[60vh]">
                            <div className="space-y-6 pr-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {currentMenuItems.filter(item => item.category === category).map(item => 
@@ -396,7 +396,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             <CardTitle>Pedido: {tableId === 'takeaway' ? `Para Llevar #${currentOrder.id?.slice(-4)}` : `Mesa ${tableId}`}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[40vh]">
+            <ScrollArea className="h-[45vh]">
               {currentOrder.items && currentOrder.items.length > 0 ? (
                 <div className="space-y-4 pr-4">
                   {currentOrder.items.map((orderItem, index) => {
@@ -556,3 +556,5 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    
