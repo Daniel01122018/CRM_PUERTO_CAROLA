@@ -98,8 +98,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         createdAt: Date.now(),
         total: 0,
         notes: '',
-        partialPayments: [],
-        partialPaymentsTotal: 0,
       });
       return;
     }
@@ -143,18 +141,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }, 0);
   }, [currentOrder]);
   
-  const remainingAmountToPay = useMemo(() => {
-      return total - (currentOrder?.partialPaymentsTotal || 0);
-  }, [total, currentOrder?.partialPaymentsTotal]);
 
   useEffect(() => {
     const received = parseFloat(amountReceived);
-    if (!isNaN(received) && received >= remainingAmountToPay) {
-      setChange(received - remainingAmountToPay);
+    if (!isNaN(received) && received >= total) {
+      setChange(received - total);
     } else {
       setChange(0);
     }
-  }, [amountReceived, remainingAmountToPay]);
+  }, [amountReceived, total]);
 
 
   const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
@@ -479,15 +474,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             </div>
           </CardContent>
           <CardFooter className="flex-col space-y-4 pt-4">
-            <div className="flex justify-between w-full text-xl font-bold"><span>Total:</span><span>${total.toFixed(2)}</span></div>
-             {currentOrder.partialPaymentsTotal && currentOrder.partialPaymentsTotal > 0 && (
-                <div className="flex justify-between w-full text-lg font-semibold text-orange-600">
-                    <span>Pagado Parcialmente:</span>
-                    <span>-${currentOrder.partialPaymentsTotal.toFixed(2)}</span>
-                </div>
-            )}
-            <div className="flex justify-between w-full text-2xl font-bold text-primary"><span>Total Pendiente:</span><span>${remainingAmountToPay.toFixed(2)}</span></div>
-
+            <div className="flex justify-between w-full text-2xl font-bold text-primary"><span>Total:</span><span>${total.toFixed(2)}</span></div>
+            
             <div className="grid grid-cols-1 gap-2 w-full">
                {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4"/> Enviar a Cocina</Button>)}
               {currentOrder.status === 'preparing' && (
@@ -534,7 +522,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               <div className="space-y-4 py-4">
                   <div className="text-center">
                       <p className="text-sm text-muted-foreground">Total a Pagar</p>
-                      <p className="text-4xl font-bold">${remainingAmountToPay.toFixed(2)}</p>
+                      <p className="text-4xl font-bold">${total.toFixed(2)}</p>
                   </div>
                   <Tabs defaultValue="Efectivo" className="w-full">
                       <TabsList className="grid w-full grid-cols-3">
@@ -550,7 +538,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                   <p className="text-sm text-green-600 font-medium text-center pt-2">Vuelto: ${change.toFixed(2)}</p>
                               )}
                           </div>
-                          <Button className="w-full mt-4" onClick={() => handleFullPayment('Efectivo')} disabled={parseFloat(amountReceived) < remainingAmountToPay && amountReceived !== ''}>Pagar con Efectivo</Button>
+                          <Button className="w-full mt-4" onClick={() => handleFullPayment('Efectivo')} disabled={parseFloat(amountReceived) < total && amountReceived !== ''}>Pagar con Efectivo</Button>
                       </TabsContent>
                        <TabsContent value="DeUna">
                            <Button className="w-full mt-4" onClick={() => handleFullPayment('DeUna')}>Pagar con DeUna</Button>
@@ -568,5 +556,3 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
-
-    

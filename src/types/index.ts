@@ -30,8 +30,6 @@ export interface Order {
   cancelledAt?: number;
   notes?: string;
   paymentMethod?: PaymentMethod;
-  partialPayments?: { amount: number; method: PaymentMethod; timestamp: number }[];
-  partialPaymentsTotal?: number;
 }
 
 export interface Table {
