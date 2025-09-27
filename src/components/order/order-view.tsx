@@ -527,8 +527,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   <Tabs defaultValue="Efectivo" className="w-full">
                       <TabsList className="grid w-full grid-cols-3">
                           <TabsTrigger value="Efectivo"><Banknote className="h-5 w-5"/></TabsTrigger>
-                          <TabsTrigger value="DeUna">DeUna</TabsTrigger>
-                          <TabsTrigger value="Transferencia">Transf.</TabsTrigger>
+                          <TabsTrigger value="DeUna" className="font-bold">DeUna</TabsTrigger>
+                          <TabsTrigger value="Transferencia"><Smartphone className="h-5 w-5" /></TabsTrigger>
                       </TabsList>
                       <TabsContent value="Efectivo">
                           <div className="space-y-2 mt-4">
