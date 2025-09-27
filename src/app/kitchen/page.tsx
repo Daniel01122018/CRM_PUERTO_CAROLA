@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
-import AppHeader from '@/components/app-header';
+import AppSidebar from '@/components/app-sidebar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -113,12 +113,14 @@ export default function KitchenPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <AppHeader />
       <main className="flex-1 p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Vista de Cocina</h1>
-                <p className="text-muted-foreground">Pedidos activos para preparar.</p>
+            <div className="flex items-center gap-4">
+                <AppSidebar />
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Vista de Cocina</h1>
+                    <p className="text-muted-foreground">Pedidos activos para preparar.</p>
+                </div>
             </div>
             <Link href="/dashboard">
                 <Button variant="outline" className="flex items-center gap-2">

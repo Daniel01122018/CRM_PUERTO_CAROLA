@@ -14,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
-import AppHeader from '@/components/app-header';
+import AppSidebar from '@/components/app-sidebar';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -92,13 +92,15 @@ export default function EmployeesPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <AppHeader />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold flex items-center gap-2">
-                <Users className="h-6 w-6" />
-                Gestión de Empleados
-            </h1>
+            <div className="flex items-center gap-4">
+                <AppSidebar />
+                <h1 className="text-2xl font-semibold flex items-center gap-2">
+                    <Users className="h-6 w-6" />
+                    Gestión de Empleados
+                </h1>
+            </div>
             <Link href="/expenses">
                 <Button variant="outline" className="flex items-center gap-2">
                     <ArrowLeft className="h-5 w-5" />

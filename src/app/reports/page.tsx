@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import AppHeader from '@/components/app-header';
+import AppSidebar from '@/components/app-sidebar';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
@@ -177,14 +177,16 @@ export default function ReportsPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <AppHeader />
       <main className="flex-1 p-4 sm:p-6 md:p-8 print:p-0">
         <div className="print:hidden">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              <BarChart2 className="h-8 w-8" />
-              Reportes Financieros
-            </h1>
+            <div className='flex items-center gap-4'>
+                <AppSidebar />
+                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                <BarChart2 className="h-8 w-8" />
+                Reportes Financieros
+                </h1>
+            </div>
             <div className="flex items-center gap-2">
                 <Button variant="outline" size="sm" onClick={handlePrintReport}>
                     <FileText className="mr-2 h-4 w-4" />
@@ -403,5 +405,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-    

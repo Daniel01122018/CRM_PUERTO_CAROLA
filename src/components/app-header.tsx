@@ -3,7 +3,11 @@
 
 import AppSidebar from "@/components/app-sidebar";
 
-export default function AppHeader() {
+interface AppHeaderProps {
+    showTakeawayButton?: boolean;
+}
+
+export default function AppHeader({ showTakeawayButton = false }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-card px-4 sm:px-6">
         <AppSidebar />

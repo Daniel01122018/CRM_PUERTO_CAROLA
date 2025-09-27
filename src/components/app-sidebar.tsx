@@ -25,7 +25,7 @@ export default function AppSidebar() {
   
   if (!isMounted || !currentUser) {
     return (
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" className="md:hidden">
             <Menu className="h-6 w-6" />
         </Button>
     )
@@ -45,50 +45,40 @@ export default function AppSidebar() {
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon">
+        <Button variant="outline" size="icon">
           <Menu className="h-6 w-6" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="p-0">
+      <SheetContent side="left" className="p-0 flex flex-col">
         <SheetHeader className="p-4 border-b">
           <SheetTitle className="text-xl font-bold text-primary font-headline">El Puerto de Carola</SheetTitle>
         </SheetHeader>
-        <div className="flex h-full flex-col justify-between">
-            <div className="flex-1 p-4">
-                <nav className="flex flex-col gap-2">
-                    {navLinks.map((link) => (
-                        <Link
-                            key={link.label}
-                            href={link.path}
-                            onClick={() => setIsOpen(false)}
-                            className={cn(buttonVariants({ variant: 'ghost', size: 'lg' }), 'justify-start gap-3 text-base')}
-                        >
-                            <link.icon className="h-5 w-5" />
-                            {link.label}
-                        </Link>
-                    ))}
-                    <Separator className="my-2" />
+        
+        <div className="flex-1 overflow-y-auto p-4">
+            <nav className="flex flex-col gap-2">
+                {navLinks.map((link) => (
                     <Link
-                        href="/takeaway"
+                        key={link.label}
+                        href={link.path}
                         onClick={() => setIsOpen(false)}
-                        className={cn(buttonVariants({ variant: 'default', size: 'lg' }), 'justify-center gap-3 text-base')}
+                        className={cn(buttonVariants({ variant: 'ghost', size: 'lg' }), 'justify-start gap-3 text-base')}
                     >
-                        <ShoppingBag className="h-5 w-5" />
-                        Para Llevar
+                        <link.icon className="h-5 w-5" />
+                        {link.label}
                     </Link>
-                </nav>
-            </div>
+                ))}
+            </nav>
+        </div>
 
-            <div className="p-4 border-t">
-                <div className="flex items-center gap-3 mb-3">
-                    <UserCircle className="h-6 w-6 text-muted-foreground" />
-                    <span className="text-base font-medium">{currentUser.username}</span>
-                </div>
-                <Button variant="outline" className="w-full justify-center" onClick={handleLogout}>
-                    <LogOut className="mr-2 h-5 w-5" />
-                    Cerrar Sesión
-                </Button>
+        <div className="p-4 border-t mt-auto">
+            <div className="flex items-center gap-3 mb-3">
+                <UserCircle className="h-6 w-6 text-muted-foreground" />
+                <span className="text-base font-medium">{currentUser.username}</span>
             </div>
+            <Button variant="outline" className="w-full justify-center" onClick={handleLogout}>
+                <LogOut className="mr-2 h-5 w-5" />
+                Cerrar Sesión
+            </Button>
         </div>
       </SheetContent>
     </Sheet>

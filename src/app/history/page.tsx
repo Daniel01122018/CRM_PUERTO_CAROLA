@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import AppHeader from '@/components/app-header';
+import AppSidebar from '@/components/app-sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -304,13 +304,15 @@ export default function HistoryPage() {
   
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <AppHeader />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold flex items-center gap-2">
-                <HistoryIcon className="h-6 w-6" />
-                Historial y Reportes
-            </h1>
+            <div className="flex items-center gap-4">
+                <AppSidebar />
+                <h1 className="text-2xl font-semibold flex items-center gap-2">
+                    <HistoryIcon className="h-6 w-6" />
+                    Historial y Reportes
+                </h1>
+            </div>
             <div className="flex items-center gap-2">
               {currentUser?.role === 'admin' && (
                 <Link href="/reports">
@@ -642,7 +644,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    
-
-    

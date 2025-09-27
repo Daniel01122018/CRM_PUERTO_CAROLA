@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import AppHeader from '@/components/app-header';
-import { UtensilsCrossed, Square, CheckSquare } from 'lucide-react';
+import AppSidebar from '@/components/app-sidebar';
+import { Button } from '@/components/ui/button';
+import { UtensilsCrossed, Square, CheckSquare, ShoppingBag } from 'lucide-react';
 import type { Table } from '@/types';
 
 function TableCard({ table }: { table: Table }) {
@@ -69,10 +70,18 @@ export default function DashboardPage() {
     <div className="relative min-h-screen w-full bg-[url('/SalonPage.jpg')] bg-cover bg-fixed">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
         <div className="relative z-10 flex min-h-screen w-full flex-col">
-            <AppHeader />
             <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-semibold text-white">Salón de Mesas</h1>
+                    <div className="flex items-center gap-4">
+                        <AppSidebar />
+                        <h1 className="text-2xl font-semibold text-white">Salón de Mesas</h1>
+                    </div>
+                    <Link href="/takeaway">
+                        <Button>
+                            <ShoppingBag className="mr-2 h-5 w-5" />
+                            Para Llevar
+                        </Button>
+                    </Link>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 min-h-[70vh]">
                 {tables.map((table) => (
@@ -84,4 +93,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-

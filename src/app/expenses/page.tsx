@@ -18,7 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Calendar } from '@/components/ui/calendar';
-import AppHeader from '@/components/app-header';
+import AppSidebar from '@/components/app-sidebar';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfYesterday, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -279,13 +279,15 @@ export default function ExpensesPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <AppHeader />
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold flex items-center gap-2">
-                <Wallet className="h-6 w-6" />
-                Gestión de Gastos
-            </h1>
+            <div className="flex items-center gap-4">
+                <AppSidebar />
+                <h1 className="text-2xl font-semibold flex items-center gap-2">
+                    <Wallet className="h-6 w-6" />
+                    Gestión de Gastos
+                </h1>
+            </div>
             <div className="flex items-center gap-2">
                 {currentUser.role === 'admin' && (
                   <Button variant="outline" onClick={() => router.push('/employees')}>
@@ -695,5 +697,3 @@ export default function ExpensesPage() {
     </div>
   );
 }
-
-    
