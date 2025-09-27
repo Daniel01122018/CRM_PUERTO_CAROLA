@@ -16,9 +16,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, CreditCard, Smartphone, Banknote } from 'lucide-react';
+import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, CreditCard, Smartphone, Banknote, Edit } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -40,6 +40,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [amountReceived, setAmountReceived] = useState('');
   const [change, setChange] = useState(0);
+  const [isNotesDialogOpen, setNotesDialogOpen] = useState(false);
 
   const [activeMenuContext, setActiveMenuContext] = useState<MenuContext>('salon');
 
@@ -296,7 +297,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }
   
   const tableId = currentOrder.tableId;
-  const isNotesDisabled = currentOrder.status === 'preparing' || currentOrder.status === 'completed';
   const hasUnsentChanges = JSON.stringify(currentOrder.items) !== JSON.stringify(orders.find(o => o.id === currentOrder.id)?.items ?? []);
 
   return (
@@ -401,7 +401,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             <CardTitle>Pedido: {tableId === 'takeaway' ? `Para Llevar #${currentOrder.id?.slice(-4)}` : `Mesa ${tableId}`}</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[30vh]">
+            <ScrollArea className="h-[40vh]">
               {currentOrder.items && currentOrder.items.length > 0 ? (
                 <div className="space-y-4 pr-4">
                   {currentOrder.items.map((orderItem, index) => {
@@ -442,9 +442,40 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 <p className="text-muted-foreground text-center py-8">Añade artículos del menú para empezar.</p>
               )}
             </ScrollArea>
-            <div className="space-y-1 pt-4 pr-4">
-                <label htmlFor="order-notes" className="text-sm font-medium">Notas Generales</label>
-                <Textarea id="order-notes" placeholder="Añadir notas para la cocina (ej. alergias, sin picante, etc.)" value={currentOrder.notes || ''} onChange={handleNotesChange} className="mt-1" disabled={isNotesDisabled}/>
+             <div className="pt-4 pr-4">
+                 <Dialog open={isNotesDialogOpen} onOpenChange={setNotesDialogOpen}>
+                    <DialogTrigger asChild>
+                        {currentOrder.notes ? (
+                             <Button variant="outline" className="w-full justify-start text-left h-auto">
+                                <Edit className="mr-2 h-4 w-4" />
+                                <div>
+                                    <p className="font-semibold">Notas Generales:</p>
+                                    <p className="text-sm text-muted-foreground truncate">{currentOrder.notes}</p>
+                                </div>
+                            </Button>
+                        ) : (
+                             <Button variant="outline" className="w-full">
+                                <Plus className="mr-2 h-4 w-4" />
+                                Añadir Notas Generales
+                            </Button>
+                        )}
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Notas Generales del Pedido</DialogTitle>
+                            <DialogDescription>Añade instrucciones especiales para la cocina, como alergias, preferencias, etc.</DialogDescription>
+                        </DialogHeader>
+                        <Textarea 
+                            placeholder="Escribe tus notas aquí..."
+                            value={currentOrder.notes || ''} 
+                            onChange={handleNotesChange} 
+                            className="mt-2 min-h-[100px]"
+                        />
+                        <DialogFooter>
+                            <Button onClick={() => setNotesDialogOpen(false)}>Guardar Notas</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
           </CardContent>
           <CardFooter className="flex-col space-y-4 pt-4">
@@ -537,3 +568,5 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    
