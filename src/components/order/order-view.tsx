@@ -37,7 +37,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [customPriceItem, setCustomPriceItem] = useState<{plato: MenuPlato, variante: MenuItemVariant} | null>(null);
   
   const [openFlavorPopoverId, setOpenFlavorPopoverId] = useState<number | null>(null);
-  const [isPaymentDialogOpen, setPaymentDialogOpen] useState(false);
+  const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [amountReceived, setAmountReceived] = useState('');
   const [change, setChange] = useState(0);
   const [isNotesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -45,26 +45,23 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [activeMenuContext, setActiveMenuContext] = useState<MenuContext>('salon');
   const [isVariantModalOpen, setVariantModalOpen] = useState(false);
   const [selectedPlato, setSelectedPlato] = useState<MenuPlato | null>(null);
-
+  
   const isTakeawayOrder = useMemo(() => {
     if (orderIdOrTableId.startsWith('new-')) {
-      return orderIdOrTableId.substring(4) === 'takeaway';
+      return orderIdOrTableId.endsWith('takeaway');
     }
     const existingOrder = orders?.find(o => o.id === orderIdOrTableId);
     return existingOrder?.tableId === 'takeaway';
   }, [orderIdOrTableId, orders]);
 
-  useEffect(() => {
-      if(isTakeawayOrder) {
-          setActiveMenuContext('llevar');
-      }
-  }, [isTakeawayOrder]);
 
   const { currentMenuCategories, currentPlatos, currentOtherItems } = useMemo(() => {
     const allCategories = [...new Set([...MENU_PLATOS.map(p => p.category), ...MENU_ITEMS.map(item => item.category)])];
     const platos = MENU_PLATOS;
     const otherItems = MENU_ITEMS.filter(item => {
-        if (item.category === 'Platos') return false; // Ya manejados por `currentPlatos`
+        if (item.category === 'Platos') return false;
+        // Si el menú es 'llevar', muestra todos los items.
+        // Si es 'salon', muestra solo los que NO son exclusivos 'paraLlevar'.
         return activeMenuContext === 'llevar' || !item.paraLlevar;
     });
     return { currentMenuCategories: allCategories, currentPlatos: platos, currentOtherItems: otherItems };
@@ -80,23 +77,20 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (!orders) {
       return; 
     }
-    
+
+    let initialOrder: Partial<Order> | undefined;
+
     if (orderIdOrTableId.startsWith('new-')) {
       const type = orderIdOrTableId.substring(4);
-      let tableId: number | 'takeaway';
-
-      if (type !== 'takeaway') {
-        tableId = parseInt(type, 10);
-        const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
-        if (existingOrderForTable) {
-          router.push(`/order/${existingOrderForTable.id}`);
-          return;
-        }
-      } else {
-        tableId = 'takeaway';
+      const tableId = type === 'takeaway' ? 'takeaway' : parseInt(type, 10);
+      
+      const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
+      if (existingOrderForTable) {
+        router.push(`/order/${existingOrderForTable.id}`);
+        return;
       }
-
-      setCurrentOrder({
+      
+      initialOrder = {
         id: Date.now().toString(),
         tableId: tableId,
         items: [],
@@ -104,33 +98,25 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         createdAt: Date.now(),
         total: 0,
         notes: '',
-      });
-      return;
-    }
+      };
 
-    const existingOrderById = orders.find(o => o.id === orderIdOrTableId);
-    if (existingOrderById) {
-      setCurrentOrder(existingOrderById);
-      return;
-    }
-
-    const tableIdAsNumber = parseInt(orderIdOrTableId, 10);
-    if (!isNaN(tableIdAsNumber)) {
-        const activeOrderForTable = orders.find(o => o.tableId === tableIdAsNumber && (o.status === 'active' || o.status === 'preparing'));
-        if (activeOrderForTable) {
-            router.push(`/order/${activeOrderForTable.id}`);
-            return;
-        }
+    } else {
+        initialOrder = orders.find(o => o.id === orderIdOrTableId);
     }
     
-    toast({
-      variant: "destructive",
-      title: "Pedido no encontrado",
-      description: "El pedido que intentas abrir ya no está activo o fue cerrado.",
-    });
-    if (orderIdOrTableId.includes('takeaway')) {
-      router.push('/takeaway');
+    if (initialOrder) {
+      setCurrentOrder(initialOrder);
+      if (initialOrder.tableId === 'takeaway') {
+        setActiveMenuContext('llevar');
+      } else {
+        setActiveMenuContext('salon');
+      }
     } else {
+       toast({
+        variant: "destructive",
+        title: "Pedido no encontrado",
+        description: "El pedido que intentas abrir no existe o fue cerrado.",
+      });
       router.push('/dashboard');
     }
     
@@ -589,3 +575,5 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    
