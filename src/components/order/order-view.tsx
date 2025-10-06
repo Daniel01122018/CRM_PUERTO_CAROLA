@@ -79,9 +79,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     if (orderIdOrTableId.startsWith('new-')) {
       const type = orderIdOrTableId.substring(4);
-      const tableId = type === 'takeaway' ? 'takeaway' : parseInt(type, 10);
+      const isNewTakeaway = type === 'takeaway';
+      const tableId = isNewTakeaway ? 'takeaway' : parseInt(type, 10);
       
-      if (tableId !== 'takeaway') {
+      if (!isNewTakeaway) {
         const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
         if (existingOrderForTable) {
           router.push(`/order/${existingOrderForTable.id}`);
