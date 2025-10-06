@@ -68,61 +68,67 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
   useEffect(() => {
     if (!isMounted || !currentUser) {
-      if (isMounted) router.push('/');
-      return;
+        if (isMounted) router.push('/');
+        return;
     }
 
     if (!orders) {
-      return; 
+        return;
     }
 
     let initialOrder: Partial<Order> | undefined;
 
     if (orderIdOrTableId.startsWith('new-')) {
-      const type = orderIdOrTableId.substring(4);
-      const isNewTakeaway = type === 'takeaway';
-      const tableId = isNewTakeaway ? 'takeaway' : parseInt(type, 10);
-      
-      if (!isNewTakeaway) {
-        const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
-        if (existingOrderForTable) {
-          router.push(`/order/${existingOrderForTable.id}`);
-          return;
+        const type = orderIdOrTableId.substring(4);
+        const isNewTakeaway = type === 'takeaway';
+        const tableId = isNewTakeaway ? 'takeaway' : parseInt(type, 10);
+
+        if (!isNewTakeaway) {
+            const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
+            if (existingOrderForTable) {
+                // Previene el bucle de redirección si ya estamos en la página correcta
+                if (orderIdOrTableId !== existingOrderForTable.id) {
+                    router.push(`/order/${existingOrderForTable.id}`);
+                }
+                return;
+            }
         }
-      }
-      
-      initialOrder = {
-        id: isNewTakeaway ? Date.now().toString() : `new-${tableId}`,
-        tableId: tableId,
-        items: [],
-        status: 'active',
-        createdAt: Date.now(),
-        total: 0,
-        notes: '',
-      };
-      if (isNewTakeaway) initialOrder.id = Date.now().toString()
+
+        initialOrder = {
+            id: isNewTakeaway ? Date.now().toString() : `new-${tableId}`,
+            tableId: tableId,
+            items: [],
+            status: 'active',
+            createdAt: Date.now(),
+            total: 0,
+            notes: '',
+        };
+        if (isNewTakeaway) initialOrder.id = Date.now().toString()
 
     } else {
         initialOrder = orders.find(o => o.id === orderIdOrTableId);
     }
-    
+
     if (initialOrder) {
-      setCurrentOrder(initialOrder);
-      if (initialOrder.tableId === 'takeaway') {
-        setActiveMenuContext('llevar');
-      } else {
-        setActiveMenuContext('salon');
-      }
+        setCurrentOrder(initialOrder);
+        if (initialOrder.tableId === 'takeaway') {
+            setActiveMenuContext('llevar');
+        } else {
+            setActiveMenuContext('salon');
+        }
     } else {
-       toast({
-        variant: "destructive",
-        title: "Pedido no encontrado",
-        description: "El pedido que intentas abrir no existe o fue cerrado.",
-      });
-      router.push('/dashboard');
+        // Evita mostrar toast si la orden aun no se carga desde la bd
+        if (orders.length > 0) {
+            toast({
+                variant: "destructive",
+                title: "Pedido no encontrado",
+                description: "El pedido que intentas abrir no existe o fue cerrado.",
+            });
+            router.push('/dashboard');
+        }
     }
-    
-  }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
+
+}, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
 
 
   const total = useMemo(() => {
@@ -204,7 +210,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     });
   }
 
-  const handleAddCustomPriceItem = () => {
+ const handleAddCustomPriceItem = () => {
     if (!customPriceVariant) return;
     const price = parseFloat(customPrice);
     if (isNaN(price) || price <= 0) {
@@ -583,5 +589,3 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
-
-    
