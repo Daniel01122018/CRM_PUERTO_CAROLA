@@ -365,7 +365,7 @@ export default function ExpensesPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Monto ($)</FormLabel>
-                          <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} /></FormControl>
+                          <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} autoFocus /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -647,7 +647,7 @@ export default function ExpensesPage() {
                             render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Monto ($)</FormLabel>
-                                <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} /></FormControl>
+                                <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} autoFocus /></FormControl>
                                 <FormMessage />
                                 </FormItem>
                             )}

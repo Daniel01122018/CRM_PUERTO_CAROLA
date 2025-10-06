@@ -124,7 +124,7 @@ export default function EmployeesPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nombre Completo</FormLabel>
-                          <FormControl><Input placeholder="ej. Juan Pérez" {...field} /></FormControl>
+                          <FormControl><Input placeholder="ej. Juan Pérez" {...field} autoFocus /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

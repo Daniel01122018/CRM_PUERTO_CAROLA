@@ -455,6 +455,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                             value={currentOrder.notes || ''} 
                             onChange={handleNotesChange} 
                             className="mt-2 min-h-[100px]"
+                            autoFocus
                         />
                         <DialogFooter>
                             <Button onClick={() => setNotesDialogOpen(false)}>Guardar Notas</Button>
@@ -519,17 +520,19 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
 
        <AlertDialog open={isCustomPriceDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) { setCustomPriceItem(null); setCustomPrice(''); } setIsCustomPriceDialogOpen(isOpen); }}>
-          <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>Ingresar Precio para {customPriceItem?.plato.nombre} - {customPriceItem?.variante.nombre}</AlertDialogTitle>
-                  <AlertDialogDescription>Por favor, ingrese el valor total para este artículo.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <Input type="number" placeholder="e.g., 10.00" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} autoFocus />
-              <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleAddCustomPriceItem}>Añadir al Pedido</AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
+          <form onSubmit={(e) => { e.preventDefault(); handleAddCustomPriceItem(); }}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Ingresar Precio para {customPriceItem?.plato.nombre} - {customPriceItem?.variante.nombre}</AlertDialogTitle>
+                    <AlertDialogDescription>Por favor, ingrese el valor total para este artículo.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <Input type="number" placeholder="ej. 10.00" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} autoFocus />
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction type="submit">Añadir al Pedido</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+          </form>
       </AlertDialog>
       
       <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
@@ -550,14 +553,16 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                           <TabsTrigger value="Transferencia"><Smartphone className="h-5 w-5"/></TabsTrigger>
                       </TabsList>
                       <TabsContent value="Efectivo">
-                          <div className="space-y-2 mt-4">
-                              <label htmlFor="amount-received">Monto Recibido</label>
-                              <Input id="amount-received" type="number" placeholder="Ingrese el monto..." value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} />
-                               {change > 0 && (
-                                  <p className="text-sm text-green-600 font-medium text-center pt-2">Vuelto: ${change.toFixed(2)}</p>
-                              )}
-                          </div>
-                          <Button className="w-full mt-4" onClick={() => handleFullPayment('Efectivo')} disabled={parseFloat(amountReceived) < total && amountReceived !== ''}>Pagar con Efectivo</Button>
+                          <form onSubmit={(e) => { e.preventDefault(); handleFullPayment('Efectivo'); }}>
+                            <div className="space-y-2 mt-4">
+                                <label htmlFor="amount-received">Monto Recibido</label>
+                                <Input id="amount-received" type="number" placeholder="Ingrese el monto..." value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} autoFocus />
+                                {change > 0 && (
+                                    <p className="text-sm text-green-600 font-medium text-center pt-2">Vuelto: ${change.toFixed(2)}</p>
+                                )}
+                            </div>
+                            <Button type="submit" className="w-full mt-4" disabled={parseFloat(amountReceived) < total && amountReceived !== ''}>Pagar con Efectivo</Button>
+                          </form>
                       </TabsContent>
                        <TabsContent value="DeUna">
                            <Button className="w-full mt-4" onClick={() => handleFullPayment('DeUna')}>Pagar con DeUna</Button>

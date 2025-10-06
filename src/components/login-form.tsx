@@ -69,7 +69,7 @@ export default function LoginForm() {
                 <FormItem>
                   <FormLabel>Usuario</FormLabel>
                   <FormControl>
-                    <Input placeholder="ej. Mesero1" {...field} />
+                    <Input placeholder="ej. Mesero1" {...field} autoFocus />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

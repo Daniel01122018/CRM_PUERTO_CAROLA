@@ -144,7 +144,7 @@ export default function InventoryPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nombre del Producto</FormLabel>
-                          <FormControl><Input placeholder="ej. Chifles Bolsa, Cola Personal Unidad" {...field} /></FormControl>
+                          <FormControl><Input placeholder="ej. Chifles Bolsa, Cola Personal Unidad" {...field} autoFocus /></FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
