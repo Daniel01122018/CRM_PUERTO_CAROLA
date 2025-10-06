@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
 import { MENU_PLATOS, MENU_ITEMS, ALL_MENU_ITEMS } from '@/lib/data';
-import type { Order, OrderItem, MenuItem, PaymentMethod, MenuPlato } from '@/types';
+import type { Order, OrderItem, MenuItem, PaymentMethod, MenuPlato, MenuItemVariant } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   
   const [customPrice, setCustomPrice] = useState('');
   const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
-  const [customPriceItem, setCustomPriceItem] = useState<MenuItem | null>(null);
+  const [customPriceVariant, setCustomPriceVariant] = useState<MenuItemVariant | null>(null);
   
   const [openFlavorPopoverId, setOpenFlavorPopoverId] = useState<number | null>(null);
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -207,7 +207,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }
 
   const handleAddCustomPriceItem = () => {
-    if (!customPriceItem) return;
+    if (!customPriceVariant) return;
     const price = parseFloat(customPrice);
     if (isNaN(price) || price <= 0) {
          toast({
@@ -217,10 +217,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         });
         return;
     }
-    updateItemQuantity(customPriceItem.id, 1, '', price);
+    updateItemQuantity(customPriceVariant.id, 1, '', price);
     setCustomPrice('');
-    setCustomPriceItem(null);
+    setCustomPriceVariant(null);
     setIsCustomPriceDialogOpen(false);
+    setVariantModalOpen(false);
   }
 
   
@@ -288,9 +289,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const tableId = currentOrder.tableId;
   const hasUnsentChanges = JSON.stringify(currentOrder.items) !== JSON.stringify(orders.find(o => o.id === currentOrder.id)?.items ?? []);
 
-  const platosConVariantes = currentPlatos.filter(p => p.variantes && p.variantes.length > 0);
-  const otrosItemsPlatos = currentOtherItems.filter(item => item.category === 'Platos');
-
   return (
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
       <div className="lg:col-span-2">
@@ -321,7 +319,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                        <ScrollArea className="h-[60vh]">
                            <div className="space-y-6 pr-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {category === 'Platos' && platosConVariantes.map(plato => (
+                                {category === 'Platos' && currentPlatos.map(plato => (
                                     <Card 
                                         key={plato.id} 
                                         className="overflow-hidden cursor-pointer hover:bg-muted transition-colors"
@@ -332,30 +330,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                         </CardContent>
                                     </Card>
                                 ))}
-                                {category === 'Platos' && otrosItemsPlatos.map(item => (
-                                     <Card key={item.id} className="overflow-hidden">
-                                       <CardContent className="p-4 flex flex-col justify-between h-full">
-                                            <div>
-                                                <p className="font-semibold">{item.nombre}</p>
-                                                <p className="text-sm text-muted-foreground">${item.precio.toFixed(2)}</p>
-                                            </div>
-                                            <div className="flex items-center justify-end gap-2 mt-2">
-                                                {item.customPrice ? (
-                                                    <Button variant="outline" onClick={() => { setCustomPriceItem(item); setIsCustomPriceDialogOpen(true); }}>
-                                                        <Plus className="mr-2 h-4 w-4" /> Añadir (Precio Manual)
-                                                    </Button>
-                                                ) : (
-                                                    <>
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={!currentOrder.items?.some(i => i.menuItemId === item.id && (i.notes === '' || !i.notes) && i.contexto === activeMenuContext)}><MinusCircle className="h-4 w-4" /></Button>
-                                                        <span className="font-bold w-4 text-center">{currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes) && i.contexto === activeMenuContext)?.quantity || 0}</span>
-                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}><PlusCircle className="h-4 w-4" /></Button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))}
-
                                 {currentOtherItems.filter(item => item.category === category).map(item => (
                                     <Card key={item.id} className="overflow-hidden">
                                        <CardContent className="p-4 flex flex-col justify-between h-full">
@@ -530,9 +504,17 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               <div key={variante.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
                 <div>
                   <p className="font-medium">{variante.nombre}</p>
-                  <p className="text-sm text-muted-foreground">{`$${variante.precio.toFixed(2)}`}</p>
+                  <p className="text-sm text-muted-foreground">{variante.customPrice ? '(Precio Manual)' : `$${variante.precio.toFixed(2)}`}</p>
                 </div>
-                <Button variant="outline" onClick={() => {updateItemQuantity(variante.id, 1); setVariantModalOpen(false)}}>
+                <Button variant="outline" onClick={() => {
+                    if (variante.customPrice) {
+                        setCustomPriceVariant(variante);
+                        setIsCustomPriceDialogOpen(true);
+                    } else {
+                        updateItemQuantity(variante.id, 1);
+                        setVariantModalOpen(false);
+                    }
+                }}>
                     <Plus className="mr-2 h-4 w-4" /> Añadir
                 </Button>
               </div>
@@ -542,11 +524,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       </Dialog>
 
 
-       <AlertDialog open={isCustomPriceDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) { setCustomPriceItem(null); setCustomPrice(''); } setIsCustomPriceDialogOpen(isOpen); }}>
+       <AlertDialog open={isCustomPriceDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) { setCustomPriceVariant(null); setCustomPrice(''); } setIsCustomPriceDialogOpen(isOpen); }}>
           <form onSubmit={(e) => { e.preventDefault(); handleAddCustomPriceItem(); }}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Ingresar Precio para {customPriceItem?.nombre}</AlertDialogTitle>
+                    <AlertDialogTitle>Ingresar Precio para {selectedPlato?.nombre} {customPriceVariant?.nombre}</AlertDialogTitle>
                     <AlertDialogDescription>Por favor, ingrese el valor total para este artículo.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <Input type="number" placeholder="ej. 10.00" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} autoFocus />

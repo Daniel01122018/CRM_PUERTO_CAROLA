@@ -15,6 +15,7 @@ export const MENU_PLATOS: MenuPlato[] = [
       { id: 102, nombre: "Normal", precio: 2.75, contexto: 'llevar' },
       { id: 103, nombre: "T. Llena", precio: 3.25, contexto: 'llevar' },
       { id: 104, nombre: "Mixto", precio: 4.25, contexto: 'llevar' },
+      { id: 112, nombre: "En Olla", precio: 0, contexto: 'llevar', customPrice: true },
     ]
   },
   {
@@ -110,9 +111,6 @@ export const MENU_PLATOS: MenuPlato[] = [
 
 
 export const MENU_ITEMS: MenuItem[] = [
-  // Platos especiales
-  { id: 112, nombre: "ENCEBOLLADO EN OLLA", precio: 0, category: 'Platos', customPrice: true, paraLlevar: true },
-
   // Adicionales
   { id: 19, nombre: "PORCIÓN DE ARROZ", precio: 0.50, category: 'Adicionales' },
   { id: 20, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales', inventoryItemId: 'chifles-bolsa' },
