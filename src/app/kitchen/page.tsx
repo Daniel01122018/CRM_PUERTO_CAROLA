@@ -51,7 +51,9 @@ const KitchenOrderCard = ({ order }: { order: Order }) => {
                                 <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500' : 'text-primary'}`} />
                                 <div>
                                     <p className="font-semibold">
-                                        {menuItem?.nombre} <span className={`font-bold ${isCancelled ? 'text-red-700' : 'text-primary'}`}>x{item.quantity}</span>
+                                        {menuItem?.nombre}{' '}
+                                        {item.customPrice && `($${item.customPrice.toFixed(2)})`}{' '}
+                                        <span className={`font-bold ${isCancelled ? 'text-red-700' : 'text-primary'}`}>x{item.quantity}</span>
                                         {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
                                     </p>
                                     {item.notes && <p className="text-xs text-amber-700">Sabor/Nota: {item.notes}</p>}
