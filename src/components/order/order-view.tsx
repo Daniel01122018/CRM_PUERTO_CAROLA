@@ -59,9 +59,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     const allCategories = ['Platos', 'Bebidas', 'Adicionales'];
     const platos = MENU_PLATOS;
     const otherItems = MENU_ITEMS.filter(item => {
-        // Para el modo llevar, mostrar todos los items (incluidos los `paraLlevar`)
         if (activeMenuContext === 'llevar') return true;
-        // Para el modo salón, solo mostrar los que no son exclusivos `paraLlevar`
         return !item.paraLlevar;
     });
     return { currentMenuCategories: allCategories, currentPlatos: platos, currentOtherItems: otherItems };
@@ -585,7 +583,5 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
-
-    
 
     
