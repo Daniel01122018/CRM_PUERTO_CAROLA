@@ -15,7 +15,6 @@ export const MENU_PLATOS: MenuPlato[] = [
       { id: 102, nombre: "Normal", precio: 2.75, contexto: 'llevar' },
       { id: 103, nombre: "T. Llena", precio: 3.25, contexto: 'llevar' },
       { id: 104, nombre: "Mixto", precio: 4.25, contexto: 'llevar' },
-      { id: 112, nombre: "En Olla", precio: 0, contexto: 'llevar', customPrice: true },
     ]
   },
   {

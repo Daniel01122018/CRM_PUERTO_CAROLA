@@ -32,10 +32,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders } = useAppStore();
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
   
-  const [customPrice, setCustomPrice] = useState('');
-  const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
-  const [customPriceVariant, setCustomPriceVariant] = useState<MenuItemVariant | null>(null);
-  
   const [openFlavorPopoverId, setOpenFlavorPopoverId] = useState<number | null>(null);
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [amountReceived, setAmountReceived] = useState('');
@@ -86,7 +82,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         if (!isNewTakeaway) {
             const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
             if (existingOrderForTable) {
-                // Previene el bucle de redirección si ya estamos en la página correcta
                 if (orderIdOrTableId !== existingOrderForTable.id) {
                     router.push(`/order/${existingOrderForTable.id}`);
                 }
@@ -117,7 +112,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             setActiveMenuContext('salon');
         }
     } else {
-        // Evita mostrar toast si la orden aun no se carga desde la bd
         if (orders.length > 0) {
             toast({
                 variant: "destructive",
@@ -151,7 +145,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }, [amountReceived, total]);
 
 
-  const updateItemQuantity = (menuItemId: number, change: number, notes: string = '', customPrice?: number) => {
+  const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
     if (!currentOrder) return;
     setCurrentOrder(prev => {
       if (!prev) return null;
@@ -160,7 +154,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           item.menuItemId === menuItemId && 
           item.notes === notes && 
           item.contexto === activeMenuContext &&
-          (customPrice ? item.customPrice === customPrice : !item.customPrice);
+          !item.customPrice;
 
       const prevItems = prev.items || [];
       const itemIndex = prevItems.findIndex(itemIdentifier);
@@ -176,7 +170,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         }
       } else if (change > 0) {
         const newItem: OrderItem = { menuItemId, quantity: change, notes, contexto: activeMenuContext };
-        if(customPrice) newItem.customPrice = customPrice;
         newItems.push(newItem);
       }
       return { ...prev, items: newItems };
@@ -208,24 +201,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         }
         return { ...prev, items: newItems };
     });
-  }
-
- const handleAddCustomPriceItem = () => {
-    if (!customPriceVariant) return;
-    const price = parseFloat(customPrice);
-    if (isNaN(price) || price <= 0) {
-         toast({
-            variant: "destructive",
-            title: "Precio inválido",
-            description: "Por favor, ingrese un monto mayor a cero.",
-        });
-        return;
-    }
-    updateItemQuantity(customPriceVariant.id, 1, '', price);
-    setCustomPrice('');
-    setCustomPriceVariant(null);
-    setIsCustomPriceDialogOpen(false);
-    setVariantModalOpen(false);
   }
 
   
@@ -401,8 +376,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                     const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
 
-                    const isCustomPrice = !!orderItem.customPrice;
-
                     return (
                         <div key={`${menuItem.id}-${orderItem.notes || ''}-${index}-${orderItem.customPrice || 0}`} className="space-y-2">
                             <div className="flex justify-between items-start">
@@ -417,7 +390,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                             </div>
                             <div className="flex items-center justify-end gap-2">
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItemByIndex(index)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                {!isCustomPrice && (
+                                {!orderItem.customPrice && (
                                     <>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => updateQuantityByIndex(index, -1)}><MinusCircle className="h-4 w-4" /></Button>
                                         <span className="font-bold text-sm">{orderItem.quantity}</span>
@@ -508,16 +481,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               <div key={variante.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
                 <div>
                   <p className="font-medium">{variante.nombre}</p>
-                  <p className="text-sm text-muted-foreground">{variante.customPrice ? '(Precio Manual)' : `$${variante.precio.toFixed(2)}`}</p>
+                  <p className="text-sm text-muted-foreground">${variante.precio.toFixed(2)}</p>
                 </div>
                 <Button variant="outline" onClick={() => {
-                    if (variante.customPrice) {
-                        setCustomPriceVariant(variante);
-                        setIsCustomPriceDialogOpen(true);
-                    } else {
-                        updateItemQuantity(variante.id, 1);
-                        setVariantModalOpen(false);
-                    }
+                    updateItemQuantity(variante.id, 1);
+                    setVariantModalOpen(false);
                 }}>
                     <Plus className="mr-2 h-4 w-4" /> Añadir
                 </Button>
@@ -526,23 +494,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           </div>
         </DialogContent>
       </Dialog>
-
-
-       <AlertDialog open={isCustomPriceDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) { setCustomPriceVariant(null); setCustomPrice(''); } setIsCustomPriceDialogOpen(isOpen); }}>
-          <form onSubmit={(e) => { e.preventDefault(); handleAddCustomPriceItem(); }}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Ingresar Precio para {selectedPlato?.nombre} {customPriceVariant?.nombre}</AlertDialogTitle>
-                    <AlertDialogDescription>Por favor, ingrese el valor total para este artículo.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <Input type="number" placeholder="ej. 10.00" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} autoFocus />
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction type="submit">Añadir al Pedido</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-          </form>
-      </AlertDialog>
       
       <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
           <DialogContent>
