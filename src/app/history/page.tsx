@@ -228,28 +228,35 @@ export default function HistoryPage() {
     }
 
     const matchedMenuItems = ALL_MENU_ITEMS.filter(item => item.nombre.toLowerCase().includes(lowerCaseSearch));
-
+    let ordersWithItemSet = new Set<string>();
+    
     // If search term is a menu item, calculate sales data
     if (matchedMenuItems.length > 0 && lowerCaseSearch.length > 3) {
       soldItemInfo = { totalQuantity: 0, totalRevenue: 0, orderCount: 0, name: lowerCaseSearch, notesBreakdown: {} };
-      const ordersWithItem = new Set<string>();
-
+      
       baseOrders.forEach(order => {
+        let hasItem = false;
         order.items.forEach(item => {
           const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
           if (menuItem && menuItem.nombre.toLowerCase().includes(lowerCaseSearch)) {
+            hasItem = true;
             soldItemInfo!.totalQuantity += item.quantity;
             const price = item.customPrice || menuItem.precio;
             soldItemInfo!.totalRevenue += price * item.quantity;
-            ordersWithItem.add(order.id);
             if(item.notes) {
               soldItemInfo!.notesBreakdown[item.notes] = (soldItemInfo!.notesBreakdown[item.notes] || 0) + item.quantity;
             }
           }
         });
+        if (hasItem) {
+            ordersWithItemSet.add(order.id);
+        }
       });
-      soldItemInfo.orderCount = ordersWithItem.size;
-      return { filteredOrders: baseOrders, soldItemInfo, paymentMethodSummary };
+      soldItemInfo.orderCount = ordersWithItemSet.size;
+
+      const ordersWithItem = baseOrders.filter(order => ordersWithItemSet.has(order.id));
+
+      return { filteredOrders: ordersWithItem, soldItemInfo, paymentMethodSummary };
     }
 
     // Otherwise, filter orders by ID or table
@@ -641,3 +648,6 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+
+    
