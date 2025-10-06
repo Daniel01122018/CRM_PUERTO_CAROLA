@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, Smartphone, Banknote, Edit } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import AppSidebar from '@/components/app-sidebar';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -62,7 +63,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const { currentMenuCategories, currentPlatos, currentOtherItems } = useMemo(() => {
     const allCategories = [...new Set([...MENU_PLATOS.map(p => p.category), ...MENU_ITEMS.map(item => item.category)])];
     const platos = MENU_PLATOS;
-    const otherItems = MENU_ITEMS.filter(item => activeMenuContext === 'llevar' || !item.paraLlevar);
+    const otherItems = MENU_ITEMS.filter(item => {
+        if (item.category === 'Platos') return false; // Ya manejados por `currentPlatos`
+        return activeMenuContext === 'llevar' || !item.paraLlevar;
+    });
     return { currentMenuCategories: allCategories, currentPlatos: platos, currentOtherItems: otherItems };
   }, [activeMenuContext]);
 
@@ -300,7 +304,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       <div className="lg:col-span-2">
         <Card>
              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Menú</CardTitle>
+                <div className="flex items-center gap-4">
+                  <AppSidebar />
+                  <CardTitle>Menú</CardTitle>
+                </div>
                 {!isTakeawayOrder && (
                     <Tabs value={activeMenuContext} onValueChange={(value) => setActiveMenuContext(value as MenuContext)} className="w-[220px]">
                         <TabsList className="grid w-full grid-cols-2">
@@ -582,7 +589,3 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
-
-    
-
-    
