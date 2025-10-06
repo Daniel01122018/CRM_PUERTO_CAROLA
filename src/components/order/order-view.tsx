@@ -323,14 +323,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                            <div className="space-y-6 pr-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {category === 'Platos' && currentPlatos.map(plato => (
-                                  <Card key={plato.id} className="overflow-hidden">
-                                      <CardContent className="p-4 flex flex-col justify-between h-full">
-                                          <p className="font-semibold text-center">{plato.nombre}</p>
-                                          <Button className="mt-2" variant="outline" onClick={() => { setSelectedPlato(plato); setVariantModalOpen(true);}}>
-                                              Seleccionar Variante
-                                          </Button>
-                                      </CardContent>
-                                  </Card>
+                                    <Card 
+                                        key={plato.id} 
+                                        className="overflow-hidden cursor-pointer hover:bg-muted transition-colors"
+                                        onClick={() => { setSelectedPlato(plato); setVariantModalOpen(true);}}
+                                    >
+                                        <CardContent className="p-4 flex items-center justify-center h-full">
+                                            <p className="font-semibold text-center">{plato.nombre}</p>
+                                        </CardContent>
+                                    </Card>
                                 ))}
 
                                 {category !== 'Platos' && currentOtherItems.filter(item => item.category === category).map(item => (
@@ -344,7 +345,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                                 {item.sabores ? (
                                                     <Popover open={openFlavorPopoverId === item.id} onOpenChange={(isOpen) => setOpenFlavorPopoverId(isOpen ? item.id : null)}>
                                                         <PopoverTrigger asChild>
-                                                            <Button variant="outline"><Plus className="h-4 w-4 mr-2" />Añadir</Button>
+                                                            <Button variant="outline"><Plus className="mr-2 h-4 w-4" />Añadir</Button>
                                                         </PopoverTrigger>
                                                         <PopoverContent className="w-auto">
                                                             <div className="flex flex-col gap-2">
@@ -513,7 +514,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                       <Plus className="mr-2 h-4 w-4" /> Añadir
                   </Button>
                 ) : (
-                  <Button variant="outline" onClick={() => updateItemQuantity(variante.id, 1)}>
+                  <Button variant="outline" onClick={() => {updateItemQuantity(variante.id, 1); setVariantModalOpen(false)}}>
                     <Plus className="mr-2 h-4 w-4" /> Añadir
                   </Button>
                 )}
@@ -581,3 +582,5 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    
