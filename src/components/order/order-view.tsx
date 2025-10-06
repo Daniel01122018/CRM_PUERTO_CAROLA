@@ -83,25 +83,37 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     if (orderIdOrTableId.startsWith('new-')) {
         const type = orderIdOrTableId.substring(4);
-        const tableId = type === 'takeaway' ? 'takeaway' : parseInt(type, 10);
+        const isTakeaway = type === 'takeaway';
 
-        const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
-        
-        if (existingOrderForTable) {
-             setCurrentOrder(existingOrderForTable);
-        } else {
+        if (isTakeaway) {
             initialOrder = {
-                id: `new-${tableId}`,
-                tableId: tableId,
+                id: Date.now().toString(),
+                tableId: 'takeaway',
                 items: [],
                 status: 'active',
                 createdAt: Date.now(),
                 total: 0,
                 notes: '',
             };
-             if (type === 'takeaway') initialOrder.id = Date.now().toString()
-            setCurrentOrder(initialOrder);
+        } else {
+            const tableId = parseInt(type, 10);
+            const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
+            
+            if (existingOrderForTable) {
+                initialOrder = existingOrderForTable;
+            } else {
+                initialOrder = {
+                    id: `new-${tableId}`,
+                    tableId: tableId,
+                    items: [],
+                    status: 'active',
+                    createdAt: Date.now(),
+                    total: 0,
+                    notes: '',
+                };
+            }
         }
+        setCurrentOrder(initialOrder);
 
     } else {
         initialOrder = orders.find(o => o.id === orderIdOrTableId);
@@ -262,7 +274,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (currentOrder?.status === 'active' && (currentOrder.items?.length || 0) > 0) {
        await addOrUpdateOrder({ ...currentOrder, total } as Order);
     }
-    if (currentOrder?.tableId === 'takeaway') router.push('/takeaway');
+    if (isTakeawayOrder) router.push('/takeaway');
     else router.push('/dashboard');
   }
   
