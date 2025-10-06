@@ -56,12 +56,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
 
   const { currentMenuCategories, currentPlatos, currentOtherItems } = useMemo(() => {
-    const allCategories = [...new Set([...MENU_PLATOS.map(p => p.category), ...MENU_ITEMS.map(item => item.category)])];
+    const allCategories = ['Platos', 'Bebidas', 'Adicionales'];
     const platos = MENU_PLATOS;
     const otherItems = MENU_ITEMS.filter(item => {
-        if (item.category === 'Platos') return false;
-        // Si el menú es 'llevar', muestra todos los items.
-        // Si es 'salon', muestra solo los que NO son exclusivos 'paraLlevar'.
         return activeMenuContext === 'llevar' || !item.paraLlevar;
     });
     return { currentMenuCategories: allCategories, currentPlatos: platos, currentOtherItems: otherItems };
@@ -84,10 +81,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       const type = orderIdOrTableId.substring(4);
       const tableId = type === 'takeaway' ? 'takeaway' : parseInt(type, 10);
       
-      const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
-      if (existingOrderForTable) {
-        router.push(`/order/${existingOrderForTable.id}`);
-        return;
+      if (tableId !== 'takeaway') {
+        const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
+        if (existingOrderForTable) {
+          router.push(`/order/${existingOrderForTable.id}`);
+          return;
+        }
       }
       
       initialOrder = {
@@ -580,5 +579,3 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
-
-    
