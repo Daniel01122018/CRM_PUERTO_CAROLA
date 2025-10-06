@@ -288,6 +288,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const tableId = currentOrder.tableId;
   const hasUnsentChanges = JSON.stringify(currentOrder.items) !== JSON.stringify(orders.find(o => o.id === currentOrder.id)?.items ?? []);
 
+  const platosConVariantes = currentPlatos.filter(p => p.variantes && p.variantes.length > 0);
+  const otrosItemsPlatos = currentOtherItems.filter(item => item.category === 'Platos');
+
   return (
     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
       <div className="lg:col-span-2">
@@ -318,7 +321,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                        <ScrollArea className="h-[60vh]">
                            <div className="space-y-6 pr-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {category === 'Platos' && currentPlatos.map(plato => (
+                                {category === 'Platos' && platosConVariantes.map(plato => (
                                     <Card 
                                         key={plato.id} 
                                         className="overflow-hidden cursor-pointer hover:bg-muted transition-colors"
@@ -326,6 +329,29 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                     >
                                         <CardContent className="p-8 flex items-center justify-center h-full">
                                             <p className="font-semibold text-center text-lg">{plato.nombre}</p>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                                {category === 'Platos' && otrosItemsPlatos.map(item => (
+                                     <Card key={item.id} className="overflow-hidden">
+                                       <CardContent className="p-4 flex flex-col justify-between h-full">
+                                            <div>
+                                                <p className="font-semibold">{item.nombre}</p>
+                                                <p className="text-sm text-muted-foreground">${item.precio.toFixed(2)}</p>
+                                            </div>
+                                            <div className="flex items-center justify-end gap-2 mt-2">
+                                                {item.customPrice ? (
+                                                    <Button variant="outline" onClick={() => { setCustomPriceItem(item); setIsCustomPriceDialogOpen(true); }}>
+                                                        <Plus className="mr-2 h-4 w-4" /> Añadir (Precio Manual)
+                                                    </Button>
+                                                ) : (
+                                                    <>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={!currentOrder.items?.some(i => i.menuItemId === item.id && (i.notes === '' || !i.notes) && i.contexto === activeMenuContext)}><MinusCircle className="h-4 w-4" /></Button>
+                                                        <span className="font-bold w-4 text-center">{currentOrder.items?.find(i => i.menuItemId === item.id && (i.notes === '' || !i.notes) && i.contexto === activeMenuContext)?.quantity || 0}</span>
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, 1, '')}><PlusCircle className="h-4 w-4" /></Button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </CardContent>
                                     </Card>
                                 ))}
@@ -362,10 +388,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                                             </div>
                                                         </PopoverContent>
                                                     </Popover>
-                                                ) : item.customPrice ? (
-                                                    <Button variant="outline" onClick={() => { setCustomPriceItem(item); setIsCustomPriceDialogOpen(true); }}>
-                                                        <Plus className="mr-2 h-4 w-4" /> Añadir (Precio Manual)
-                                                    </Button>
                                                 ) : (
                                                     <>
                                                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={!currentOrder.items?.some(i => i.menuItemId === item.id && (i.notes === '' || !i.notes) && i.contexto === activeMenuContext)}><MinusCircle className="h-4 w-4" /></Button>
@@ -581,5 +603,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    
 
     
