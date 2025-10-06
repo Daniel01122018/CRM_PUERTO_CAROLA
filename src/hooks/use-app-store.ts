@@ -4,8 +4,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Order, Table, User, Expense, Employee, DailyData, InventoryItem, OrderItem } from '@/types';
-import { USERS as staticUsers, TOTAL_TABLES, MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
+import type { Order, Table, User, Expense, Employee, DailyData, InventoryItem } from '@/types';
+import { USERS as staticUsers, TOTAL_TABLES, ALL_MENU_ITEMS } from '@/lib/data';
 import { format } from 'date-fns';
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
@@ -102,10 +102,8 @@ export function useAppStore() {
   const updateInventoryFromOrder = useCallback(async (order: Order) => {
     if (!inventoryItems) return;
 
-    const allMenuItems = [...MENU_ITEMS, ...TAKEAWAY_MENU_ITEMS];
-
     for (const orderItem of order.items) {
-        const menuItem = allMenuItems.find(mi => mi.id === orderItem.menuItemId);
+        const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
 
         if (menuItem && menuItem.inventoryItemId) {
             const inventoryItem = inventoryItems.find(invItem => invItem.id === menuItem.inventoryItemId);

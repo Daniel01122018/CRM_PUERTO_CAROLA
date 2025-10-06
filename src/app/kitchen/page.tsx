@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
@@ -10,8 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
-import type { Order, MenuItem } from '@/types';
+import { ALL_MENU_ITEMS } from '@/lib/data';
+import type { Order } from '@/types';
 import { Utensils, Clock, StickyNote, ArrowLeft, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -44,8 +44,7 @@ const KitchenOrderCard = ({ order }: { order: Order }) => {
                 <Separator className="mb-4" />
                 <ul className="space-y-3">
                     {order.items.map((item, index) => {
-                        const menuList = item.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
-                        const menuItem = menuList.find(mi => mi.id === item.menuItemId);
+                        const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
                         
                         return (
                             <li key={`${item.menuItemId}-${index}`} className="flex items-start">

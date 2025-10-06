@@ -17,8 +17,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
-import type { Order, OrderItem, MenuItem, PaymentMethod } from '@/types';
+import { ALL_MENU_ITEMS } from '@/lib/data';
+import type { Order, MenuItem, PaymentMethod } from '@/types';
 import { format, subDays, startOfDay, isSameDay, startOfYesterday, endOfDay, endOfYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
@@ -227,8 +227,7 @@ export default function HistoryPage() {
         return { filteredOrders: baseOrders, soldItemInfo: null, paymentMethodSummary };
     }
 
-    const allMenuItems = [...MENU_ITEMS, ...TAKEAWAY_MENU_ITEMS];
-    const matchedMenuItems = allMenuItems.filter(item => item.nombre.toLowerCase().includes(lowerCaseSearch));
+    const matchedMenuItems = ALL_MENU_ITEMS.filter(item => item.nombre.toLowerCase().includes(lowerCaseSearch));
 
     // If search term is a menu item, calculate sales data
     if (matchedMenuItems.length > 0 && lowerCaseSearch.length > 3) {
@@ -237,8 +236,7 @@ export default function HistoryPage() {
 
       baseOrders.forEach(order => {
         order.items.forEach(item => {
-          const menuList = item.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
-          const menuItem = menuList.find(mi => mi.id === item.menuItemId);
+          const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
           if (menuItem && menuItem.nombre.toLowerCase().includes(lowerCaseSearch)) {
             soldItemInfo!.totalQuantity += item.quantity;
             const price = item.customPrice || menuItem.precio;
@@ -591,8 +589,7 @@ export default function HistoryPage() {
                                 <ScrollArea className="h-[45vh]">
                                     <ul className="space-y-2 text-sm pr-4">
                                         {selectedOrder.items.map((item, index) => {
-                                            const menuList = item.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
-                                            const menuItem = menuList.find(mi => mi.id === item.menuItemId);
+                                            const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
                                             const price = item.customPrice || (menuItem ? menuItem.precio : 0);
                                             return (
                                                 <li key={`${item.menuItemId}-${index}`} className="flex justify-between border-b pb-2">
@@ -644,5 +641,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    

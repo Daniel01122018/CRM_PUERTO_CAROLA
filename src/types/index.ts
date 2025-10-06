@@ -1,12 +1,29 @@
+
+export interface MenuItemVariant {
+  id: number;
+  nombre: string;
+  precio: number;
+  contexto: 'salon' | 'llevar';
+  customPrice?: boolean;
+}
+
+export interface MenuPlato {
+  id: number;
+  nombre: string;
+  category: 'Platos';
+  variantes: MenuItemVariant[];
+}
+
 export interface MenuItem {
   id: number;
   nombre: string;
   precio: number;
   category: 'Platos' | 'Bebidas' | 'Adicionales';
   sabores?: string[];
-  takeawayOnly?: boolean;
   customPrice?: boolean;
-  inventoryItemId?: string; // ID del producto en la tabla de inventario
+  inventoryItemId?: string; 
+  paraLlevar?: boolean; // Para items que solo aparecen en modo "llevar"
+  baseNombre?: string; // Nombre del plato base si es una variante
 }
 
 export interface OrderItem {
@@ -14,7 +31,7 @@ export interface OrderItem {
   quantity: number;
   notes: string;
   customPrice?: number;
-  contexto?: 'salon' | 'llevar'; // Para diferenciar precios de salón y llevar en una misma orden
+  contexto: 'salon' | 'llevar'; // Para diferenciar precios de salón y llevar en una misma orden
 }
 
 export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';

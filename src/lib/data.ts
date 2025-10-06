@@ -1,28 +1,116 @@
-import type { MenuItem } from '@/types';
+import type { MenuItem, MenuPlato } from '@/types';
+
+export const MENU_PLATOS: MenuPlato[] = [
+  {
+    id: 1001,
+    nombre: "Encebollado",
+    category: 'Platos',
+    variantes: [
+      { id: 32, nombre: "Jr", precio: 2.00, contexto: 'salon' },
+      { id: 1, nombre: "Normal", precio: 2.50, contexto: 'salon' },
+      { id: 2, nombre: "Mixto", precio: 4.00, contexto: 'salon' },
+      { id: 40, nombre: "Mixto Peq.", precio: 3.00, contexto: 'salon' },
+      
+      { id: 101, nombre: "Jr", precio: 2.25, contexto: 'llevar' },
+      { id: 102, nombre: "Normal", precio: 2.75, contexto: 'llevar' },
+      { id: 103, nombre: "T. Llena", precio: 3.25, contexto: 'llevar' },
+      { id: 104, nombre: "Mixto", precio: 4.25, contexto: 'llevar' },
+      { id: 112, nombre: "En Olla", precio: 0, contexto: 'llevar', customPrice: true },
+    ]
+  },
+  {
+    id: 1002,
+    nombre: "Guatita",
+    category: 'Platos',
+    variantes: [
+      { id: 3, nombre: "Con Arroz", precio: 3.00, contexto: 'salon' },
+      { id: 11, nombre: "Sola (Porción)", precio: 3.00, contexto: 'salon' },
+      
+      { id: 105, nombre: "Con Arroz", precio: 3.25, contexto: 'llevar' },
+      { id: 108, nombre: "Media Tarrina", precio: 3.25, contexto: 'llevar' },
+      { id: 109, nombre: "Tarrina Llena", precio: 6.25, contexto: 'llevar' },
+    ]
+  },
+  {
+    id: 1003,
+    nombre: "Bollo",
+    category: 'Platos',
+    variantes: [
+      { id: 4, nombre: "De Pescado", precio: 3.00, contexto: 'salon' },
+      { id: 5, nombre: "Mixto (con Camarón)", precio: 4.50, contexto: 'salon' },
+      
+      { id: 106, nombre: "De Pescado", precio: 3.00, contexto: 'llevar' },
+      { id: 107, nombre: "Mixto (con Camarón)", precio: 4.25, contexto: 'llevar' },
+    ]
+  },
+  {
+    id: 1004,
+    nombre: "Bandera",
+    category: 'Platos',
+    variantes: [
+       { id: 6, nombre: "2 Ingredientes", precio: 4.00, contexto: 'salon' },
+       { id: 7, nombre: "Tradicional", precio: 4.50, contexto: 'salon' },
+       { id: 8, nombre: "4 Ingredientes", precio: 5.00, contexto: 'salon' },
+       { id: 9, nombre: "Completa", precio: 5.50, contexto: 'salon' },
+       
+       { id: 113, nombre: "2 Ingredientes", precio: 4.25, contexto: 'llevar' },
+       { id: 114, nombre: "Tradicional", precio: 4.75, contexto: 'llevar' },
+       { id: 115, nombre: "4 Ingredientes", precio: 5.25, contexto: 'llevar' },
+       { id: 116, nombre: "Completa", precio: 5.75, contexto: 'llevar' },
+    ]
+  },
+  {
+    id: 1005,
+    nombre: "Ceviche",
+    category: 'Platos',
+    variantes: [
+      { id: 10, nombre: "De Camarón", precio: 5.00, contexto: 'salon' },
+      { id: 117, nombre: "De Camarón", precio: 5.25, contexto: 'llevar' },
+    ]
+  },
+  {
+    id: 1006,
+    nombre: "Encocado",
+    category: 'Platos',
+    variantes: [
+      { id: 12, nombre: "De Albacora", precio: 3.50, contexto: 'salon' },
+      { id: 13, nombre: "De Camarón", precio: 4.00, contexto: 'salon' },
+      { id: 14, nombre: "Mixto (Pescado y Camarón)", precio: 4.50, contexto: 'salon' },
+      
+      { id: 118, nombre: "De Albacora", precio: 3.75, contexto: 'llevar' },
+      { id: 119, nombre: "De Camarón", precio: 4.25, contexto: 'llevar' },
+      { id: 120, nombre: "Mixto (Pescado y Camarón)", precio: 4.75, contexto: 'llevar' },
+    ]
+  },
+  {
+    id: 1007,
+    nombre: "Cazuela",
+    category: 'Platos',
+    variantes: [
+      { id: 15, nombre: "De Albacora", precio: 3.50, contexto: 'salon' },
+      { id: 16, nombre: "De Camarón", precio: 4.00, contexto: 'salon' },
+      { id: 17, nombre: "Mixta (Pescado y Camarón)", precio: 4.50, contexto: 'salon' },
+      
+      { id: 121, nombre: "De Albacora", precio: 3.75, contexto: 'llevar' },
+      { id: 122, nombre: "De Camarón", precio: 4.25, contexto: 'llevar' },
+      { id: 123, nombre: "Mixta (Pescado y Camarón)", precio: 4.75, contexto: 'llevar' },
+      { id: 110, nombre: "Media Tarrina", precio: 3.50, contexto: 'llevar' },
+      { id: 111, nombre: "Tarrina Llena", precio: 7.00, contexto: 'llevar' },
+    ]
+  },
+   {
+    id: 1008,
+    nombre: "Tortilla de Camarones",
+    category: 'Platos',
+    variantes: [
+      { id: 18, nombre: "Normal", precio: 4.00, contexto: 'salon' },
+      { id: 124, nombre: "Para LLevar", precio: 4.25, contexto: 'llevar' },
+    ]
+  },
+];
+
 
 export const MENU_ITEMS: MenuItem[] = [
-  // Platos
-  { id: 32, nombre: "ENCEBOLLADO Jr", precio: 2.00, category: 'Platos' },
-  { id: 1, nombre: "ENCEBOLLADO", precio: 2.50, category: 'Platos' },
-  { id: 2, nombre: "ENCEBOLLADO MIXTO", precio: 4.00, category: 'Platos' },
-  { id: 40, nombre: "ENCEBOLLADO MIXTO PEQ.", precio: 3.00, category: 'Platos' },
-  { id: 3, nombre: "GUATITA CON ARROZ", precio: 3.00, category: 'Platos' },
-  { id: 4, nombre: "BOLLO DE PESCADO", precio: 3.00, category: 'Platos' },
-  { id: 5, nombre: "BOLLO MIXTO CON CAMARÓN", precio: 4.50, category: 'Platos' },
-  { id: 6, nombre: "BANDERA 2 INGREDIENTES", precio: 4.00, category: 'Platos' },
-  { id: 7, nombre: "BANDERA TRADICIONAL", precio: 4.50, category: 'Platos' },
-  { id: 8, nombre: "BANDERA 4 INGREDIENTES", precio: 5.00, category: 'Platos' },
-  { id: 9, nombre: "BANDERA COMPLETA", precio: 5.50, category: 'Platos' },
-  { id: 10, nombre: "CEVICHE DE CAMARÓN", precio: 5.00, category: 'Platos' },
-  { id: 11, nombre: "PORCIÓN DE GUATA SIN ARROZ", precio: 3.00, category: 'Platos' },
-  { id: 12, nombre: "ENCOCADO DE ALBACORA", precio: 3.50, category: 'Platos' },
-  { id: 13, nombre: "ENCOCADO DE CAMARÓN", precio: 4.00, category: 'Platos' },
-  { id: 14, nombre: "ENCOCADO MIXTO CAMARÓN Y PESCADO", precio: 4.50, category: 'Platos' },
-  { id: 15, "nombre": "CAZUELA DE ALBACORA", "precio": 3.50, "category": "Platos" },
-  { id: 16, nombre: "CAZUELA DE CAMARÓN", precio: 4.00, category: 'Platos' },
-  { id: 17, nombre: "CAZUELA MIXTA CAMARÓN Y PESCADO", precio: 4.50, category: 'Platos' },
-  { id: 18, nombre: "TORTILLA DE CAMARONES", precio: 4.00, category: 'Platos' },
-
   // Adicionales
   { id: 19, nombre: "PORCIÓN DE ARROZ", precio: 0.50, category: 'Adicionales' },
   { id: 20, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales', inventoryItemId: 'chifles-bolsa' },
@@ -31,6 +119,8 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 23, nombre: "TARRINA/CONTENEDOR", precio: 0.25, category: 'Adicionales' },
   { id: 34, nombre: "TOSTADA DE QUESO", precio: 1.00, category: 'Adicionales' },
   { id: 35, nombre: "TOSTADA MIXTA", precio: 1.25, category: 'Adicionales' },
+  { id: 208, nombre: "TARRINA DE ARROZ", precio: 1.25, category: 'Adicionales', paraLlevar: true },
+
 
   // Bebidas
   { id: 24, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"], inventoryItemId: 'cola-personal-unidad' },
@@ -44,57 +134,23 @@ export const MENU_ITEMS: MenuItem[] = [
   
 ];
 
-export const TAKEAWAY_MENU_ITEMS: MenuItem[] = [
-  // Aquí va tu nueva lista de platos para llevar con precios actualizados.
-  // He copiado algunos como ejemplo. ¡Modifícalos y añade los que faltan!
-  // Los ID deben ser únicos en esta lista, pero no tienen que coincidir con los de la lista principal.
+// Helper para obtener todos los items en una sola lista, combinando platos y variantes
+const getAllMenuItems = (): MenuItem[] => {
+  const allItems: MenuItem[] = [...MENU_ITEMS];
+  MENU_PLATOS.forEach(plato => {
+    plato.variantes.forEach(variante => {
+      allItems.push({
+        ...variante,
+        nombre: `${plato.nombre} ${variante.nombre}`,
+        baseNombre: plato.nombre,
+        category: 'Platos',
+      });
+    });
+  });
+  return allItems;
+};
 
-  // Platos para Llevar
-  { id: 101, nombre: "ENCEBOLLADO JR", precio: 2.25, category: 'Platos' },
-  { id: 102, nombre: "ENCEBOLLADO", precio: 2.75, category: 'Platos' },
-  { id: 103, nombre: "ENCEBOLLADO T. LLENA", precio: 3.25, category: 'Platos' },
-  { id: 104, nombre: "ENCEBOLLADO MIXTO", precio: 4.25, category: 'Platos' },
-  { id: 105, nombre: "GUATITA CON ARROZ", precio: 3.25, category: 'Platos' },
-  { id: 106, nombre: "BOLLO DE PESCADO", precio: 3.00, category: 'Platos' },
-  { id: 107, nombre: "BOLLO MIXTO CON CAMARÓN", precio: 4.25, category: 'Platos' },
-  { id: 108, nombre: "GUATITA MEDIA TARRINA", precio: 3.25, category: 'Platos' },
-  { id: 109, nombre: "GUATITA TARRINA LLENA", precio: 6.25, category: 'Platos' },
-  { id: 110, nombre: "CAZUELA MEDIA TARRINA", precio: 3.50, category: 'Platos' },
-  { id: 111, nombre: "CAZUELA T. LLENA", precio: 7.00, category: 'Platos' },
-  { id: 112, nombre: "Encebollado en Olla", precio: 0, category: 'Platos', customPrice: true },
-  { id: 113, nombre: "BANDERA 2 INGREDIENTES", precio: 4.25, category: 'Platos' },
-  { id: 114, nombre: "BANDERA TRADICIONAL", precio: 4.75, category: 'Platos' },
-  { id: 115, nombre: "BANDERA 4 INGREDIENTES", precio: 5.25, category: 'Platos' },
-  { id: 116, nombre: "BANDERA COMPLETA", precio: 5.75, category: 'Platos' },
-  { id: 117, nombre: "CEVICHE DE CAMARÓN", precio: 5.25, category: 'Platos' },
-  { id: 118, nombre: "ENCOCADO DE ALBACORA", precio: 3.75, category: 'Platos' },
-  { id: 119, nombre: "ENCOCADO DE CAMARÓN", precio: 4.25, category: 'Platos' },
-  { id: 120, nombre: "ENCOCADO MIXTO CAMARÓN Y PESCADO", precio: 4.75, category: 'Platos' },
-  { id: 121, nombre: "CAZUELA DE ALBACORA", "precio": 3.75, "category": "Platos" },
-  { id: 122, nombre: "CAZUELA DE CAMARÓN", precio: 4.25, category: 'Platos' },
-  { id: 123, nombre: "CAZUELA MIXTA CAMARÓN Y PESCADO", precio: 4.75, category: 'Platos' },
-  { id: 124, nombre: "TORTILLA DE CAMARONES", precio: 4.25, category: 'Platos' },
-
-  // Adicionales y Bebidas (puedes copiarlos de la lista principal si tienen el mismo precio)
-  { id: 201, nombre: "PORCIÓN DE ARROZ", precio: 0.50, category: 'Adicionales' },
-  { id: 208, nombre: "TARRINA DE ARROZ", precio: 1.25, category: 'Adicionales' },
-  { id: 202, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales', inventoryItemId: 'chifles-bolsa' },
-  { id: 203, nombre: "PAN", precio: 0.25, category: 'Adicionales' },
-  { id: 204, nombre: "MAIZ TOSTADO", precio: 0.25, category: 'Adicionales' },
-  { id: 205, nombre: "TARRINA/CONTENEDOR", precio: 0.25, category: 'Adicionales' },
-  { id: 206, nombre: "TOSTADA DE QUESO", precio: 1.00, category: 'Adicionales' },
-  { id: 207, nombre: "TOSTADA MIXTA", precio: 1.25, category: 'Adicionales' },
-
-  { id: 301, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"], inventoryItemId: 'cola-personal-unidad' },
-  { id: 302, nombre: "BATIDO", precio: 1.50, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
-  { id: 303, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
-  { id: 304, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },
-  { id: 305, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
-  { id: 306, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
-  { id: 307, nombre: "AGUA", precio: 0.75, category: 'Bebidas' },
-  { id: 308, nombre: "FUZE TEA", precio: 0.75, category: 'Bebidas' },
-];
-
+export const ALL_MENU_ITEMS = getAllMenuItems();
 
 export const USERS = {
     'Caja001': { id: 'user-elena', password: '0123456789', role: 'employee' as const },

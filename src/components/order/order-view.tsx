@@ -1,16 +1,15 @@
 
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
-import { MENU_ITEMS, TAKEAWAY_MENU_ITEMS } from '@/lib/data';
-import type { Order, OrderItem, MenuItem, PaymentMethod } from '@/types';
+import { MENU_PLATOS, MENU_ITEMS, ALL_MENU_ITEMS } from '@/lib/data';
+import type { Order, OrderItem, MenuItem, PaymentMethod, MenuPlato, MenuItemVariant } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -34,7 +33,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   
   const [customPrice, setCustomPrice] = useState('');
   const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
-  const [customPriceItem, setCustomPriceItem] = useState<MenuItem | null>(null);
+  const [customPriceItem, setCustomPriceItem] = useState<{plato: MenuPlato, variante: MenuItemVariant} | null>(null);
   
   const [openFlavorPopoverId, setOpenFlavorPopoverId] = useState<number | null>(null);
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -43,6 +42,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [isNotesDialogOpen, setNotesDialogOpen] = useState(false);
 
   const [activeMenuContext, setActiveMenuContext] = useState<MenuContext>('salon');
+  const [isVariantModalOpen, setVariantModalOpen] = useState(false);
+  const [selectedPlato, setSelectedPlato] = useState<MenuPlato | null>(null);
 
   const isTakeawayOrder = useMemo(() => {
     if (orderIdOrTableId.startsWith('new-')) {
@@ -58,10 +59,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       }
   }, [isTakeawayOrder]);
 
-  const { currentMenuItems, currentMenuCategories } = useMemo(() => {
-    const menu = activeMenuContext === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
-    const categories = [...new Set(menu.map(item => item.category))];
-    return { currentMenuItems: menu, currentMenuCategories: categories };
+  const { currentMenuCategories, currentPlatos, currentOtherItems } = useMemo(() => {
+    const allCategories = [...new Set([...MENU_PLATOS.map(p => p.category), ...MENU_ITEMS.map(item => item.category)])];
+    const platos = MENU_PLATOS;
+    const otherItems = MENU_ITEMS.filter(item => activeMenuContext === 'llevar' || !item.paraLlevar);
+    return { currentMenuCategories: allCategories, currentPlatos: platos, currentOtherItems: otherItems };
   }, [activeMenuContext]);
 
 
@@ -134,8 +136,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const total = useMemo(() => {
     if (!currentOrder || !currentOrder.items) return 0;
     return currentOrder.items.reduce((acc, orderItem) => {
-      const menuList = orderItem.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
-      const menuItem = menuList.find(mi => mi.id === orderItem.menuItemId);
+      const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
       const price = orderItem.customPrice || (menuItem ? menuItem.precio : 0);
       return acc + (price * orderItem.quantity);
     }, 0);
@@ -152,13 +153,22 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }, [amountReceived, total]);
 
 
-  const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
+  const updateItemQuantity = (menuItemId: number, change: number, notes: string = '', customPrice?: number) => {
     if (!currentOrder) return;
     setCurrentOrder(prev => {
       if (!prev) return null;
+      
+      const itemIdentifier = (item: OrderItem) => 
+          item.menuItemId === menuItemId && 
+          item.notes === notes && 
+          item.contexto === activeMenuContext &&
+          (customPrice ? item.customPrice === customPrice : !item.customPrice);
+
       const prevItems = prev.items || [];
-      const itemIndex = prevItems.findIndex(i => i.menuItemId === menuItemId && i.notes === notes && !i.customPrice && i.contexto === activeMenuContext);
+      const itemIndex = prevItems.findIndex(itemIdentifier);
+      
       let newItems = [...prevItems];
+
       if (itemIndex > -1) {
         const newQuantity = newItems[itemIndex].quantity + change;
         if (newQuantity <= 0) {
@@ -168,6 +178,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         }
       } else if (change > 0) {
         const newItem: OrderItem = { menuItemId, quantity: change, notes, contexto: activeMenuContext };
+        if(customPrice) newItem.customPrice = customPrice;
         newItems.push(newItem);
       }
       return { ...prev, items: newItems };
@@ -212,21 +223,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         });
         return;
     }
-    setCurrentOrder(prev => {
-        if (!prev) return null;
-        const newItem: OrderItem = {
-            menuItemId: customPriceItem.id,
-            quantity: 1,
-            notes: '',
-            customPrice: price,
-            contexto: activeMenuContext,
-        };
-        const newItems = [...(prev.items || []), newItem];
-        return { ...prev, items: newItems };
-    });
+    updateItemQuantity(customPriceItem.variante.id, 1, '', price);
     setCustomPrice('');
     setCustomPriceItem(null);
     setIsCustomPriceDialogOpen(false);
+    setVariantModalOpen(false);
   }
 
   
@@ -310,7 +311,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 )}
             </CardHeader>
           <CardContent>
-             <Tabs defaultValue={currentMenuCategories[0]} className="w-full">
+             <Tabs defaultValue="Platos" className="w-full">
                 <TabsList className="grid w-full grid-cols-3">
                   {currentMenuCategories.map(category => (
                       <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
@@ -321,22 +322,18 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                        <ScrollArea className="h-[60vh]">
                            <div className="space-y-6 pr-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {currentMenuItems.filter(item => item.category === category).map(item => 
-                                    item.customPrice ? (
-                                        <Card key={item.id} className="overflow-hidden">
-                                            <CardContent className="p-4 flex flex-col justify-between h-full">
-                                                <div>
-                                                    <p className="font-semibold">{item.nombre}</p>
-                                                    <p className="text-sm text-muted-foreground">Precio manual</p>
-                                                </div>
-                                                <div className="flex items-center justify-end gap-2 mt-2">
-                                                    <Button variant="outline" onClick={() => { setCustomPriceItem(item); setIsCustomPriceDialogOpen(true); }}>
-                                                        <Plus className="h-4 w-4 mr-2" /> Añadir
-                                                    </Button>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ) : (
+                                {category === 'Platos' && currentPlatos.map(plato => (
+                                  <Card key={plato.id} className="overflow-hidden">
+                                      <CardContent className="p-4 flex flex-col justify-between h-full">
+                                          <p className="font-semibold text-center">{plato.nombre}</p>
+                                          <Button className="mt-2" variant="outline" onClick={() => { setSelectedPlato(plato); setVariantModalOpen(true);}}>
+                                              Seleccionar Variante
+                                          </Button>
+                                      </CardContent>
+                                  </Card>
+                                ))}
+
+                                {category !== 'Platos' && currentOtherItems.filter(item => item.category === category).map(item => (
                                     <Card key={item.id} className="overflow-hidden">
                                        <CardContent className="p-4 flex flex-col justify-between h-full">
                                             <div>
@@ -359,7 +356,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                                                         className="justify-start"
                                                                         onClick={() => {
                                                                             updateItemQuantity(item.id, 1, sabor);
-                                                                            setOpenFlavorPopoverId(null); // Close popover after selection
+                                                                            setOpenFlavorPopoverId(null);
                                                                         }}
                                                                     >
                                                                         {sabor}
@@ -400,14 +397,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               {currentOrder.items && currentOrder.items.length > 0 ? (
                 <div className="space-y-4 pr-4">
                   {currentOrder.items.map((orderItem, index) => {
-                    const menuList = orderItem.contexto === 'llevar' ? TAKEAWAY_MENU_ITEMS : MENU_ITEMS;
-                    const menuItem = menuList.find(mi => mi.id === orderItem.menuItemId);
+                    const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
                     if (!menuItem) return null;
 
                     const isCustomPrice = !!orderItem.customPrice;
 
                     return (
-                        <div key={`${menuItem.id}-${orderItem.notes || ''}-${index}`} className="space-y-2">
+                        <div key={`${menuItem.id}-${orderItem.notes || ''}-${index}-${orderItem.customPrice || 0}`} className="space-y-2">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <p className="font-medium">
@@ -499,15 +495,44 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         </Card>
       </div>
 
+      <Dialog open={isVariantModalOpen} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPlato(null); setVariantModalOpen(isOpen); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Variantes de {selectedPlato?.nombre}</DialogTitle>
+            <DialogDescription>Selecciona una variante para añadir al pedido.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4 max-h-[60vh] overflow-y-auto">
+            {selectedPlato?.variantes.filter(v => v.contexto === activeMenuContext).map(variante => (
+              <div key={variante.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                <div>
+                  <p className="font-medium">{variante.nombre}</p>
+                  <p className="text-sm text-muted-foreground">{variante.customPrice ? 'Precio manual' : `$${variante.precio.toFixed(2)}`}</p>
+                </div>
+                {variante.customPrice ? (
+                   <Button variant="outline" onClick={() => { setCustomPriceItem({plato: selectedPlato, variante}); setIsCustomPriceDialogOpen(true); }}>
+                      <Plus className="mr-2 h-4 w-4" /> Añadir
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => updateItemQuantity(variante.id, 1)}>
+                    <Plus className="mr-2 h-4 w-4" /> Añadir
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
        <AlertDialog open={isCustomPriceDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) { setCustomPriceItem(null); setCustomPrice(''); } setIsCustomPriceDialogOpen(isOpen); }}>
           <AlertDialogContent>
               <AlertDialogHeader>
-                  <AlertDialogTitle>Ingresar Precio para {customPriceItem?.nombre}</AlertDialogTitle>
+                  <AlertDialogTitle>Ingresar Precio para {customPriceItem?.plato.nombre} - {customPriceItem?.variante.nombre}</AlertDialogTitle>
                   <AlertDialogDescription>Por favor, ingrese el valor total para este artículo.</AlertDialogDescription>
               </AlertDialogHeader>
               <Input type="number" placeholder="e.g., 10.00" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} autoFocus />
               <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => { setCustomPrice(''); setCustomPriceItem(null); }}>Cancelar</AlertDialogCancel>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
                   <AlertDialogAction onClick={handleAddCustomPriceItem}>Añadir al Pedido</AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
@@ -526,13 +551,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   </div>
                   <Tabs defaultValue="Efectivo" className="w-full">
                       <TabsList className="grid w-full grid-cols-3">
-                          <TabsTrigger value="Efectivo"><Banknote className="h-5 w-5"/></TabsTrigger>
+                           <TabsTrigger value="Efectivo"><Banknote className="h-5 w-5"/></TabsTrigger>
                           <TabsTrigger value="DeUna" className="font-bold">DeUna</TabsTrigger>
-                          <TabsTrigger value="Transferencia"><Smartphone className="h-5 w-5" /></TabsTrigger>
+                          <TabsTrigger value="Transferencia"><Smartphone className="h-5 w-5"/></TabsTrigger>
                       </TabsList>
                       <TabsContent value="Efectivo">
                           <div className="space-y-2 mt-4">
-                              <Label htmlFor="amount-received">Monto Recibido</Label>
+                              <label htmlFor="amount-received">Monto Recibido</label>
                               <Input id="amount-received" type="number" placeholder="Ingrese el monto..." value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} />
                                {change > 0 && (
                                   <p className="text-sm text-green-600 font-medium text-center pt-2">Vuelto: ${change.toFixed(2)}</p>
