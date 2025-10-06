@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
 import { MENU_PLATOS, MENU_ITEMS, ALL_MENU_ITEMS } from '@/lib/data';
-import type { Order, OrderItem, MenuItem, PaymentMethod, MenuPlato, MenuItemVariant } from '@/types';
+import type { Order, OrderItem, MenuItem, PaymentMethod, MenuPlato } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   
   const [customPrice, setCustomPrice] = useState('');
   const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
-  const [customPriceItem, setCustomPriceItem] = useState<{plato: MenuPlato, variante: MenuItemVariant} | null>(null);
+  const [customPriceItem, setCustomPriceItem] = useState<MenuItem | null>(null);
   
   const [openFlavorPopoverId, setOpenFlavorPopoverId] = useState<number | null>(null);
   const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
@@ -59,7 +59,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     const allCategories = ['Platos', 'Bebidas', 'Adicionales'];
     const platos = MENU_PLATOS;
     const otherItems = MENU_ITEMS.filter(item => {
-        return activeMenuContext === 'llevar' || !item.paraLlevar;
+        // Para el modo llevar, mostrar todos los items (incluidos los `paraLlevar`)
+        if (activeMenuContext === 'llevar') return true;
+        // Para el modo salón, solo mostrar los que no son exclusivos `paraLlevar`
+        return !item.paraLlevar;
     });
     return { currentMenuCategories: allCategories, currentPlatos: platos, currentOtherItems: otherItems };
   }, [activeMenuContext]);
@@ -91,7 +94,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       }
       
       initialOrder = {
-        id: Date.now().toString(),
+        id: isNewTakeaway ? Date.now().toString() : `new-${tableId}`,
         tableId: tableId,
         items: [],
         status: 'active',
@@ -99,6 +102,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         total: 0,
         notes: '',
       };
+      if (isNewTakeaway) initialOrder.id = Date.now().toString()
 
     } else {
         initialOrder = orders.find(o => o.id === orderIdOrTableId);
@@ -213,11 +217,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         });
         return;
     }
-    updateItemQuantity(customPriceItem.variante.id, 1, '', price);
+    updateItemQuantity(customPriceItem.id, 1, '', price);
     setCustomPrice('');
     setCustomPriceItem(null);
     setIsCustomPriceDialogOpen(false);
-    setVariantModalOpen(false);
   }
 
   
@@ -327,7 +330,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                     </Card>
                                 ))}
 
-                                {category !== 'Platos' && currentOtherItems.filter(item => item.category === category).map(item => (
+                                {currentOtherItems.filter(item => item.category === category).map(item => (
                                     <Card key={item.id} className="overflow-hidden">
                                        <CardContent className="p-4 flex flex-col justify-between h-full">
                                             <div>
@@ -359,6 +362,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                                             </div>
                                                         </PopoverContent>
                                                     </Popover>
+                                                ) : item.customPrice ? (
+                                                    <Button variant="outline" onClick={() => { setCustomPriceItem(item); setIsCustomPriceDialogOpen(true); }}>
+                                                        <Plus className="mr-2 h-4 w-4" /> Añadir (Precio Manual)
+                                                    </Button>
                                                 ) : (
                                                     <>
                                                         <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateItemQuantity(item.id, -1, '')} disabled={!currentOrder.items?.some(i => i.menuItemId === item.id && (i.notes === '' || !i.notes) && i.contexto === activeMenuContext)}><MinusCircle className="h-4 w-4" /></Button>
@@ -497,21 +504,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             <DialogDescription>Selecciona una variante para añadir al pedido.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-4 max-h-[60vh] overflow-y-auto">
-            {selectedPlato?.variantes.filter(v => v.contexto === activeMenuContext).map(variante => (
+            {selectedPlato?.variantes.filter(v => activeMenuContext === 'llevar' ? v.contexto === 'llevar' : v.contexto === 'salon').map(variante => (
               <div key={variante.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
                 <div>
                   <p className="font-medium">{variante.nombre}</p>
-                  <p className="text-sm text-muted-foreground">{variante.customPrice ? 'Precio manual' : `$${variante.precio.toFixed(2)}`}</p>
+                  <p className="text-sm text-muted-foreground">{`$${variante.precio.toFixed(2)}`}</p>
                 </div>
-                {variante.customPrice ? (
-                   <Button variant="outline" onClick={() => { setCustomPriceItem({plato: selectedPlato, variante}); setIsCustomPriceDialogOpen(true); }}>
-                      <Plus className="mr-2 h-4 w-4" /> Añadir
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => {updateItemQuantity(variante.id, 1); setVariantModalOpen(false)}}>
+                <Button variant="outline" onClick={() => {updateItemQuantity(variante.id, 1); setVariantModalOpen(false)}}>
                     <Plus className="mr-2 h-4 w-4" /> Añadir
-                  </Button>
-                )}
+                </Button>
               </div>
             ))}
           </div>
@@ -523,7 +524,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           <form onSubmit={(e) => { e.preventDefault(); handleAddCustomPriceItem(); }}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Ingresar Precio para {customPriceItem?.plato.nombre} - {customPriceItem?.variante.nombre}</AlertDialogTitle>
+                    <AlertDialogTitle>Ingresar Precio para {customPriceItem?.nombre}</AlertDialogTitle>
                     <AlertDialogDescription>Por favor, ingrese el valor total para este artículo.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <Input type="number" placeholder="ej. 10.00" value={customPrice} onChange={(e) => setCustomPrice(e.target.value)} autoFocus />
