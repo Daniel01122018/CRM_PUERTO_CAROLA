@@ -69,6 +69,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }
 
     if (!orders) {
+        // orders are loading
         return;
     }
 
@@ -79,47 +80,46 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         const isNewTakeaway = type === 'takeaway';
         const tableId = isNewTakeaway ? 'takeaway' : parseInt(type, 10);
 
-        if (!isNewTakeaway) {
-            const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
-            if (existingOrderForTable) {
-                if (orderIdOrTableId !== existingOrderForTable.id) {
-                    router.push(`/order/${existingOrderForTable.id}`);
-                }
-                return;
-            }
+        // Check if an active order already exists for this table
+        const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
+        
+        if (existingOrderForTable) {
+            // If an active order exists, load it directly instead of creating a new one
+            initialOrder = existingOrderForTable;
+        } else {
+            // Otherwise, create a new order
+            initialOrder = {
+                id: `new-${tableId}`,
+                tableId: tableId,
+                items: [],
+                status: 'active',
+                createdAt: Date.now(),
+                total: 0,
+                notes: '',
+            };
+            if (isNewTakeaway) initialOrder.id = Date.now().toString()
         }
 
-        initialOrder = {
-            id: isNewTakeaway ? Date.now().toString() : `new-${tableId}`,
-            tableId: tableId,
-            items: [],
-            status: 'active',
-            createdAt: Date.now(),
-            total: 0,
-            notes: '',
-        };
-        if (isNewTakeaway) initialOrder.id = Date.now().toString()
-
     } else {
+        // It's an existing order ID, find it in the array
         initialOrder = orders.find(o => o.id === orderIdOrTableId);
     }
-
+    
     if (initialOrder) {
         setCurrentOrder(initialOrder);
-        if (initialOrder.tableId === 'takeaway') {
+         if (initialOrder.tableId === 'takeaway') {
             setActiveMenuContext('llevar');
         } else {
             setActiveMenuContext('salon');
         }
     } else {
-        if (orders.length > 0) {
-            toast({
-                variant: "destructive",
-                title: "Pedido no encontrado",
-                description: "El pedido que intentas abrir no existe o fue cerrado.",
-            });
-            router.push('/dashboard');
-        }
+        // If no order is found (e.g., invalid ID or already completed/cancelled), redirect
+        toast({
+            variant: "destructive",
+            title: "Pedido no encontrado",
+            description: "El pedido que intentas abrir no existe o fue cerrado.",
+        });
+        router.push('/dashboard');
     }
 
 }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
@@ -540,3 +540,5 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    
