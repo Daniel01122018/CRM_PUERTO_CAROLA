@@ -36,7 +36,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [customPriceItem, setCustomPriceItem] = useState<{plato: MenuPlato, variante: MenuItemVariant} | null>(null);
   
   const [openFlavorPopoverId, setOpenFlavorPopoverId] = useState<number | null>(null);
-  const [isPaymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [isPaymentDialogOpen, setPaymentDialogOpen] useState(false);
   const [amountReceived, setAmountReceived] = useState('');
   const [change, setChange] = useState(0);
   const [isNotesDialogOpen, setNotesDialogOpen] = useState(false);
@@ -328,8 +328,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                         className="overflow-hidden cursor-pointer hover:bg-muted transition-colors"
                                         onClick={() => { setSelectedPlato(plato); setVariantModalOpen(true);}}
                                     >
-                                        <CardContent className="p-4 flex items-center justify-center h-full">
-                                            <p className="font-semibold text-center">{plato.nombre}</p>
+                                        <CardContent className="p-8 flex items-center justify-center h-full">
+                                            <p className="font-semibold text-center text-lg">{plato.nombre}</p>
                                         </CardContent>
                                     </Card>
                                 ))}
@@ -582,5 +582,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
+
+    
 
     
