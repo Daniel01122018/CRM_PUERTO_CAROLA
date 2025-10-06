@@ -39,8 +39,14 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [isNotesDialogOpen, setNotesDialogOpen] = useState(false);
 
   const [activeMenuContext, setActiveMenuContext] = useState<MenuContext>('salon');
+  
   const [isVariantModalOpen, setVariantModalOpen] = useState(false);
   const [selectedPlato, setSelectedPlato] = useState<MenuPlato | null>(null);
+
+  // States for custom price flow
+  const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
+  const [customPriceVariant, setCustomPriceVariant] = useState<MenuItemVariant | null>(null);
+  const [customPrice, setCustomPrice] = useState('');
   
   const isTakeawayOrder = useMemo(() => {
     if (orderIdOrTableId.startsWith('new-')) {
@@ -72,22 +78,18 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         // orders are loading
         return;
     }
-
+    
     let initialOrder: Partial<Order> | undefined;
 
     if (orderIdOrTableId.startsWith('new-')) {
         const type = orderIdOrTableId.substring(4);
-        const isNewTakeaway = type === 'takeaway';
-        const tableId = isNewTakeaway ? 'takeaway' : parseInt(type, 10);
+        const tableId = type === 'takeaway' ? 'takeaway' : parseInt(type, 10);
 
-        // Check if an active order already exists for this table
         const existingOrderForTable = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
         
         if (existingOrderForTable) {
-            // If an active order exists, load it directly instead of creating a new one
-            initialOrder = existingOrderForTable;
+             setCurrentOrder(existingOrderForTable);
         } else {
-            // Otherwise, create a new order
             initialOrder = {
                 id: `new-${tableId}`,
                 tableId: tableId,
@@ -97,29 +99,28 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 total: 0,
                 notes: '',
             };
-            if (isNewTakeaway) initialOrder.id = Date.now().toString()
+             if (type === 'takeaway') initialOrder.id = Date.now().toString()
+            setCurrentOrder(initialOrder);
         }
 
     } else {
-        // It's an existing order ID, find it in the array
         initialOrder = orders.find(o => o.id === orderIdOrTableId);
+        if(initialOrder) {
+            setCurrentOrder(initialOrder);
+        } else {
+            toast({
+                variant: "destructive",
+                title: "Pedido no encontrado",
+                description: "El pedido que intentas abrir no existe o fue cerrado.",
+            });
+            router.push('/dashboard');
+        }
     }
     
-    if (initialOrder) {
-        setCurrentOrder(initialOrder);
-         if (initialOrder.tableId === 'takeaway') {
-            setActiveMenuContext('llevar');
-        } else {
-            setActiveMenuContext('salon');
-        }
+    if (currentOrder?.tableId === 'takeaway' || orderIdOrTableId.endsWith('takeaway')) {
+      setActiveMenuContext('llevar');
     } else {
-        // If no order is found (e.g., invalid ID or already completed/cancelled), redirect
-        toast({
-            variant: "destructive",
-            title: "Pedido no encontrado",
-            description: "El pedido que intentas abrir no existe o fue cerrado.",
-        });
-        router.push('/dashboard');
+      setActiveMenuContext('salon');
     }
 
 }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
@@ -145,7 +146,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }, [amountReceived, total]);
 
 
-  const updateItemQuantity = (menuItemId: number, change: number, notes: string = '') => {
+  const updateItemQuantity = (menuItemId: number, change: number, notes: string = '', customPrice?: number) => {
     if (!currentOrder) return;
     setCurrentOrder(prev => {
       if (!prev) return null;
@@ -154,10 +155,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           item.menuItemId === menuItemId && 
           item.notes === notes && 
           item.contexto === activeMenuContext &&
-          !item.customPrice;
+          // Only group items if they don't have a custom price
+          !item.customPrice && !customPrice;
 
       const prevItems = prev.items || [];
-      const itemIndex = prevItems.findIndex(itemIdentifier);
+      const itemIndex = customPrice ? -1 : prevItems.findIndex(itemIdentifier);
       
       let newItems = [...prevItems];
 
@@ -170,6 +172,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         }
       } else if (change > 0) {
         const newItem: OrderItem = { menuItemId, quantity: change, notes, contexto: activeMenuContext };
+        if (customPrice) {
+          newItem.customPrice = customPrice;
+        }
         newItems.push(newItem);
       }
       return { ...prev, items: newItems };
@@ -260,6 +265,34 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (currentOrder?.tableId === 'takeaway') router.push('/takeaway');
     else router.push('/dashboard');
   }
+  
+  const handleVariantClick = (variant: MenuItemVariant) => {
+    if (variant.customPrice) {
+      setCustomPriceVariant(variant);
+      setIsCustomPriceDialogOpen(true);
+      setVariantModalOpen(false); // Close variant modal
+    } else {
+      updateItemQuantity(variant.id, 1);
+      setVariantModalOpen(false);
+    }
+  };
+
+  const handleAddCustomPriceItem = () => {
+    const price = parseFloat(customPrice);
+    if (customPriceVariant && !isNaN(price) && price > 0) {
+      updateItemQuantity(customPriceVariant.id, 1, '', price);
+      setIsCustomPriceDialogOpen(false);
+      setCustomPriceVariant(null);
+      setCustomPrice('');
+    } else {
+        toast({
+            variant: 'destructive',
+            title: 'Precio inválido',
+            description: 'Por favor, ingrese un monto válido.'
+        })
+    }
+  };
+
 
   if (!isMounted || !currentOrder || !orders) {
     return <div className="flex h-screen items-center justify-center">Cargando pedido...</div>;
@@ -383,6 +416,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                                     <p className="font-medium">
                                         {menuItem.nombre} {orderItem.notes ? `(${orderItem.notes})` : ''}
                                         {orderItem.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
+                                        {orderItem.customPrice && <span className="text-xs text-green-600 font-semibold ml-1">(Precio Manual)</span>}
                                     </p>
                                     <p className="text-sm text-muted-foreground">{orderItem.quantity} x ${(orderItem.customPrice || menuItem.precio).toFixed(2)}</p>
                                 </div>
@@ -470,6 +504,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         </Card>
       </div>
 
+      {/* Variant Selection Modal */}
       <Dialog open={isVariantModalOpen} onOpenChange={(isOpen) => { if (!isOpen) setSelectedPlato(null); setVariantModalOpen(isOpen); }}>
         <DialogContent>
           <DialogHeader>
@@ -478,23 +513,47 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           </DialogHeader>
           <div className="space-y-2 py-4 max-h-[60vh] overflow-y-auto">
             {selectedPlato?.variantes.filter(v => activeMenuContext === 'llevar' ? v.contexto === 'llevar' : v.contexto === 'salon').map(variante => (
-              <div key={variante.id} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
-                <div>
+              <Button 
+                key={variante.id}
+                variant="outline"
+                className="w-full justify-between h-14"
+                onClick={() => handleVariantClick(variante)}
+              >
+                <div className="text-left">
                   <p className="font-medium">{variante.nombre}</p>
-                  <p className="text-sm text-muted-foreground">${variante.precio.toFixed(2)}</p>
+                  {!variante.customPrice && <p className="text-sm text-muted-foreground">${variante.precio.toFixed(2)}</p>}
                 </div>
-                <Button variant="outline" onClick={() => {
-                    updateItemQuantity(variante.id, 1);
-                    setVariantModalOpen(false);
-                }}>
-                    <Plus className="mr-2 h-4 w-4" /> Añadir
-                </Button>
-              </div>
+                <Plus className="h-4 w-4" /> 
+              </Button>
             ))}
           </div>
         </DialogContent>
       </Dialog>
       
+      {/* Custom Price Modal */}
+      <AlertDialog open={isCustomPriceDialogOpen} onOpenChange={setIsCustomPriceDialogOpen}>
+          <AlertDialogContent>
+              <AlertDialogHeader>
+                  <AlertDialogTitle>Precio para {customPriceVariant?.nombre}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Ingrese el monto total para este artículo.
+                  </AlertDialogDescription>
+              </AlertDialogHeader>
+              <Input 
+                type="number"
+                placeholder="Monto"
+                value={customPrice}
+                onChange={(e) => setCustomPrice(e.target.value)}
+                autoFocus
+              />
+              <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => { setCustomPriceVariant(null); setCustomPrice(''); }}>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleAddCustomPriceItem}>Añadir al Pedido</AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Payment Modal */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
           <DialogContent>
               <DialogHeader>
@@ -540,5 +599,3 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     </div>
   );
 }
-
-    

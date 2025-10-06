@@ -79,6 +79,8 @@ export interface Expense {
     createdBy: string;
     employeeId?: string;
     employeeName?: string;
+    inventoryItemId?: string;
+    inventoryItemQuantity?: number;
 }
 
 export interface DailyData {

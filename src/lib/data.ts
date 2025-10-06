@@ -10,6 +10,7 @@ export const MENU_PLATOS: MenuPlato[] = [
       { id: 1, nombre: "Normal", precio: 2.50, contexto: 'salon' },
       { id: 2, nombre: "Mixto", precio: 4.00, contexto: 'salon' },
       { id: 40, nombre: "Mixto Peq.", precio: 3.00, contexto: 'salon' },
+      { id: 201, nombre: "En Olla", precio: 0, contexto: 'salon', customPrice: true },
       
       { id: 101, nombre: "Jr", precio: 2.25, contexto: 'llevar' },
       { id: 102, nombre: "Normal", precio: 2.75, contexto: 'llevar' },
