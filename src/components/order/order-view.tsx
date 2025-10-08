@@ -103,7 +103,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 initialOrder = existingOrderForTable;
             } else {
                 initialOrder = {
-                    id: `new-${tableId}`,
+                    id: Date.now().toString(), // Generate unique ID always
                     tableId: tableId,
                     items: [],
                     status: 'active',
@@ -281,8 +281,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const handleVariantClick = (variant: MenuItemVariant) => {
     if (variant.customPrice) {
       setCustomPriceVariant(variant);
+      setVariantModalOpen(false);
       setIsCustomPriceDialogOpen(true);
-      setVariantModalOpen(false); // Close variant modal
     } else {
       updateItemQuantity(variant.id, 1);
       setVariantModalOpen(false);
@@ -543,14 +543,14 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       </Dialog>
       
       {/* Custom Price Modal */}
-      <AlertDialog open={isCustomPriceDialogOpen} onOpenChange={setIsCustomPriceDialogOpen}>
-          <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>Precio para {customPriceVariant?.nombre}</AlertDialogTitle>
-                  <AlertDialogDescription>
+      <Dialog open={isCustomPriceDialogOpen} onOpenChange={setIsCustomPriceDialogOpen}>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>Precio para {customPriceVariant?.nombre}</DialogTitle>
+                  <DialogDescription>
                       Ingrese el monto total para este artículo.
-                  </AlertDialogDescription>
-              </AlertDialogHeader>
+                  </DialogDescription>
+              </DialogHeader>
               <Input 
                 type="number"
                 placeholder="Monto"
@@ -558,12 +558,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 onChange={(e) => setCustomPrice(e.target.value)}
                 autoFocus
               />
-              <AlertDialogFooter>
-                  <AlertDialogCancel onClick={() => { setCustomPriceVariant(null); setCustomPrice(''); }}>Cancelar</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleAddCustomPriceItem}>Añadir al Pedido</AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-      </AlertDialog>
+              <DialogFooter>
+                  <Button variant="outline" onClick={() => { setIsCustomPriceDialogOpen(false); setCustomPriceVariant(null); setCustomPrice(''); }}>Cancelar</Button>
+                  <Button onClick={handleAddCustomPriceItem}>Añadir al Pedido</Button>
+              </DialogFooter>
+          </DialogContent>
+      </Dialog>
 
       {/* Payment Modal */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
