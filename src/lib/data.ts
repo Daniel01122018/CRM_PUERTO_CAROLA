@@ -16,7 +16,7 @@ export const MENU_PLATOS: MenuPlato[] = [
       { id: 102, nombre: "Normal", precio: 2.75, contexto: 'llevar' },
       { id: 103, nombre: "T. Llena", precio: 3.25, contexto: 'llevar' },
       { id: 104, nombre: "Mixto", precio: 4.25, contexto: 'llevar' },
-      { id: 201, nombre: "En Olla", precio: 0, contexto: 'llevar', customPrice: true },
+      { id: 999, nombre: "En Olla", precio: 0, contexto: 'llevar', customPrice: true },
     ]
   },
   {
@@ -131,7 +131,7 @@ export const MENU_ITEMS: MenuItem[] = [
   { id: 37, nombre: "Jugo grande", precio: 1.00, category: 'Bebidas' },
   { id: 38, nombre: "Jugo pequeño", precio: 0.50, category: 'Bebidas' },
   { id: 39, nombre: "AGUA", precio: 0.75, category: 'Bebidas' },
-  { id: 40, nombre: "FUZE TEA", precio: 0.75, category: 'Bebidas' },
+  { id: 41, nombre: "FUZE TEA", precio: 0.75, category: 'Bebidas' },
   
 ];
 
