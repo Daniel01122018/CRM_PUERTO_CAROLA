@@ -8,7 +8,7 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
-import { Menu, UserCircle, LogOut, ClipboardList, BarChartBig, Wallet, ChefHat, History, ShoppingBag } from 'lucide-react';
+import { Menu, UserCircle, LogOut, BarChartBig, Wallet, ChefHat, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from './ui/button';
 
@@ -35,7 +35,6 @@ export default function AppSidebar() {
   const isEmployee = currentUser?.role === 'employee';
 
   const navLinks = [
-    ...(isAdmin ? [{ label: "Inventario", icon: ClipboardList, path: '/inventory' }] : []),
     ...(isAdmin ? [{ label: "Reportes", icon: BarChartBig, path: '/reports' }] : []),
     ...(isAdmin || isEmployee ? [{ label: "Gastos", icon: Wallet, path: '/expenses' }] : []),
     { label: "Cocina", icon: ChefHat, path: '/kitchen' },

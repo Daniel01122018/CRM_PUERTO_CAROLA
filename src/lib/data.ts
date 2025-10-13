@@ -114,7 +114,7 @@ export const MENU_PLATOS: MenuPlato[] = [
 export const MENU_ITEMS: MenuItem[] = [
   // Adicionales
   { id: 19, nombre: "PORCIÓN DE ARROZ", precio: 0.50, category: 'Adicionales' },
-  { id: 20, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales', inventoryItemId: 'chifles-bolsa' },
+  { id: 20, nombre: "CHIFLE", precio: 0.50, category: 'Adicionales' },
   { id: 21, nombre: "PAN", precio: 0.25, category: 'Adicionales' },
   { id: 22, nombre: "MAIZ TOSTADO", precio: 0.25, category: 'Adicionales' },
   { id: 23, nombre: "TARRINA/CONTENEDOR", precio: 0.25, category: 'Adicionales' },
@@ -124,7 +124,7 @@ export const MENU_ITEMS: MenuItem[] = [
 
 
   // Bebidas
-  { id: 24, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"], inventoryItemId: 'cola-personal-unidad' },
+  { id: 24, nombre: "COLA PERSONAL", precio: 0.75, category: 'Bebidas', sabores: ["COCA COLA", "SPRITE", "FANTA", "FIORAVANTI", "INCA COLA"] },
   { id: 25, nombre: "BATIDO", precio: 1.50, category: 'Bebidas', sabores: ["FRUTILLA", "MORA", "GUINEO", "CHOCOLATE", "MANGO"] },
   { id: 26, nombre: "Cola 1,35L", precio: 2.00, category: 'Bebidas' },
   { id: 36, nombre: "Café/Té", precio: 0.75, category: 'Bebidas' },

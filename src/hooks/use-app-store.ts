@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
-import type { Order, Table, User, Expense, Employee, DailyData, InventoryItem } from '@/types';
+import type { Order, Table, User, Expense, Employee, DailyData } from '@/types';
 import { USERS as staticUsers, TOTAL_TABLES, ALL_MENU_ITEMS } from '@/lib/data';
 import { format } from 'date-fns';
 
@@ -39,7 +39,6 @@ export function useAppStore() {
   const orders = useLiveQuery(() => db.orders.toArray());
   const expenses = useLiveQuery(() => db.expenses.toArray());
   const manualEmployees = useLiveQuery(() => db.employees.toArray());
-  const inventoryItems = useLiveQuery(() => db.inventory.toArray());
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const dailyData = useLiveQuery(() => db.dailyData.get(todayStr), [todayStr]);
@@ -99,33 +98,9 @@ export function useAppStore() {
     setCurrentUser(null);
   }, []);
 
-  const updateInventoryFromOrder = useCallback(async (order: Order) => {
-    if (!inventoryItems) return;
-
-    for (const orderItem of order.items) {
-        const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === orderItem.menuItemId);
-
-        if (menuItem && menuItem.inventoryItemId) {
-            const inventoryItem = inventoryItems.find(invItem => invItem.id === menuItem.inventoryItemId);
-
-            if (inventoryItem) {
-                const newStock = inventoryItem.stock - orderItem.quantity;
-                await db.inventory.update(inventoryItem.id, { stock: newStock });
-            }
-        }
-    }
-  }, [inventoryItems]);
-
   const addOrUpdateOrder = useCallback(async (order: Order) => {
-    const existingOrder = await db.orders.get(order.id);
-    
-    // Si el pedido se está completando ahora, y antes no lo estaba, descontar inventario
-    if (order.status === 'completed' && existingOrder?.status !== 'completed') {
-        await updateInventoryFromOrder(order);
-    }
-
     await db.orders.put(order);
-  }, [updateInventoryFromOrder]);
+  }, []);
   
   const cancelOrder = useCallback(async (orderId: string) => {
     await db.orders.update(orderId, { status: 'cancelled', cancelledAt: Date.now() });
@@ -184,30 +159,6 @@ export function useAppStore() {
     await db.dailyData.put(data);
   }, [currentUser]);
 
-  const addInventoryItem = useCallback(async (item: Omit<InventoryItem, 'id' | 'createdAt'>) => {
-    if (!currentUser || currentUser.role !== 'admin') {
-      throw new Error("Solo los administradores pueden añadir artículos al inventario.");
-    }
-    const existingItem = await db.inventory.get(item.name.toLowerCase().replace(/\s+/g, '-'));
-    if(existingItem) {
-        throw new Error("Ya existe un artículo con un nombre similar en el inventario.");
-    }
-    const newItem: InventoryItem = {
-      id: item.name.toLowerCase().replace(/\s+/g, '-'), // Generar ID a partir del nombre
-      ...item,
-      createdAt: Date.now(),
-    };
-    await db.inventory.add(newItem);
-  }, [currentUser]);
-
-  const updateInventoryItem = useCallback(async (itemId: string, updates: Partial<Omit<InventoryItem, 'id'>>) => {
-    if (!currentUser || currentUser.role !== 'admin') {
-      throw new Error("Solo los administradores pueden actualizar el inventario.");
-    }
-    await db.inventory.update(itemId, updates);
-  }, [currentUser]);
-
-
   return { 
     isMounted,
     currentUser,
@@ -225,8 +176,5 @@ export function useAppStore() {
     addEmployee,
     dailyData,
     setInitialCash,
-    inventoryItems,
-    addInventoryItem,
-    updateInventoryItem
   };
 }

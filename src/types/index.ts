@@ -21,7 +21,6 @@ export interface MenuItem {
   category: 'Platos' | 'Bebidas' | 'Adicionales';
   sabores?: string[];
   customPrice?: boolean;
-  inventoryItemId?: string; 
   paraLlevar?: boolean; // Para items que solo aparecen en modo "llevar"
   baseNombre?: string; // Nombre del plato base si es una variante
 }
@@ -79,20 +78,9 @@ export interface Expense {
     createdBy: string;
     employeeId?: string;
     employeeName?: string;
-    inventoryItemId?: string;
-    inventoryItemQuantity?: number;
 }
 
 export interface DailyData {
     date: string; // YYYY-MM-DD format
     initialCash: number;
-}
-
-export interface InventoryItem {
-    id: string;
-    name: string;
-    stock: number;
-    unit: string; // 'unidades', 'libras', 'litros', etc.
-    lowStockThreshold: number;
-    createdAt: number;
 }
