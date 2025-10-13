@@ -74,7 +74,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         return;
     }
 
-    if (!orders) {
+    if (orders === undefined) {
         // orders are loading
         return;
     }
@@ -113,23 +113,22 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 };
             }
         }
-        setCurrentOrder(initialOrder);
-
     } else {
         initialOrder = orders.find(o => o.id === orderIdOrTableId);
-        if(initialOrder) {
-            setCurrentOrder(initialOrder);
-        } else {
+        if(!initialOrder) {
             toast({
                 variant: "destructive",
                 title: "Pedido no encontrado",
                 description: "El pedido que intentas abrir no existe o fue cerrado.",
             });
             router.push('/dashboard');
+            return;
         }
     }
     
-    if (currentOrder?.tableId === 'takeaway' || orderIdOrTableId.endsWith('takeaway')) {
+    setCurrentOrder(initialOrder);
+
+    if (initialOrder?.tableId === 'takeaway') {
       setActiveMenuContext('llevar');
     } else {
       setActiveMenuContext('salon');
@@ -306,7 +305,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   };
 
 
-  if (!isMounted || !currentOrder || !orders) {
+  if (!isMounted || !currentOrder || orders === undefined) {
     return <div className="flex h-screen items-center justify-center">Cargando pedido...</div>;
   }
   
