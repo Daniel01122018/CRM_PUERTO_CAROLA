@@ -7,6 +7,7 @@ import {
   onSnapshot,
   doc,
   setDoc,
+  addDoc,
   updateDoc,
   query,
   orderBy,
@@ -28,20 +29,28 @@ export function useOrders() {
       setOrders(ordersData);
     }, (error) => {
       console.error("Error fetching orders from Firestore:", error);
-      setOrders([]); // En caso de error, devolvemos un array vacío para evitar que la app se rompa
+      setOrders([]);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const addOrUpdateOrder = useCallback(async (order: Order) => {
+  const addOrUpdateOrder = useCallback(async (order: Omit<Order, 'id'> & { id?: string }): Promise<string | null> => {
     try {
-      // setDoc con un ID específico crea o sobreescribe el documento.
-      // Es el equivalente más cercano a `put` de Dexie.
-      const orderRef = doc(db, 'orders', order.id);
-      await setDoc(orderRef, order, { merge: true });
+      if (order.id) {
+        // Si el pedido ya tiene ID, es una actualización
+        const orderRef = doc(db, 'orders', order.id);
+        await setDoc(orderRef, order, { merge: true });
+        return order.id;
+      } else {
+        // Si el pedido no tiene ID, es uno nuevo
+        const { id, ...orderData } = order;
+        const docRef = await addDoc(collection(db, 'orders'), orderData);
+        return docRef.id; // Devuelve el nuevo ID generado por Firebase
+      }
     } catch (error) {
       console.error("Error adding or updating order in Firestore:", error);
+      return null;
     }
   }, []);
 

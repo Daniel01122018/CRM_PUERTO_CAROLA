@@ -74,10 +74,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         return;
     }
 
-    if (orders === undefined) {
-        // orders are loading
-        return;
-    }
+    if (orders === undefined) return;
     
     let initialOrder: Partial<Order> | undefined;
 
@@ -87,7 +84,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
         if (isTakeaway) {
             initialOrder = {
-                id: Date.now().toString(),
                 tableId: 'takeaway',
                 items: [],
                 status: 'active',
@@ -103,7 +99,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 initialOrder = existingOrderForTable;
             } else {
                 initialOrder = {
-                    id: Date.now().toString(), // Generate unique ID always
                     tableId: tableId,
                     items: [],
                     status: 'active',
@@ -166,7 +161,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           item.menuItemId === menuItemId && 
           item.notes === notes && 
           item.contexto === activeMenuContext &&
-          // Only group items if they don't have a custom price
           !item.customPrice && !customPrice;
 
       const prevItems = prev.items || [];
@@ -218,30 +212,33 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         return { ...prev, items: newItems };
     });
   }
-
   
-  const handleSendToKitchen = async () => {
-    if (!currentOrder || !currentOrder.id || !currentOrder.items || currentOrder.items.length === 0) {
-        toast({ variant: "destructive", title: "Pedido vacío", description: "No se puede enviar un pedido sin artículos." });
+  const saveOrderAndNavigate = async (orderStatus: 'preparing' | 'active', redirectTo: string, successMessage: string) => {
+    if (!currentOrder || !currentOrder.items || currentOrder.items.length === 0) {
+        toast({ variant: "destructive", title: "Pedido vacío", description: "No se puede guardar un pedido sin artículos." });
         return;
     }
-    const orderToSave: Order = { ...currentOrder, total, status: 'preparing' } as Order;
-    await addOrUpdateOrder(orderToSave);
+
+    const orderToSave: Omit<Order, 'id'> & { id?: string } = { ...currentOrder, total, status: orderStatus } as Omit<Order, 'id'> & { id?: string };
     
-    toast({ title: "Pedido enviado a cocina", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido enviado.` });
+    const newId = await addOrUpdateOrder(orderToSave);
+
+    if (newId) {
+        toast({ title: successMessage, description: `Pedido para ${currentOrder.tableId === 'takeaway' ? 'llevar' : `Mesa ${currentOrder.tableId}`}.` });
+
+        if (orderIdOrTableId.startsWith('new-')) {
+            router.replace(`/order/${newId}`);
+            // Manually update the state to reflect the new ID from firestore
+            setCurrentOrder(prev => prev ? { ...prev, id: newId } : null);
+        }
+    }
     
-    if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
-    else router.push('/dashboard');
+    router.push(redirectTo);
   };
 
-  const handleSendUpdateToKitchen = async () => {
-    if (!currentOrder || !currentOrder.id || !currentOrder.items) return;
-    const orderToSave: Order = { ...currentOrder, total } as Order;
-    await addOrUpdateOrder(orderToSave);
-    
-    toast({ title: "Actualización enviada", description: "Nuevos artículos enviados a cocina." });
-    if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
-    else router.push('/dashboard');
+  const handleSendToKitchen = () => {
+    const redirectTo = currentOrder?.tableId === 'takeaway' ? '/takeaway' : '/dashboard';
+    saveOrderAndNavigate('preparing', redirectTo, 'Pedido enviado a cocina');
   };
   
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -270,11 +267,16 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   }
 
   const handleBack = async () => {
+    const redirectTo = isTakeawayOrder ? '/takeaway' : '/dashboard';
+    // Only save if it's a new order with items, or an existing order that has changed.
     if (currentOrder?.status === 'active' && (currentOrder.items?.length || 0) > 0) {
-       await addOrUpdateOrder({ ...currentOrder, total } as Order);
+       const orderToSave: Omit<Order, 'id'> & { id?: string } = { ...currentOrder, total, status: 'active' } as Omit<Order, 'id'> & { id?: string };
+       const newId = await addOrUpdateOrder(orderToSave);
+       if (newId && orderIdOrTableId.startsWith('new-')) {
+           router.replace(`/order/${newId}`);
+       }
     }
-    if (isTakeawayOrder) router.push('/takeaway');
-    else router.push('/dashboard');
+    router.push(redirectTo);
   }
   
   const handleVariantClick = (variant: MenuItemVariant) => {
@@ -454,7 +456,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             </ScrollArea>
              <div className="pt-4 pr-4">
                  <Dialog open={isNotesDialogOpen} onOpenChange={setNotesDialogOpen}>
-                    <DialogTrigger asChild>
+g                    <DialogTrigger asChild>
                         {currentOrder.notes ? (
                              <Button variant="outline" className="w-full justify-start text-left h-auto">
                                 <Edit className="mr-2 h-4 w-4" />
@@ -496,7 +498,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4"/> Enviar a Cocina</Button>)}
               {currentOrder.status === 'preparing' && (
                   <div className="grid grid-cols-1 gap-2 w-full">
-                      {hasUnsentChanges && (<Button size="lg" onClick={handleSendUpdateToKitchen}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
+                      {hasUnsentChanges && (<Button size="lg" onClick={() => saveOrderAndNavigate('preparing', currentOrder?.tableId === 'takeaway' ? '/takeaway' : '/dashboard', 'Actualización enviada a cocina')}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
 
                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)}>Finalizar y Cobrar</Button>
 

@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Eye, EyeOff } from 'lucide-react';
 
 const formSchema = z.object({
-  email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
+  username: z.string().min(1, { message: 'El nombre de usuario es requerido.' }),
   password: z.string().min(1, { message: 'La contraseña es requerida.' }),
 });
 
@@ -28,14 +28,14 @@ export default function LoginForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const user = await login(values.email, values.password);
+      const user = await login(values.username, values.password);
       toast({
         title: 'Inicio de sesión exitoso',
         description: `Bienvenido, ${user.username}!`,
@@ -50,7 +50,7 @@ export default function LoginForm() {
       toast({
         variant: 'destructive',
         title: 'Error de autenticación',
-        description: 'Correo electrónico o contraseña incorrectos.',
+        description: 'Usuario o contraseña incorrectos.',
       });
     }
   };
@@ -62,12 +62,12 @@ export default function LoginForm() {
           <CardContent className="space-y-4 pt-6">
             <FormField
               control={form.control}
-              name="email"
+              name="username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Correo Electrónico</FormLabel>
+                  <FormLabel>Nombre de usuario</FormLabel>
                   <FormControl>
-                    <Input placeholder="ej. mesero@email.com" {...field} autoFocus />
+                    <Input placeholder="ej. Mesero1" {...field} autoFocus />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
