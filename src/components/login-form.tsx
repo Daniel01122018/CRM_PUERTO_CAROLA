@@ -40,11 +40,16 @@ export default function LoginForm() {
         title: 'Inicio de sesión exitoso',
         description: `Bienvenido, ${user.username}!`,
       });
-      if (user.role === 'kitchen') {
+
+      // Lógica de redirección por rol
+      if (user.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else if (user.role === 'kitchen') {
         router.push('/kitchen');
       } else {
         router.push('/dashboard');
       }
+      
     } catch (error) {
       console.error("Login failed:", error);
       toast({

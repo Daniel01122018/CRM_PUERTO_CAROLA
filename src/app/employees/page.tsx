@@ -20,10 +20,13 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, Users, PlusCircle } from 'lucide-react';
 import type { Employee } from '@/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const ROLES = ["Administrador", "Mesero/a", "Ayudante", "Cocinero/a", "Trabajador Operativo", "Recursos Humanos"] as const;
 
 const employeeSchema = z.object({
   name: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
-  role: z.string().min(2, { message: 'El cargo es requerido.' }),
+  role: z.enum(ROLES, { message: 'Debe seleccionar un cargo válido.' }),
 });
 
 export default function EmployeesPage() {
@@ -41,7 +44,7 @@ export default function EmployeesPage() {
     resolver: zodResolver(employeeSchema),
     defaultValues: {
       name: '',
-      role: '',
+      role: undefined,
     },
   });
 
@@ -52,7 +55,7 @@ export default function EmployeesPage() {
         title: 'Empleado Añadido',
         description: `${values.name} ha sido registrado como ${values.role}.`,
       });
-      form.reset();
+      form.reset({ name: '', role: undefined });
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -101,10 +104,10 @@ export default function EmployeesPage() {
                     Gestión de Empleados
                 </h1>
             </div>
-            <Link href="/expenses">
+            <Link href="/admin/dashboard">
                 <Button variant="outline" className="flex items-center gap-2">
                     <ArrowLeft className="h-5 w-5" />
-                    Volver a Gastos
+                    Volver al Dashboard
                 </Button>
             </Link>
         </div>
@@ -135,7 +138,20 @@ export default function EmployeesPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Cargo</FormLabel>
-                          <FormControl><Input placeholder="ej. Mesero, Cocinero" {...field} /></FormControl>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccione un cargo" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {ROLES.map((role) => (
+                                <SelectItem key={role} value={role}>
+                                  {role}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

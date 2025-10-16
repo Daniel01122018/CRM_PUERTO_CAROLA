@@ -324,7 +324,7 @@ export default function HistoryPage() {
                   <Button variant="outline">Ver Reportes Financieros</Button>
                 </Link>
               )}
-              <Link href="/dashboard">
+              <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
                   <Button variant="outline" className="flex items-center gap-2">
                       <ArrowLeft className="h-5 w-5" />
                       Volver al Salón
@@ -580,6 +580,13 @@ export default function HistoryPage() {
                         {selectedOrder ? (
                             <div className="space-y-4">
                                 <div>
+                                  <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
+                                    <Button variant="outline" className="flex items-center gap-2">
+                                      <ArrowLeft className="h-5 w-5" />
+                                      Volver
+                                    </Button>
+                                  </Link>
+
                                     <h3 className="font-semibold">{selectedOrder.tableId === 'takeaway' ? 'Pedido para llevar' : `Mesa ${selectedOrder.tableId}`}</h3>
                                     <p className="text-sm text-muted-foreground">
                                         {format(new Date(selectedOrder.createdAt), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
@@ -649,5 +656,3 @@ export default function HistoryPage() {
   );
 }
 
-
-    

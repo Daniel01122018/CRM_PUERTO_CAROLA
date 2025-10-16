@@ -8,7 +8,7 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
-import { UtensilsCrossed, Square, CheckSquare, ShoppingBag } from 'lucide-react';
+import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, ArrowLeft } from 'lucide-react';
 import type { Table } from '@/types';
 
 function TableCard({ table }: { table: Table }) {
@@ -76,12 +76,22 @@ export default function DashboardPage() {
                         <AppSidebar />
                         <h1 className="text-2xl font-semibold text-white">Salón de Mesas</h1>
                     </div>
-                    <Link href="/takeaway">
-                        <Button>
-                            <ShoppingBag className="mr-2 h-5 w-5" />
-                            Para Llevar
-                        </Button>
-                    </Link>
+                    <div className="flex items-center gap-2">
+                        {currentUser.role === 'admin' && (
+                            <Link href="/admin/dashboard">
+                                <Button variant="outline" className="flex items-center gap-2">
+                                    <ArrowLeft className="h-5 w-5" />
+                                    Volver al Dashboard
+                                </Button>
+                            </Link>
+                        )}
+                        <Link href="/takeaway">
+                            <Button>
+                                <ShoppingBag className="mr-2 h-5 w-5" />
+                                Para Llevar
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 min-h-[70vh]">
                 {tables.map((table) => (

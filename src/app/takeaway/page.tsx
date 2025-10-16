@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { ALL_MENU_ITEMS } from '@/lib/data';
+import type { Order } from '@/types';
 import { Utensils, Clock, ArrowLeft, PlusCircle, ShoppingBag } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -54,7 +55,7 @@ export default function TakeawayQueuePage() {
                         Nuevo Pedido
                     </Button>
                 </Link>
-                <Link href="/dashboard">
+                <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
                     <Button variant="outline" className="flex items-center gap-2">
                         <ArrowLeft className="h-5 w-5" />
                         Volver al Salón

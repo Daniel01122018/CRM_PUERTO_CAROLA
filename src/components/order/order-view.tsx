@@ -56,6 +56,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     return existingOrder?.tableId === 'takeaway';
   }, [orderIdOrTableId, orders]);
 
+  const baseRedirectPath = useMemo(() => {
+    if (currentUser?.role === 'admin') {
+      return '/admin/dashboard';
+    }
+    return isTakeawayOrder ? '/takeaway' : '/dashboard';
+  }, [currentUser, isTakeawayOrder]);
+
 
   const { currentMenuCategories, currentPlatos, currentOtherItems } = useMemo(() => {
     const allCategories = ['Platos', 'Bebidas', 'Adicionales'];
@@ -116,7 +123,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 title: "Pedido no encontrado",
                 description: "El pedido que intentas abrir no existe o fue cerrado.",
             });
-            router.push('/dashboard');
+            router.push(baseRedirectPath);
             return;
         }
     }
@@ -129,7 +136,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       setActiveMenuContext('salon');
     }
 
-}, [orderIdOrTableId, isMounted, currentUser, orders, router, toast]);
+}, [orderIdOrTableId, isMounted, currentUser, orders, router, toast, baseRedirectPath]);
 
 
   const total = useMemo(() => {
@@ -213,7 +220,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     });
   }
   
-  const saveOrderAndNavigate = async (orderStatus: 'preparing' | 'active', redirectTo: string, successMessage: string) => {
+  const saveOrderAndNavigate = async (orderStatus: 'preparing' | 'active', successMessage: string) => {
     if (!currentOrder || !currentOrder.items || currentOrder.items.length === 0) {
         toast({ variant: "destructive", title: "Pedido vacío", description: "No se puede guardar un pedido sin artículos." });
         return;
@@ -228,17 +235,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
         if (orderIdOrTableId.startsWith('new-')) {
             router.replace(`/order/${newId}`);
-            // Manually update the state to reflect the new ID from firestore
             setCurrentOrder(prev => prev ? { ...prev, id: newId } : null);
         }
     }
     
-    router.push(redirectTo);
+    router.push(baseRedirectPath);
   };
 
   const handleSendToKitchen = () => {
-    const redirectTo = currentOrder?.tableId === 'takeaway' ? '/takeaway' : '/dashboard';
-    saveOrderAndNavigate('preparing', redirectTo, 'Pedido enviado a cocina');
+    saveOrderAndNavigate('preparing', 'Pedido enviado a cocina');
   };
   
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -253,8 +258,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
      toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado.` });
      setPaymentDialogOpen(false);
      setAmountReceived('');
-     if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
-     else router.push('/dashboard');
+     router.push(baseRedirectPath);
   }
 
 
@@ -262,13 +266,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (!currentOrder || !currentOrder.id) return;
     await cancelOrder(currentOrder.id);
     toast({ variant: "destructive", title: "Pedido Cancelado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.` });
-    if (currentOrder.tableId === 'takeaway') router.push('/takeaway');
-    else router.push('/dashboard');
+    router.push(baseRedirectPath);
   }
 
   const handleBack = async () => {
-    const redirectTo = isTakeawayOrder ? '/takeaway' : '/dashboard';
-    // Only save if it's a new order with items, or an existing order that has changed.
     if (currentOrder?.status === 'active' && (currentOrder.items?.length || 0) > 0) {
        const orderToSave: Omit<Order, 'id'> & { id?: string } = { ...currentOrder, total, status: 'active' } as Omit<Order, 'id'> & { id?: string };
        const newId = await addOrUpdateOrder(orderToSave);
@@ -276,7 +277,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
            router.replace(`/order/${newId}`);
        }
     }
-    router.push(redirectTo);
+    router.push(baseRedirectPath);
   }
   
   const handleVariantClick = (variant: MenuItemVariant) => {
@@ -456,7 +457,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             </ScrollArea>
              <div className="pt-4 pr-4">
                  <Dialog open={isNotesDialogOpen} onOpenChange={setNotesDialogOpen}>
-g                    <DialogTrigger asChild>
+                    <DialogTrigger asChild>
                         {currentOrder.notes ? (
                              <Button variant="outline" className="w-full justify-start text-left h-auto">
                                 <Edit className="mr-2 h-4 w-4" />
@@ -498,7 +499,7 @@ g                    <DialogTrigger asChild>
                {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4"/> Enviar a Cocina</Button>)}
               {currentOrder.status === 'preparing' && (
                   <div className="grid grid-cols-1 gap-2 w-full">
-                      {hasUnsentChanges && (<Button size="lg" onClick={() => saveOrderAndNavigate('preparing', currentOrder?.tableId === 'takeaway' ? '/takeaway' : '/dashboard', 'Actualización enviada a cocina')}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
+                      {hasUnsentChanges && (<Button size="lg" onClick={() => saveOrderAndNavigate('preparing', 'Actualización enviada a cocina')}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
 
                       <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)}>Finalizar y Cobrar</Button>
 

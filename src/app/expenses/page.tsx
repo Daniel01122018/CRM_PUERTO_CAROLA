@@ -289,13 +289,8 @@ export default function ExpensesPage() {
                 </h1>
             </div>
             <div className="flex items-center gap-2">
-                {currentUser.role === 'admin' && (
-                  <Button variant="outline" onClick={() => router.push('/employees')}>
-                      <Users className="h-5 w-5 mr-2"/>
-                      Gestionar Empleados
-                  </Button>
-                )}
-                <Link href="/dashboard">
+                
+                <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
                     <Button variant="outline" className="flex items-center gap-2">
                         <ArrowLeft className="h-5 w-5" />
                         Volver

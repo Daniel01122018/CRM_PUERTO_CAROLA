@@ -123,7 +123,7 @@ export default function KitchenPage() {
                     <p className="text-muted-foreground">Pedidos activos para preparar.</p>
                 </div>
             </div>
-            <Link href="/dashboard">
+            <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
                 <Button variant="outline" className="flex items-center gap-2">
                     <ArrowLeft className="h-5 w-5" />
                     Volver al Salón

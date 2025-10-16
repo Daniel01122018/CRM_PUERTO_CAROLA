@@ -13,7 +13,7 @@ import { Calendar } from '@/components/ui/calendar';
 import AppSidebar from '@/components/app-sidebar';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Legend, Tooltip } from "recharts";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText } from 'lucide-react';
@@ -192,10 +192,10 @@ export default function ReportsPage() {
                     <FileText className="mr-2 h-4 w-4" />
                     Generar Reporte
                 </Button>
-                <Link href="/dashboard">
+                <Link href="/admin/dashboard">
                     <Button variant="outline" className="flex items-center gap-2">
                     <ArrowLeft className="h-5 w-5" />
-                    Volver al Salón
+                    Volver al Dashboard
                     </Button>
                 </Link>
             </div>
@@ -301,16 +301,14 @@ export default function ReportsPage() {
                   <CardContent>
                       {expenseBreakdownData.length > 0 ? (
                         <ChartContainer config={{}} className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height={300}>
-                                <PieChart>
-                                    <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                                    <Pie data={expenseBreakdownData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                                        {expenseBreakdownData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                </PieChart>
-                            </ResponsiveContainer>
+                            <PieChart>
+                                <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                                <Pie data={expenseBreakdownData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                    {expenseBreakdownData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                            </PieChart>
                         </ChartContainer>
                         ) : (
                           <div className="flex h-[300px] items-center justify-center text-muted-foreground">
