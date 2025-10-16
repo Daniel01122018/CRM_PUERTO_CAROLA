@@ -11,48 +11,46 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { USERS } from '@/lib/data';
-import { useAppStore } from '@/hooks/use-app-store';
+import { useAuth } from '@/hooks/use-auth';
 import { Eye, EyeOff } from 'lucide-react';
 
 const formSchema = z.object({
-  username: z.string().min(1, { message: 'El nombre de usuario es requerido.' }),
+  email: z.string().email({ message: 'Por favor, introduce un correo electrónico válido.' }),
   password: z.string().min(1, { message: 'La contraseña es requerida.' }),
 });
 
 export default function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
-  const { login } = useAppStore();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: '',
+      email: '',
       password: '',
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    const user = USERS[values.username as keyof typeof USERS];
-    
-    if (user && user.password === values.password) {
-      login(values.username);
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const user = await login(values.email, values.password);
       toast({
         title: 'Inicio de sesión exitoso',
-        description: `Bienvenido, ${values.username}!`,
+        description: `Bienvenido, ${user.username}!`,
       });
       if (user.role === 'kitchen') {
         router.push('/kitchen');
       } else {
         router.push('/dashboard');
       }
-    } else {
+    } catch (error) {
+      console.error("Login failed:", error);
       toast({
         variant: 'destructive',
         title: 'Error de autenticación',
-        description: 'Usuario o contraseña incorrectos.',
+        description: 'Correo electrónico o contraseña incorrectos.',
       });
     }
   };
@@ -64,12 +62,12 @@ export default function LoginForm() {
           <CardContent className="space-y-4 pt-6">
             <FormField
               control={form.control}
-              name="username"
+              name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Usuario</FormLabel>
+                  <FormLabel>Correo Electrónico</FormLabel>
                   <FormControl>
-                    <Input placeholder="ej. Mesero1" {...field} autoFocus />
+                    <Input placeholder="ej. mesero@email.com" {...field} autoFocus />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -105,8 +103,8 @@ export default function LoginForm() {
             />
           </CardContent>
           <CardFooter>
-            <Button type="submit" className="w-full">
-              Ingresar
+            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? 'Ingresando...' : 'Ingresar'}
             </Button>
           </CardFooter>
         </form>
