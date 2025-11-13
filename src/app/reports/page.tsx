@@ -1,19 +1,18 @@
-
 "use client";
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // AÑADIR ESTOS IMPORTS
 import AppSidebar from '@/components/app-sidebar';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Legend, Tooltip } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegendContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText } from 'lucide-react';
@@ -28,14 +27,8 @@ const PIE_CHART_COLORS = [
 ];
 
 const chartConfig = {
-  Ingresos: {
-    label: "Ingresos",
-    color: "hsl(var(--primary))",
-  },
-  Gastos: {
-    label: "Gastos",
-    color: "hsl(var(--destructive))",
-  },
+  Ingresos: { label: "Ingresos", color: "hsl(var(--primary))" },
+  Gastos: { label: "Gastos", color: "hsl(var(--destructive))" },
 };
 
 export default function ReportsPage() {
@@ -50,7 +43,6 @@ export default function ReportsPage() {
       router.push('/dashboard');
     }
   }, [currentUser, isMounted, router]);
-
 
   const completedOrders = useMemo(() => {
     if (!orders) return [];
@@ -85,15 +77,11 @@ export default function ReportsPage() {
     if (!completedOrders || !expenses || !dateFilterRange) {
       return { filteredOrders: [], filteredExpenses: [] };
     }
-
     const { from, to } = dateFilterRange;
     if (!from || !to) return { filteredOrders: [], filteredExpenses: [] };
-    
     const interval = { start: from, end: to };
-
     const filteredOrders = completedOrders.filter(o => isWithinInterval(new Date(o.createdAt), interval));
     const filteredExpenses = expenses.filter(e => isWithinInterval(new Date(e.createdAt), interval));
-    
     return { filteredOrders, filteredExpenses };
   }, [completedOrders, expenses, dateFilterRange]);
 
@@ -106,22 +94,15 @@ export default function ReportsPage() {
   
   const dailyChartData = useMemo(() => {
     if (!dateFilterRange?.from || !dateFilterRange.to) return [];
-    
     const days = eachDayOfInterval({ start: dateFilterRange.from, end: dateFilterRange.to });
-    
     return days.map(day => {
-      const dayStart = startOfDay(day);
-      const dayEnd = endOfDay(day);
-      const interval = { start: dayStart, end: dayEnd };
-
+      const interval = { start: startOfDay(day), end: endOfDay(day) };
       const income = filteredData.filteredOrders
         .filter(o => isWithinInterval(new Date(o.createdAt), interval))
         .reduce((sum, o) => sum + o.total, 0);
-        
       const expense = filteredData.filteredExpenses
         .filter(e => isWithinInterval(new Date(e.createdAt), interval))
         .reduce((sum, e) => sum + e.amount, 0);
-
       return {
         date: format(day, 'dd/MM'),
         Ingresos: parseFloat(income.toFixed(2)),
@@ -129,22 +110,20 @@ export default function ReportsPage() {
       };
     });
   }, [filteredData, dateFilterRange]);
-  
+
   const expenseBreakdownData = useMemo(() => {
     const breakdown: { [key: string]: number } = {};
     filteredData.filteredExpenses.forEach(expense => {
       breakdown[expense.category] = (breakdown[expense.category] || 0) + expense.amount;
     });
-
     return Object.entries(breakdown)
       .map(([name, value]) => ({ name, value: parseFloat(value.toFixed(2)) }))
       .sort((a, b) => b.value - a.value);
   }, [filteredData.filteredExpenses]);
 
-  const handlePrintReport = () => {
-    window.print();
-  };
+  const handlePrintReport = () => window.print();
 
+  // Helper function for printable report - MOVER ANTES DEL RETURN
   const getFilterDateRangeString = () => {
     if (!dateFilterRange?.from) return "Rango no definido";
     const fromStr = format(dateFilterRange.from, 'dd/MM/yyyy');
@@ -152,7 +131,6 @@ export default function ReportsPage() {
     const toStr = format(dateFilterRange.to, 'dd/MM/yyyy');
     return `${fromStr} - ${toStr}`;
   };
-
 
   if (!isMounted || !currentUser || !orders || !expenses) {
     return (
@@ -179,32 +157,37 @@ export default function ReportsPage() {
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <main className="flex-1 p-4 sm:p-6 md:p-8 print:p-0">
         <div className="print:hidden">
-          <div className="flex items-center justify-between mb-6">
-            <div className='flex items-center gap-4'>
+          {/* Header Section - Mejorado para responsive */}
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+            <div className='flex items-center gap-3 flex-wrap'>
                 <AppSidebar />
-                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-                <BarChart2 className="h-8 w-8" />
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+                <BarChart2 className="h-6 w-6 sm:h-8 sm:w-8" />
                 Reportes Financieros
                 </h1>
             </div>
-            <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handlePrintReport}>
+            <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
+                <Button variant="outline" size="sm" onClick={handlePrintReport} className="flex-1 sm:flex-none min-w-[140px]">
                     <FileText className="mr-2 h-4 w-4" />
                     Generar Reporte
                 </Button>
-                <Link href="/admin/dashboard">
-                    <Button variant="outline" className="flex items-center gap-2">
-                    <ArrowLeft className="h-5 w-5" />
-                    Volver al Dashboard
+                <Link href="/admin/dashboard" className="flex-1 sm:flex-none">
+                    <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
+                    <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="hidden sm:inline">Volver al Dashboard</span>
+                    <span className="sm:hidden">Volver</span>
                     </Button>
                 </Link>
             </div>
           </div>
 
+          {/* Filtros - Mejorado para responsive */}
           <Card className="mb-6">
-              <CardContent className="p-4 flex flex-col sm:flex-row gap-2 items-center">
+              <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                   <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
-                      <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
+                      <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Filtrar por fecha" />
+                      </SelectTrigger>
                       <SelectContent>
                           <SelectItem value="this_week">Esta semana</SelectItem>
                           <SelectItem value="last_week">Semana pasada</SelectItem>
@@ -215,7 +198,7 @@ export default function ReportsPage() {
                   
                   <Popover>
                       <PopoverTrigger asChild>
-                      <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !customDateRange && "text-muted-foreground")}>
+                      <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal flex-1", !customDateRange && "text-muted-foreground")}>
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {customDateRange?.from ? 
                               customDateRange.to ? 
@@ -239,7 +222,8 @@ export default function ReportsPage() {
               </CardContent>
           </Card>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6">
+          {/* KPIs Grid - Mejorado para responsive */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
@@ -272,18 +256,30 @@ export default function ReportsPage() {
             </Card>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-5">
+          {/* Charts Section - Mejorado para responsive */}
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
               <Card className="lg:col-span-3">
                   <CardHeader>
-                      <CardTitle>Ingresos vs. Gastos</CardTitle>
+                      <CardTitle className="text-lg sm:text-xl">Ingresos vs. Gastos</CardTitle>
                       <CardDescription>Comparación diaria de ingresos y gastos para el período seleccionado.</CardDescription>
                   </CardHeader>
                   <CardContent className="pl-2">
                       <ChartContainer config={chartConfig} className="h-[300px] w-full">
                           <BarChart accessibilityLayer data={dailyChartData}>
                               <CartesianGrid vertical={false} />
-                              <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                              <XAxis 
+                                dataKey="date" 
+                                tickLine={false} 
+                                tickMargin={10} 
+                                axisLine={false}
+                                fontSize={12}
+                              />
+                              <YAxis 
+                                tickLine={false} 
+                                axisLine={false} 
+                                tickFormatter={(value) => `$${value}`}
+                                fontSize={12}
+                              />
                               <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
                               <Legend content={<ChartLegendContent />} />
                               <Bar dataKey="Ingresos" fill="var(--color-Ingresos)" radius={4} />
@@ -295,7 +291,7 @@ export default function ReportsPage() {
               
               <Card className="lg:col-span-2">
                   <CardHeader>
-                      <CardTitle>Desglose de Gastos</CardTitle>
+                      <CardTitle className="text-lg sm:text-xl">Desglose de Gastos</CardTitle>
                       <CardDescription>Distribución de gastos por categoría.</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -303,7 +299,16 @@ export default function ReportsPage() {
                         <ChartContainer config={{}} className="h-[300px] w-full">
                             <PieChart>
                                 <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                                <Pie data={expenseBreakdownData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                <Pie 
+                                  data={expenseBreakdownData} 
+                                  dataKey="value" 
+                                  nameKey="name" 
+                                  cx="50%" 
+                                  cy="50%" 
+                                  outerRadius={100}
+                                  innerRadius={40}
+                                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                                >
                                     {expenseBreakdownData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
                                     ))}
@@ -398,7 +403,6 @@ export default function ReportsPage() {
               </div>
             </div>
         </div>
-
       </main>
     </div>
   );

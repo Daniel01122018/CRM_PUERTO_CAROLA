@@ -23,7 +23,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="El Puerto CRM" />
         <link rel="manifest" href="/icons/site.webmanifest" /> {/* Referencia al nuevo manifiesto */}
         {/* Fin de los nuevos enlaces y meta etiquetas */}
-
         {/* Tus enlaces de fuentes existentes */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
