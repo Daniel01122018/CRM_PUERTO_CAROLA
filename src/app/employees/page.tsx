@@ -126,12 +126,12 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <main className="flex-1 p-4 sm:p-6 md:p-10 max-w-7xl mx-auto w-full">
+    <div className="flex min-h-screen w-full flex-col bg-muted/40 overflow-hidden">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full">
         
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-8 border-b pb-4">
-          <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 border-b pb-4">
+          <div className="flex items-center gap-3">
             <AppSidebar />
             <h1 className="text-xl sm:text-2xl font-semibold flex items-center gap-2 text-foreground">
               <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
@@ -139,8 +139,12 @@ export default function EmployeesPage() {
             </h1>
           </div>
           <Link href="/admin/dashboard" className="w-full sm:w-auto">
-            <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
-              <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2 w-full sm:w-auto justify-center sm:justify-start"
+              size="sm"
+            >
+              <ArrowLeft className="h-4 w-4" />
               <span className="hidden sm:inline">Volver al Dashboard</span>
               <span className="sm:hidden">Volver</span>
             </Button>
@@ -148,15 +152,15 @@ export default function EmployeesPage() {
         </div>
 
         {/* Grid Principal */}
-        <div className="grid gap-8 lg:grid-cols-5 w-full">
+        <div className="grid gap-6 lg:grid-cols-5 w-full">
           
           {/* Formulario */}
           <div className="lg:col-span-2 space-y-6">
-            <Card className="shadow-md border border-border">
+            <Card className="shadow-lg border border-border w-full h-fit">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                  <CardHeader className="pb-3 border-b">
-                    <CardTitle className="text-lg sm:text-xl font-semibold">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+                  <CardHeader className="pb-3 border-b bg-gradient-to-r from-primary/10 to-primary/5">
+                    <CardTitle className="text-lg sm:text-xl font-semibold text-primary">
                       Añadir Nuevo Empleado
                     </CardTitle>
                   </CardHeader>
@@ -169,7 +173,12 @@ export default function EmployeesPage() {
                         <FormItem>
                           <FormLabel>Nombre Completo</FormLabel>
                           <FormControl>
-                            <Input placeholder="Ej. Juan Pérez" {...field} autoFocus />
+                            <Input 
+                              placeholder="Ej. Juan Pérez" 
+                              {...field} 
+                              autoFocus 
+                              className="w-full"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -184,7 +193,7 @@ export default function EmployeesPage() {
                           <FormLabel>Cargo</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Seleccione un cargo" />
                               </SelectTrigger>
                             </FormControl>
@@ -214,23 +223,23 @@ export default function EmployeesPage() {
           </div>
 
           {/* Lista de Empleados */}
-          <div className="lg:col-span-3">
-            <Card className="h-full shadow-md border border-border">
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-lg sm:text-xl font-semibold">
+          <div className="lg:col-span-3 w-full">
+            <Card className="w-full shadow-lg border border-border">
+              <CardHeader className="pb-3 border-b bg-gradient-to-r from-secondary/10 to-secondary/5">
+                <CardTitle className="text-lg sm:text-xl font-semibold text-secondary-foreground">
                   Lista de Empleados
                 </CardTitle>
               </CardHeader>
 
-              <CardContent className="p-0">
-                <ScrollArea className="h-[50vh] sm:h-[60vh] md:h-[65vh]">
-                  <div className="p-4 sm:p-6">
-                    <Table>
+              <CardContent className="p-0 w-full">
+                <ScrollArea className="h-[50vh] sm:h-[60vh] w-full">
+                  <div className="p-3 sm:p-4 md:p-6 w-full overflow-x-hidden">
+                    <Table className="w-full table-auto">
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="whitespace-nowrap">Nombre</TableHead>
-                          <TableHead className="whitespace-nowrap">Cargo</TableHead>
-                          <TableHead className="whitespace-nowrap">Fecha de Ingreso</TableHead>
+                          <TableHead className="px-2 sm:px-4">Nombre</TableHead>
+                          <TableHead className="px-2 sm:px-4">Cargo</TableHead>
+                          <TableHead className="px-2 sm:px-4">Fecha de Ingreso</TableHead>
                         </TableRow>
                       </TableHeader>
 
@@ -241,11 +250,13 @@ export default function EmployeesPage() {
                               key={employee.id}
                               className="hover:bg-muted/50 transition-colors"
                             >
-                              <TableCell className="font-medium truncate max-w-[150px] sm:max-w-none">
+                              <TableCell className="font-medium px-2 sm:px-4 break-words">
                                 {employee.name}
                               </TableCell>
-                              <TableCell className="whitespace-nowrap">{employee.role}</TableCell>
-                              <TableCell className="whitespace-nowrap">
+                              <TableCell className="px-2 sm:px-4 break-words">
+                                {employee.role}
+                              </TableCell>
+                              <TableCell className="px-2 sm:px-4 whitespace-nowrap">
                                 {format(new Date(employee.createdAt), "dd MMM yyyy", { locale: es })}
                               </TableCell>
                             </TableRow>
@@ -264,7 +275,6 @@ export default function EmployeesPage() {
               </CardContent>
             </Card>
           </div>
-
         </div>
       </main>
     </div>
