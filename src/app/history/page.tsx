@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -308,7 +307,7 @@ export default function HistoryPage() {
   }
   
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+    <div className="flex min-h-screen w-full flex-col bg-muted/40 overflow-x-hidden">
       <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -318,14 +317,14 @@ export default function HistoryPage() {
                     Historial y Reportes
                 </h1>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {currentUser?.role === 'admin' && (
                 <Link href="/reports">
-                  <Button variant="outline">Ver Reportes Financieros</Button>
+                  <Button variant="outline" className="whitespace-normal">Ver Reportes Financieros</Button>
                 </Link>
               )}
               <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" className="flex items-center gap-2 whitespace-normal">
                       <ArrowLeft className="h-5 w-5" />
                       Volver al Salón
                   </Button>
@@ -334,7 +333,7 @@ export default function HistoryPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="bg-primary text-primary-foreground">
+            <Card className="bg-primary text-primary-foreground min-w-0">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Efectivo Esperado en Caja</CardTitle>
                     <PiggyBank className="h-4 w-4 text-primary-foreground/80" />
@@ -350,7 +349,7 @@ export default function HistoryPage() {
             
             {currentUser.role === 'admin' && (
               <>
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Ventas Totales (Hoy)</CardTitle>
                         <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -360,7 +359,7 @@ export default function HistoryPage() {
                         <p className="text-xs text-muted-foreground">{summaryData.ordersTodayCount} pedidos hoy</p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium flex items-center justify-between">
                             Configurar Caja Inicial
@@ -368,19 +367,19 @@ export default function HistoryPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Input
                                 type="number"
                                 placeholder="Monto inicial..."
                                 value={initialCashInput}
                                 onChange={(e) => setInitialCashInput(e.target.value)}
-                                className="h-9"
+                                className="h-9 min-w-0"
                             />
-                            <Button size="sm" onClick={handleSetInitialCash}>Guardar</Button>
+                            <Button size="sm" onClick={handleSetInitialCash} className="whitespace-normal">Guardar</Button>
                         </div>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Gastos de Caja (Hoy)</CardTitle>
                         <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -395,36 +394,38 @@ export default function HistoryPage() {
         
         <div className="grid gap-6 lg:grid-cols-1">
             {currentUser.role === 'admin' && (
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader>
                         <CardTitle>Ventas de la Última Semana</CardTitle>
                         <CardDescription>Resumen de ingresos de los últimos 7 días.</CardDescription>
                     </CardHeader>
                     <CardContent className="pl-2">
-                        <ChartContainer config={{ Ventas: { label: "Ventas", color: "hsl(var(--primary))" } }} className="h-[250px] w-full">
-                            <BarChart accessibilityLayer data={summaryData.weeklyData}>
-                                <CartesianGrid vertical={false} />
-                                <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                                <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                                <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                <Bar dataKey="Ventas" fill="var(--color-Ventas)" radius={4} />
-                            </BarChart>
-                        </ChartContainer>
+                        <div className="chart-wrapper w-full min-w-0 h-[250px]">
+                            <ChartContainer config={{ Ventas: { label: "Ventas", color: "hsl(var(--primary))" } }} className="h-full w-full">
+                                <BarChart accessibilityLayer data={summaryData.weeklyData} className="w-full h-full">
+                                    <CartesianGrid vertical={false} />
+                                    <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                                    <Bar dataKey="Ventas" fill="var(--color-Ventas)" radius={4} />
+                                </BarChart>
+                            </ChartContainer>
+                        </div>
                     </CardContent>
                 </Card>
             )}
 
             <div className="grid gap-4 md:grid-cols-2">
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader>
                         <CardTitle>Todos los Pedidos</CardTitle>
                         <CardDescription>Busca y selecciona un pedido para ver los detalles.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-2 mb-4">
-                            <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
                                 <Select value={orderFilter} onValueChange={(v) => setOrderFilter(v as OrderFilter)}>
-                                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Tipo de pedido" /></SelectTrigger>
+                                    <SelectTrigger className="w-full sm:w-[150px] min-w-0"><SelectValue placeholder="Tipo de pedido" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todos los pedidos</SelectItem>
                                         <SelectItem value="tables">Mesas</SelectItem>
@@ -433,7 +434,7 @@ export default function HistoryPage() {
                                 </Select>
 
                                  <Select value={paymentMethodFilter} onValueChange={(v) => setPaymentMethodFilter(v as PaymentMethodFilter)}>
-                                    <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="Método de pago" /></SelectTrigger>
+                                    <SelectTrigger className="w-full sm:w-[150px] min-w-0"><SelectValue placeholder="Método de pago" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">Todos los Pagos</SelectItem>
                                         <SelectItem value="Efectivo">Efectivo</SelectItem>
@@ -443,7 +444,7 @@ export default function HistoryPage() {
                                 </Select>
 
                                 <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
-                                    <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
+                                    <SelectTrigger className="w-full sm:w-[180px] min-w-0"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="today">Hoy</SelectItem>
                                         <SelectItem value="yesterday">Ayer</SelectItem>
@@ -456,7 +457,7 @@ export default function HistoryPage() {
                                 
                                 <Popover>
                                     <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal", !customDateRange && "text-muted-foreground")}>
+                                    <Button variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal min-w-0", !customDateRange && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {customDateRange?.from ? 
                                             customDateRange.to ? `${format(customDateRange.from, 'LLL dd')} - ${format(customDateRange.to, 'LLL dd, y')}` : format(customDateRange.from, 'LLL dd, y') :
@@ -474,14 +475,14 @@ export default function HistoryPage() {
                                     </PopoverContent>
                                 </Popover>
                                 
-                                <Button variant="ghost" size="icon" onClick={resetFilters}><FilterX className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" onClick={resetFilters} className="flex-shrink-0"><FilterX className="h-4 w-4" /></Button>
                             </div>
-                            <div className="relative flex-1">
+                            <div className="relative flex-1 min-w-0">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input 
                                     type="search"
                                     placeholder="Buscar por artículo, ID de pedido o mesa..."
-                                    className="pl-8"
+                                    className="pl-8 min-w-0"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -489,8 +490,8 @@ export default function HistoryPage() {
                         </div>
 
                         {soldItemInfo && soldItemInfo.totalQuantity > 0 && (
-                            <Card className="mb-4 bg-blue-50 border-blue-200">
-                                <CardContent className="p-3 text-sm">
+                            <Card className="mb-4 bg-blue-50 border-blue-200 min-w-0">
+                                <CardContent className="p-3 text-sm min-w-0">
                                     <p>
                                         Se vendieron <strong>{soldItemInfo.totalQuantity} '{soldItemInfo.name}'</strong> en <strong>{soldItemInfo.orderCount}</strong> pedidos, generando un total de <strong className="text-blue-800">${soldItemInfo.totalRevenue.toFixed(2)}</strong>.
                                     </p>
@@ -504,8 +505,8 @@ export default function HistoryPage() {
                         )}
                         
                         {paymentMethodSummary && (
-                            <Card className="mb-4 bg-green-50 border-green-200">
-                                <CardContent className="p-3 text-sm">
+                            <Card className="mb-4 bg-green-50 border-green-200 min-w-0">
+                                <CardContent className="p-3 text-sm min-w-0">
                                     <p>
                                         Se encontraron <strong>{paymentMethodSummary.orderCount} pedidos</strong> pagados con <strong>{paymentMethodSummary.method}</strong>, sumando un total de <strong className="text-green-800">${paymentMethodSummary.totalRevenue.toFixed(2)}</strong> para el período seleccionado.
                                     </p>
@@ -514,60 +515,62 @@ export default function HistoryPage() {
                         )}
 
 
-                        <ScrollArea className="h-[40vh]">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Pedido</TableHead>
-                                        <TableHead className="w-[150px] hidden sm:table-cell">Fecha</TableHead>
-                                        <TableHead>Pago</TableHead>
-                                        <TableHead className="text-right">Total</TableHead>
-                                        {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center">Acción</TableHead>}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredOrders.length > 0 ? filteredOrders.map(order => (
-                                        <TableRow key={order.id} onClick={() => setSelectedOrder(order)} className="cursor-pointer">
-                                            <TableCell>
-                                                <div className="font-medium">
-                                                    {order.tableId === 'takeaway' ? 'PARA LLEVAR' : `Mesa ${order.tableId}`}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground md:hidden">
-                                                    {format(new Date(order.createdAt), "dd/MM/yy HH:mm", { locale: es })}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="hidden sm:table-cell">
-                                                {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                                                    order.paymentMethod === 'Efectivo' ? 'bg-green-100 text-green-800' :
-                                                    order.paymentMethod === 'DeUna' ? 'bg-blue-100 text-blue-800' :
-                                                    order.paymentMethod === 'Transferencia' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                                                }`}>
-                                                    {order.paymentMethod || 'N/A'}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
-                                            {currentUser?.role === 'admin' && order.status === 'completed' && (
-                                            <TableCell className="text-center">
-                                                <Button variant="destructive" size="sm" onClick={(e) => {e.stopPropagation(); handleCancelOrder(order.id)}}>Anular</Button>
-                                            </TableCell>)}
-                                        </TableRow>
-                                    )) : (
-                                        <TableRow>
-                                            <TableCell colSpan={currentUser?.role === 'admin' ? 5 : 4} className="h-24 text-center">
-                                                No se encontraron resultados.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
+                        <div className="table-responsive w-full overflow-x-auto min-w-0">
+                          <ScrollArea className="h-[40vh] min-w-0">
+                              <Table>
+                                  <TableHeader>
+                                      <TableRow>
+                                          <TableHead>Pedido</TableHead>
+                                          <TableHead className="w-[150px] hidden sm:table-cell">Fecha</TableHead>
+                                          <TableHead>Pago</TableHead>
+                                          <TableHead className="text-right">Total</TableHead>
+                                          {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center">Acción</TableHead>}
+                                      </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                      {filteredOrders.length > 0 ? filteredOrders.map(order => (
+                                          <TableRow key={order.id} onClick={() => setSelectedOrder(order)} className="cursor-pointer min-w-0">
+                                              <TableCell>
+                                                  <div className="font-medium min-w-0">
+                                                      {order.tableId === 'takeaway' ? 'PARA LLEVAR' : `Mesa ${order.tableId}`}
+                                                  </div>
+                                                  <div className="text-xs text-muted-foreground md:hidden">
+                                                      {format(new Date(order.createdAt), "dd/MM/yy HH:mm", { locale: es })}
+                                                  </div>
+                                              </TableCell>
+                                              <TableCell className="hidden sm:table-cell">
+                                                  {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}
+                                              </TableCell>
+                                              <TableCell>
+                                                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                                                      order.paymentMethod === 'Efectivo' ? 'bg-green-100 text-green-800' :
+                                                      order.paymentMethod === 'DeUna' ? 'bg-blue-100 text-blue-800' :
+                                                      order.paymentMethod === 'Transferencia' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                                                  }`}>
+                                                      {order.paymentMethod || 'N/A'}
+                                                  </span>
+                                              </TableCell>
+                                              <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
+                                              {currentUser?.role === 'admin' && order.status === 'completed' && (
+                                              <TableCell className="text-center">
+                                                  <Button variant="destructive" size="sm" onClick={(e) => {e.stopPropagation(); handleCancelOrder(order.id)}} className="whitespace-normal">Anular</Button>
+                                              </TableCell>)}
+                                          </TableRow>
+                                      )) : (
+                                          <TableRow>
+                                              <TableCell colSpan={currentUser?.role === 'admin' ? 5 : 4} className="h-24 text-center">
+                                                  No se encontraron resultados.
+                                              </TableCell>
+                                          </TableRow>
+                                      )}
+                                  </TableBody>
+                              </Table>
+                          </ScrollArea>
+                        </div>
                     </CardContent>
                 </Card>
             
-                <Card className="sticky top-24">
+                <Card className="sticky top-24 min-w-0">
                     <CardHeader className="flex flex-row items-center justify-between">
                          <CardTitle>Detalles del Pedido</CardTitle>
                          {selectedOrder && (
@@ -581,7 +584,7 @@ export default function HistoryPage() {
                             <div className="space-y-4">
                                 <div>
                                   <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
-                                    <Button variant="outline" className="flex items-center gap-2">
+                                    <Button variant="outline" className="flex items-center gap-2 whitespace-normal">
                                       <ArrowLeft className="h-5 w-5" />
                                       Volver
                                     </Button>
@@ -597,24 +600,24 @@ export default function HistoryPage() {
                                 {selectedOrder.notes && (
                                     <div className="text-sm border-t border-b py-2">
                                         <p className="font-semibold">Notas Generales:</p>
-                                        <p className="text-muted-foreground whitespace-pre-wrap">{selectedOrder.notes}</p>
+                                        <p className="text-muted-foreground whitespace-pre-wrap break-words">{selectedOrder.notes}</p>
                                     </div>
                                 )}
-                                <ScrollArea className="h-[45vh]">
+                                <ScrollArea className="h-[45vh] min-w-0">
                                     <ul className="space-y-2 text-sm pr-4">
                                         {selectedOrder.items.map((item, index) => {
                                             const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
                                             const price = item.customPrice || (menuItem ? menuItem.precio : 0);
                                             return (
-                                                <li key={`${item.menuItemId}-${index}`} className="flex justify-between border-b pb-2">
-                                                    <div>
+                                                <li key={`${item.menuItemId}-${index}`} className="flex justify-between border-b pb-2 min-w-0">
+                                                    <div className="min-w-0">
                                                         <span className="font-medium">
                                                             {menuItem?.nombre} x{item.quantity}
                                                             {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
                                                         </span>
-                                                        {item.notes && <p className="text-xs text-amber-700">Nota: {item.notes}</p>}
+                                                        {item.notes && <p className="text-xs text-amber-700 break-words">Nota: {item.notes}</p>}
                                                     </div>
-                                                    <span>${(price * item.quantity).toFixed(2)}</span>
+                                                    <span className="min-w-0">${(price * item.quantity).toFixed(2)}</span>
                                                 </li>
                                             );
                                         })}
