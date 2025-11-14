@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, ArrowLeft } from 'lucide-react'; // Import ArrowLeft icon
 
 export default function InventoryPage() {
   return (
@@ -11,8 +11,10 @@ export default function InventoryPage() {
       <ClipboardList className="h-16 w-16 text-muted-foreground mb-4" />
       <h1 className="text-2xl font-semibold mb-2">Módulo de Inventario Deshabilitado</h1>
       <p className="text-muted-foreground mb-6">Esta funcionalidad ha sido temporalmente desactivada.</p>
-      <Link href="/dashboard">
-        <Button>Volver al Salón</Button>
+      <Link href="/admin/dashboard"> {/* Corrected redirection to admin dashboard */}
+        <Button>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Dashboard {/* Updated button text and added icon */}
+        </Button>
       </Link>
     </div>
   );

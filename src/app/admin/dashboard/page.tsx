@@ -13,6 +13,8 @@ import {
   LayoutGrid,
   ShoppingBag,
   Users,
+  Utensils, // Added Utensils icon for Menu Management
+  Package, // Added Package icon for Inventory Management
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -40,6 +42,8 @@ export default function AdminDashboard() {
     { label: "Reportes Financieros", icon: BarChartBig, path: "/reports" },
     { label: "Gestión de Gastos", icon: Wallet, path: "/expenses" },
     { label: "Gestión de Empleados", icon: Users, path: "/employees" },
+    { label: "Gestión de Menú", icon: Utensils, path: "/menu" }, // Re-added Menu Management
+    { label: "Gestión de Inventario", icon: Package, path: "/inventory" }, // Re-added Inventory Management
   ];
 
   if (!isMounted || !currentUser) {

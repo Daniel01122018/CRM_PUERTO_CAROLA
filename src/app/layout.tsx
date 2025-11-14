@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-        {/* Nuevos enlaces y meta etiquetas del generador de favicons */}
+                {/* Nuevos enlaces y meta etiquetas del generador de favicons */}
         <link rel="icon" type="image/png" href="/icons/favicon-96x96.png" sizes="96x96" />
         <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
         <link rel="shortcut icon" href="/icons/favicon.ico" />
