@@ -1,11 +1,14 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider"; // Importar ThemeProvider
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'El Puerto de Carola CRM',
-  description: 'Gestión de pedidos para El Puerto de Carola',
+  title: "El Puerto de Carola CRM",
+  description: "Sistema de gestión de pedidos y reportes para El Puerto de Carola",
 };
 
 export default function RootLayout({
@@ -14,7 +17,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning><head>
+    <html lang="es" suppressHydrationWarning>
+      <head>
         {/* Nuevos enlaces y meta etiquetas del generador de favicons */}
         <link rel="icon" type="image/png" href="/icons/favicon-96x96.png" sizes="96x96" />
         <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
