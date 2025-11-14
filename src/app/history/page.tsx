@@ -308,31 +308,37 @@ export default function HistoryPage() {
   
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40 overflow-x-hidden">
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <main className="flex-1 p-4 sm:p-6 md:p-8 print:p-0">
+        <div className="print:hidden">
+          {/* Header Section - Mejorado para responsive */}
+            <div className="fflex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+                <div className = 'flex items-center gap-3 flex-wrap'>
                 <AppSidebar />
                 <h1 className="text-2xl font-semibold flex items-center gap-2">
-                    <HistoryIcon className="h-6 w-6" />
+                    <HistoryIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     Historial y Reportes
                 </h1>
+                </div>             
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
               {currentUser?.role === 'admin' && (
-                <Link href="/reports">
-                  <Button variant="outline" className="whitespace-normal">Ver Reportes Financieros</Button>
+                <Link href="/reports"className="flex-shrink min-w-[140px]">
+                  <Button variant="outline" size="sm" className="flex-1 sm:flex-none min-w-[140px] whitespace-normal break-words text-center px-3 py-2 text-sm sm:text-base">
+                    Ver Reportes Financieros
+                    </Button>
                 </Link>
               )}
-              <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
-                  <Button variant="outline" className="flex items-center gap-2 whitespace-normal">
-                      <ArrowLeft className="h-5 w-5" />
-                      Volver al Salón
+              <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"} className="flex-1 sm:flex-none">
+                  <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
+                      <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <span className="hidden sm:inline">Volver al Dashboard</span>
+                      <span className="sm:hidden">Volver</span>
                   </Button>
               </Link>
             </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
             <Card className="bg-primary text-primary-foreground min-w-0">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Efectivo Esperado en Caja</CardTitle>
