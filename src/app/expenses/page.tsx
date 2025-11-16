@@ -278,184 +278,168 @@ export default function ExpensesPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-                <AppSidebar />
-                <h1 className="text-2xl font-semibold flex items-center gap-2">
-                    <Wallet className="h-6 w-6" />
-                    Gestión de Gastos
-                </h1>
-            </div>
-            <div className="flex items-center gap-2">
-                
-                <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
-                    <Button variant="outline" className="flex items-center gap-2">
-                        <ArrowLeft className="h-5 w-5" />
-                        Volver
-                    </Button>
-                </Link>
-            </div>
-        </div>
+    <div className="flex min-h-screen w-full flex-col bg-muted/40 overflow-x-hidden">
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 overflow-x-hidden">
         
+        {/* TITULO Y BOTÓN VOLVER */}
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-4">
+            <AppSidebar />
+            <h1 className="text-2xl font-semibold flex items-center gap-2">
+              <Wallet className="h-6 w-6" />
+              Gestión de Gastos
+            </h1>
+          </div>
+  
+          <div className="flex items-center gap-2">
+            <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
+              <Button variant="outline" className="flex items-center gap-2">
+                <ArrowLeft className="h-5 w-5" />
+                Volver
+              </Button>
+            </Link>
+          </div>
+        </div>
+  
+        {/* RESUMEN PARA ADMIN */}
         {currentUser.role === 'admin' && (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Gastos de Hoy</CardTitle>
-                      <Wallet className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                      <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
-                  </CardContent>
-              </Card>
-              <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Gastos del Mes</CardTitle>
-                      <BarChart2 className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                      <div className="text-2xl font-bold">${summaryData.totalMonth.toFixed(2)}</div>
-                  </CardContent>
-              </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 w-full">
+            <Card className="w-full max-w-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gastos de Hoy</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
+              </CardContent>
+            </Card>
+  
+            <Card className="w-full max-w-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gastos del Mes</CardTitle>
+                <BarChart2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">${summaryData.totalMonth.toFixed(2)}</div>
+              </CardContent>
+            </Card>
           </div>
         )}
-        
-        <div className="grid gap-6 md:grid-cols-5">
-          <div className="md:col-span-2 space-y-6">
-            <Card>
+  
+        {/* GRID PRINCIPAL SIN DESBORDES */}
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-5 w-full max-w-full">
+  
+          {/* CARD: REGISTRAR NUEVO GASTO */}
+          <div className="md:col-span-1 lg:col-span-2 space-y-6 w-full max-w-full overflow-x-hidden">
+            <Card className="w-full max-w-full overflow-hidden">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                   <CardHeader>
                     <CardTitle>Registrar Nuevo Gasto</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+  
+                  <CardContent className="space-y-4 w-full max-w-full">
+                    
                     {currentUser.role === 'admin' && (
-                        <FormField
-                            control={form.control}
-                            name="source"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Fuente del Gasto</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Seleccione una fuente" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="caja">Caja Registradora</SelectItem>
-                                            <SelectItem value="caja_chica">Caja Chica</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name="source"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Fuente del Gasto</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Seleccione una fuente" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="caja">Caja Registradora</SelectItem>
+                                <SelectItem value="caja_chica">Caja Chica</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
+  
                     <FormField
                       control={form.control}
                       name="amount"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Monto ($)</FormLabel>
-                          <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} autoFocus /></FormControl>
+                          <FormControl>
+                            <Input type="number" step="0.01" placeholder="ej. 25.50" {...field} autoFocus />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+  
+                    {/* SELECT DE CATEGORÍA SIN GENERAR OVERFLOW */}
                     <FormField
                       control={form.control}
                       name="category"
                       render={({ field }) => (
-                          <FormItem className="flex flex-col">
+                        <FormItem className="flex flex-col w-full max-w-full">
                           <FormLabel>Categoría</FormLabel>
-                            <Popover open={isCategoryPopoverOpen} onOpenChange={setIsCategoryPopoverOpen}>
-                              <PopoverTrigger asChild>
+                          
+                          <Popover open={isCategoryPopoverOpen} onOpenChange={setIsCategoryPopoverOpen}>
+                            <PopoverTrigger asChild>
                               <FormControl>
-                                  <Button
+                                <Button
                                   variant="outline"
                                   role="combobox"
-                                  className={cn(
-                                      "w-full justify-between",
-                                      !field.value && "text-muted-foreground"
-                                  )}
-                                  >
-                                  {field.value
-                                      ? allCategories.find(
-                                          (cat) => cat === field.value
-                                      )
-                                      : "Seleccionar o escribir categoría"}
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                  </Button>
+                                  className="w-full justify-between"
+                                >
+                                  {field.value || "Seleccionar o escribir categoría"}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                                </Button>
                               </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                            </PopoverTrigger>
+  
+                            <PopoverContent className="w-full p-0 max-w-sm overflow-hidden">
                               <Command shouldFilter={false}>
-                                  <CommandInput 
-                                    placeholder="Buscar o crear categoría..."
-                                    onValueChange={(search) => {
-                                      form.setValue("category", search, { shouldValidate: true });
-                                    }}
-                                  />
-                                  <CommandList>
-                                      <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
-                                      <CommandGroup>
-                                      {allCategories.map((cat) => (
-                                          <CommandItem
-                                              value={cat}
-                                              key={cat}
-                                              onSelect={() => {
-                                                  form.setValue("category", cat)
-                                                  setIsCategoryPopoverOpen(false);
-                                              }}
-                                              >
-                                              <Check
-                                              className={cn(
-                                                  "mr-2 h-4 w-4",
-                                                  cat === field.value
-                                                  ? "opacity-100"
-                                                  : "opacity-0"
-                                              )}
-                                              />
-                                              {cat}
-                                          </CommandItem>
-                                      ))}
-                                      </CommandGroup>
-                                  </CommandList>
-                              </Command>
-                              </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                          </FormItem>
-                      )}
-                      />
-                     {(categoryWatch === 'Sueldos' || categoryWatch === 'Comida de Empleado') && currentUser.role === 'admin' && (
-                         <FormField
-                            control={form.control}
-                            name="employeeId"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Empleado</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione un empleado" />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {employees.map(e => (
-                                        <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                                <CommandInput
+                                  placeholder="Buscar o crear categoría..."
+                                  onValueChange={(search) => {
+                                    form.setValue("category", search, { shouldValidate: true });
+                                  }}
+                                />
+                                <CommandList>
+                                  <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
+                                  <CommandGroup>
+                                    {allCategories.map(cat => (
+                                      <CommandItem
+                                        value={cat}
+                                        key={cat}
+                                        onSelect={() => {
+                                          form.setValue("category", cat);
+                                          setIsCategoryPopoverOpen(false);
+                                        }}
+                                      >
+                                        <Check className={cn(
+                                          "mr-2 h-4 w-4",
+                                          cat === field.value ? "opacity-100" : "opacity-0"
+                                        )} />
+                                        {cat}
+                                      </CommandItem>
                                     ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                     )}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+  
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+  
                   </CardContent>
+  
                   <CardFooter>
                     <Button type="submit" className="w-full">
                       <PlusCircle className="mr-2 h-4 w-4" />
@@ -466,229 +450,124 @@ export default function ExpensesPage() {
               </Form>
             </Card>
           </div>
-
-          <div className="md:col-span-3">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Historial de Gastos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as ExpenseCategory | 'all')}>
-                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar categoría" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todas las categorías</SelectItem>
-                                    {allCategories.map(cat => (
-                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-
-                            <Select value={filterPreset} onValueChange={(v) => setFilterPreset(v as FilterPreset)}>
-                                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Todo el tiempo</SelectItem>
-                                    <SelectItem value="today">Hoy</SelectItem>
-                                    <SelectItem value="yesterday">Ayer</SelectItem>
-                                    <SelectItem value="this_week">Esta semana</SelectItem>
-                                    <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
-                                    <SelectItem value="this_month">Este mes</SelectItem>
-                                    <SelectItem value="last_month">Mes pasado</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <Button variant={"outline"} className="w-full sm:w-auto justify-start text-left font-normal">
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {customDateRange?.from ? 
-                                        customDateRange.to ? 
-                                        `${format(customDateRange.from, 'LLL dd, y', { locale: es })} - ${format(customDateRange.to, 'LLL dd, y', { locale: es })}` : 
-                                        format(customDateRange.from, 'LLL dd, y', { locale: es }) : 
-                                        <span>Fecha personalizada</span>}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                    initialFocus
-                                    mode="range"
-                                    defaultMonth={customDateRange?.from}
-                                    selected={customDateRange}
-                                    onSelect={(range) => { setCustomDateRange(range); setFilterPreset('custom'); }}
-                                    numberOfMonths={2}
-                                />
-                                </PopoverContent>
-                            </Popover>
-                            
-                            <Button variant="ghost" size="icon" onClick={resetFilters}>
-                                <FilterX className="h-4 w-4" />
-                            </Button>
-                        </div>
-
-                        <Card className="bg-muted/50">
-                            <CardContent className="p-3 text-sm">
-                                <p>
-                                    Mostrando <strong>{filteredSummary.count} {filteredSummary.count === 1 ? 'gasto' : 'gastos'}</strong> con un total de <strong className="text-primary">${filteredSummary.total.toFixed(2)}</strong> para los filtros seleccionados.
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        <ScrollArea className="h-[45vh]">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Fecha</TableHead>
-                                        <TableHead>Categoría / Fuente</TableHead>
-                                        {currentUser.role === 'admin' && <TableHead>Registrado por</TableHead>}
-                                        <TableHead className="text-right">Monto</TableHead>
-                                        {currentUser.role === 'admin' && <TableHead className="text-right">Acciones</TableHead>}
-                                    </TableRow>
-                                </TableHeader>
-                                 <TableBody>
-                                    {filteredExpenses.length > 0 ? (
-                                        filteredExpenses.map(expense => (
-                                            <TableRow key={expense.id}>
-                                                <TableCell className="hidden sm:table-cell">
-                                                    {format(new Date(expense.createdAt), "dd MMM yyyy", { locale: es })}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="font-medium">{expense.category}</div>
-                                                    {expense.employeeName && (
-                                                        <div className="text-xs text-muted-foreground">{expense.employeeName}</div>
-                                                    )}
-                                                     <div className="text-xs text-muted-foreground">{expense.source === 'caja_chica' ? 'C. Chica' : 'C. Registradora'}</div>
-                                                    <div className="text-xs text-muted-foreground sm:hidden">
-                                                        {format(new Date(expense.createdAt), "dd/MM/yy", { locale: es })}
-                                                    </div>
-                                                </TableCell>
-                                                {currentUser.role === 'admin' && <TableCell>{expense.createdBy}</TableCell>}
-                                                <TableCell className="text-right font-medium">${expense.amount.toFixed(2)}</TableCell>
-                                                {currentUser.role === 'admin' && (
-                                                    <TableCell className="text-right">
-                                                        <Button variant="ghost" size="icon" onClick={() => { setSelectedExpense(expense); setEditModalOpen(true); }}>
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" onClick={() => { setSelectedExpense(expense); setDeleteAlertOpen(true); }}>
-                                                            <Trash2 className="h-4 w-4 text-destructive" />
-                                                        </Button>
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={currentUser.role === 'admin' ? 5 : 3} className="h-24 text-center">
-                                                No hay gastos que coincidan con los filtros.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </ScrollArea>
-                    </div>
-                </CardContent>
-             </Card>
+  
+          {/* CARD: HISTORIAL DE GASTOS */}
+          <div className="md:col-span-1 lg:col-span-3 w-full max-w-full">
+            <Card className="w-full max-w-full overflow-x-hidden">
+              <CardHeader>
+                <CardTitle>Historial de Gastos</CardTitle>
+              </CardHeader>
+  
+              <CardContent className="w-full max-w-full">
+                
+                <div className="space-y-4 w-full max-w-full">
+  
+                  {/* FILTROS */}
+                  <div className="flex flex-col sm:flex-row gap-2 w-full max-w-full">
+                    
+                    <Select value={filterCategory} onValueChange={(v) => setFilterCategory(v as ExpenseCategory | 'all')}>
+                      <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Filtrar categoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las categorías</SelectItem>
+                        {allCategories.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+  
+                    <Select value={filterPreset} onValueChange={(v) => setFilterPreset(v as FilterPreset)}>
+                      <SelectTrigger className="w-full sm:w-[180px]">
+                        <SelectValue placeholder="Filtrar por fecha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todo el tiempo</SelectItem>
+                        <SelectItem value="today">Hoy</SelectItem>
+                        <SelectItem value="yesterday">Ayer</SelectItem>
+                        <SelectItem value="this_week">Esta semana</SelectItem>
+                        <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
+                        <SelectItem value="this_month">Este mes</SelectItem>
+                        <SelectItem value="last_month">Mes pasado</SelectItem>
+                      </SelectContent>
+                    </Select>
+  
+                    <Button variant="ghost" size="icon" onClick={resetFilters}>
+                      <FilterX className="h-4 w-4" />
+                    </Button>
+                  </div>
+  
+                  {/* TABLA SIN OVERFLOW HORIZONTAL */}
+                  <div className="border rounded-lg overflow-hidden w-full max-w-full">
+                    <ScrollArea className="h-[45vh] w-full">
+                      
+                      <Table className="w-full">
+                        <TableHeader className="bg-muted/50">
+                          <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Categoría / Fuente</TableHead>
+                            {currentUser.role === 'admin' && <TableHead>Registrado por</TableHead>}
+                            <TableHead className="text-right">Monto</TableHead>
+                            {currentUser.role === 'admin' && <TableHead className="text-right">Acciones</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+  
+                        <TableBody>
+                          {filteredExpenses.length > 0 ? (
+                            filteredExpenses.map(expense => (
+                              <TableRow key={expense.id}>
+                                <TableCell className="whitespace-nowrap">
+                                  {format(new Date(expense.createdAt), "dd MMM yyyy", { locale: es })}
+                                </TableCell>
+  
+                                <TableCell>
+                                  <div className="font-medium">{expense.category}</div>
+                                  {expense.employeeName && (
+                                    <div className="text-xs text-muted-foreground">{expense.employeeName}</div>
+                                  )}
+                                  <div className="text-xs text-muted-foreground">
+                                    {expense.source === 'caja_chica' ? 'C. Chica' : 'C. Registradora'}
+                                  </div>
+                                </TableCell>
+  
+                                {currentUser.role === 'admin' && (
+                                  <TableCell>{expense.createdBy}</TableCell>
+                                )}
+  
+                                <TableCell className="text-right font-medium">
+                                  ${expense.amount.toFixed(2)}
+                                </TableCell>
+  
+                                {currentUser.role === 'admin' && (
+                                  <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon">
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
+                                No hay gastos registrados con los filtros actuales.
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+  
+                    </ScrollArea>
+                  </div>
+  
+                </div>
+  
+              </CardContent>
+            </Card>
           </div>
+  
         </div>
       </main>
-      
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Confirmar Eliminación?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción no se puede deshacer. ¿Estás seguro de que quieres eliminar permanentemente este gasto?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedExpense(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className={buttonVariants({ variant: "destructive" })}>Sí, Eliminar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={isEditModalOpen} onOpenChange={(isOpen) => { if (!isOpen) setSelectedExpense(null); setEditModalOpen(isOpen); }}>
-        <DialogContent>
-            <Form {...editForm}>
-                <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
-                    <DialogHeader>
-                        <DialogTitle>Editar Gasto</DialogTitle>
-                        <DialogDescription>Modifica los detalles del gasto a continuación.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                       <FormField
-                            control={editForm.control}
-                            name="source"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Fuente del Gasto</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger><SelectValue placeholder="Seleccione una fuente" /></SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="caja">Caja Registradora</SelectItem>
-                                            <SelectItem value="caja_chica">Caja Chica</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={editForm.control}
-                            name="amount"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Monto ($)</FormLabel>
-                                <FormControl><Input type="number" step="0.01" placeholder="ej. 25.50" {...field} autoFocus /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={editForm.control}
-                            name="category"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Categoría</FormLabel>
-                                <FormControl><Input placeholder="ej. Sueldos" {...field} /></FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        {(editCategoryWatch === 'Sueldos' || editCategoryWatch === 'Comida de Empleado') && (
-                            <FormField
-                                control={editForm.control}
-                                name="employeeId"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Empleado</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl>
-                                        <SelectTrigger><SelectValue placeholder="Seleccione un empleado" /></SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                        {employees.map(e => (
-                                            <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
-                                        ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        )}
-                    </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setEditModalOpen(false)}>Cancelar</Button>
-                        <Button type="submit">Guardar Cambios</Button>
-                    </DialogFooter>
-                </form>
-            </Form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
-}
+}  

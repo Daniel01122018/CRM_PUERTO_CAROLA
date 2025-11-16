@@ -41,7 +41,7 @@ export const MENU_PLATOS: MenuPlato[] = [
       { id: 5, nombre: "Mixto (con Camarón)", precio: 4.50, contexto: 'salon' },
       
       { id: 106, nombre: "De Pescado", precio: 3.00, contexto: 'llevar' },
-      { id: 107, nombre: "Mixto (con Camarón)", precio: 4.25, contexto: 'llevar' },
+      { id: 107, nombre: "Mixto (con Camarón)", precio: 4.75, contexto: 'llevar' },
     ]
   },
   {

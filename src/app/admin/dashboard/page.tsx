@@ -13,8 +13,9 @@ import {
   LayoutGrid,
   ShoppingBag,
   Users,
-  Utensils, // Added Utensils icon for Menu Management
-  Package, // Added Package icon for Inventory Management
+  Utensils,
+  Package,
+  TrendingUp, // Import TrendingUp icon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -40,10 +41,11 @@ export default function AdminDashboard() {
     { label: "Vista de Cocina", icon: ChefHat, path: "/kitchen" },
     { label: "Historial de Pedidos", icon: History, path: "/history" },
     { label: "Reportes Financieros", icon: BarChartBig, path: "/reports" },
+    { label: "Reporte de Rendimiento", icon: TrendingUp, path: "/reports/performance" }, // New Performance Report link
     { label: "Gestión de Gastos", icon: Wallet, path: "/expenses" },
     { label: "Gestión de Empleados", icon: Users, path: "/employees" },
-    { label: "Gestión de Menú", icon: Utensils, path: "/menu" }, // Re-added Menu Management
-    { label: "Gestión de Inventario", icon: Package, path: "/inventory" }, // Re-added Inventory Management
+    { label: "Gestión de Menú", icon: Utensils, path: "/menu" },
+    { label: "Gestión de Inventario", icon: Package, path: "/inventory" },
   ];
 
   if (!isMounted || !currentUser) {
