@@ -14,8 +14,9 @@ export function useAppStore() {
   const { currentUser, login, logout, isMounted } = useAuth();
   const { orders, addOrUpdateOrder, cancelOrder } = useOrders();
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses();
-  const { employees, addEmployee } = useEmployees();
+  const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees();
   const { dailyData, setInitialCash } = useDailyData();
+  
 
   const tables = useMemo<Table[] | undefined>(() => {
     if (!orders) return undefined;
@@ -49,6 +50,8 @@ export function useAppStore() {
     // Employees
     employees,
     addEmployee,
+    updateEmployee,
+    deleteEmployee,
     // Daily Data
     dailyData,
     setInitialCash,
