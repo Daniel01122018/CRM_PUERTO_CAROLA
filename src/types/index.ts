@@ -23,6 +23,7 @@ export interface MenuItem {
   customPrice?: boolean;
   paraLlevar?: boolean; // Para items que solo aparecen en modo "llevar"
   baseNombre?: string; // Nombre del plato base si es una variante
+  contexto?: 'salon' | 'llevar'; // Contexto de servicio
 }
 
 export interface OrderItem {

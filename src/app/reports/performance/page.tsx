@@ -12,10 +12,19 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import AppSidebar from '@/components/app-sidebar';
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Gem, TrendingUp, TrendingDown, Utensils, Coffee, Plus } from 'lucide-react';
+import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Gem, TrendingUp, TrendingDown, Utensils, Coffee, Plus, Search, ArrowUpDown, ShoppingBag } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { ALL_MENU_ITEMS } from '@/lib/data';
@@ -24,13 +33,14 @@ import { Order, MenuItem, DailyStats } from '@/types';
 type FilterPreset = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
 
 interface MenuItemPerformance {
-  id: string; // Changed to string to match key in daily stats
+  id: string;
   name: string;
   category: string;
   quantitySold: number;
   totalRevenue: number;
   cost: number;
   profit: number;
+  contexto?: 'salon' | 'llevar';
 }
 
 interface MenuItemComparisonPerformance extends MenuItemPerformance {
@@ -41,6 +51,9 @@ interface MenuItemComparisonPerformance extends MenuItemPerformance {
   totalRevenueChange: number;
   profitChange: number;
 }
+
+type SortKey = 'name' | 'quantitySold' | 'totalRevenue' | 'profit';
+type SortDirection = 'asc' | 'desc';
 
 // Helper to generate date range based on preset and custom range
 const generateDateRange = (preset: FilterPreset, customRange: DateRange | undefined) => {
@@ -74,22 +87,14 @@ const calculatePerformanceData = (stats: DailyStats[]): Map<string, MenuItemPerf
   stats.forEach(stat => {
     if (stat.itemSales) {
       Object.entries(stat.itemSales).forEach(([itemId, salesInfo]) => {
-        // Try to find static item info for category and cost
-        // itemId might be string or number in string form
         const menuItem = ALL_MENU_ITEMS.find(item => item.id.toString() === itemId);
 
-        // If not found, try to find in variants (less reliable without parent ID, but we can try)
         let category = 'Sin Categoría';
         let cost = 0;
 
         if (menuItem) {
           category = menuItem.category || 'Sin Categoría';
           cost = menuItem.precio || 0;
-        } else {
-          // Fallback or variants logic if needed. 
-          // For now, if we can't find it in ALL_MENU_ITEMS, we default.
-          // Ideally we should have category in itemSales too, but we didn't add it to save space.
-          // We can infer category from name if needed or just leave as Unknown.
         }
 
         if (!itemMap.has(itemId)) {
@@ -100,7 +105,8 @@ const calculatePerformanceData = (stats: DailyStats[]): Map<string, MenuItemPerf
             quantitySold: 0,
             totalRevenue: 0,
             cost,
-            profit: 0
+            profit: 0,
+            contexto: menuItem?.contexto
           });
         }
 
@@ -151,6 +157,8 @@ export default function PerformanceReportPage() {
   const [comparisonCustomDateRange, setComparisonCustomDateRange] = useState<DateRange | undefined>(undefined);
 
   const [activeTab, setActiveTab] = useState('platos');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'quantitySold', direction: 'desc' });
 
   useEffect(() => {
     if (isMounted && (!currentUser || currentUser.role !== 'admin')) {
@@ -179,6 +187,7 @@ export default function PerformanceReportPage() {
       const name = primaryItem?.name || comparisonItem?.name || `Unknown Item ${id}`;
       const category = primaryItem?.category || comparisonItem?.category || 'Sin Categoría';
       const cost = primaryItem?.cost || comparisonItem?.cost || 0;
+      const contexto = primaryItem?.contexto || comparisonItem?.contexto;
 
       const quantitySold = primaryItem?.quantitySold || 0;
       const totalRevenue = primaryItem?.totalRevenue || 0;
@@ -208,6 +217,7 @@ export default function PerformanceReportPage() {
         totalRevenue,
         cost,
         profit,
+        contexto,
         comparisonQuantitySold,
         comparisonTotalRevenue,
         comparisonProfit,
@@ -217,10 +227,38 @@ export default function PerformanceReportPage() {
       });
     });
 
-    return combined.sort((a, b) => b.quantitySold - a.quantitySold);
+    return combined;
   }, [primaryPerformanceDataMap, comparisonPerformanceDataMap]);
 
   const categorizedData = useMemo(() => categorizeMenuItems(combinedPerformanceData), [combinedPerformanceData]);
+
+  const currentTabData = useMemo(() => {
+    switch (activeTab) {
+      case 'bebidas': return categorizedData.bebidas;
+      case 'adicionales': return categorizedData.adicionales;
+      default: return categorizedData.platos;
+    }
+  }, [activeTab, categorizedData]);
+
+  const filteredAndSortedData = useMemo(() => {
+    let data = [...currentTabData];
+
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      data = data.filter(item => item.name.toLowerCase().includes(lowerQuery));
+    }
+
+    data.sort((a, b) => {
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  }, [currentTabData, searchQuery, sortConfig]);
 
   const mostSoldItem = useMemo(() => {
     return combinedPerformanceData.length > 0
@@ -251,44 +289,12 @@ export default function PerformanceReportPage() {
     return <span className="text-muted-foreground text-xs">{changeText}</span>
   }
 
-  const PerformanceItemCard = ({ item }: { item: MenuItemComparisonPerformance }) => (
-    <Card className="p-4 sm:p-5 rounded-xl shadow-sm hover:shadow-md transition-all h-full">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="font-semibold text-lg leading-tight">{item.name}</h3>
-        <Badge variant="secondary" className="ml-2 whitespace-nowrap">
-          {item.quantitySold} vendidos
-        </Badge>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 text-sm mb-3">
-        <div>
-          <p className="text-muted-foreground">Ingresos</p>
-          <p className="font-bold">${item.totalRevenue.toFixed(2)}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground">Ganancia</p>
-          <p className="font-bold text-green-600">${item.profit.toFixed(2)}</p>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center pt-3 border-t text-xs sm:text-sm">
-        <div className={cn("flex items-center gap-1", item.quantitySoldChange > 0 ? "text-green-500" : item.quantitySoldChange < 0 ? "text-red-500" : "text-muted-foreground")}>
-          {item.quantitySoldChange > 0 ? <TrendingUp className="h-3 w-3" /> : item.quantitySoldChange < 0 ? <TrendingDown className="h-3 w-3" /> : null}
-          {item.quantitySoldChange.toFixed(0)}% cant.
-        </div>
-
-        <div className={cn("flex items-center gap-1", item.totalRevenueChange > 0 ? "text-green-500" : item.totalRevenueChange < 0 ? "text-red-500" : "text-muted-foreground")}>
-          {item.totalRevenueChange > 0 ? <TrendingUp className="h-3 w-3" /> : item.totalRevenueChange < 0 ? <TrendingDown className="h-3 w-3" /> : null}
-          {item.totalRevenueChange.toFixed(0)}% ingr.
-        </div>
-
-        <div className={cn("flex items-center gap-1", item.profitChange > 0 ? "text-green-500" : item.profitChange < 0 ? "text-red-500" : "text-muted-foreground")}>
-          {item.profitChange > 0 ? <TrendingUp className="h-3 w-3" /> : item.profitChange < 0 ? <TrendingDown className="h-3 w-3" /> : null}
-          {item.profitChange.toFixed(0)}% gan.
-        </div>
-      </div>
-    </Card>
-  );
+  const handleSort = (key: SortKey) => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc'
+    }));
+  };
 
   if (!isMounted || !currentUser || primaryLoading || comparisonLoading) {
     return (
@@ -474,69 +480,172 @@ export default function PerformanceReportPage() {
           </div>
 
           {/* Performance by Category Tabs */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Rendimiento por Categoría</CardTitle>
-              <CardDescription>
-                Período principal ({getFilterDateRangeString(primaryDateFilterRange)}) vs.
-                Comparación ({getFilterDateRangeString(comparisonDateFilterRange)})
-              </CardDescription>
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Rendimiento por Categoría</CardTitle>
+                  <CardDescription className="mt-1">
+                    Comparación: {getFilterDateRangeString(primaryDateFilterRange)} vs. {getFilterDateRangeString(comparisonDateFilterRange)}
+                  </CardDescription>
+                </div>
+                <div className="w-full md:w-64 relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar producto..."
+                    className="pl-9 w-full"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="platos" className="flex items-center gap-2">
-                    <Utensils className="h-4 w-4" />
-                    Platos ({categorizedData.platos.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="bebidas" className="flex items-center gap-2">
-                    <Coffee className="h-4 w-4" />
-                    Bebidas ({categorizedData.bebidas.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="adicionales" className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Adicionales ({categorizedData.adicionales.length})
-                  </TabsTrigger>
-                </TabsList>
+                <div className="px-6">
+                  <TabsList className="grid w-full grid-cols-3 mb-4">
+                    <TabsTrigger value="platos" className="flex items-center gap-2">
+                      <Utensils className="h-4 w-4" />
+                      <span className="sm:hidden">Platos</span>
+                      <span className="hidden sm:inline">Platos ({categorizedData.platos.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="bebidas" className="flex items-center gap-2">
+                      <Coffee className="h-4 w-4" />
+                      <span className="sm:hidden">Bebidas</span>
+                      <span className="hidden sm:inline">Bebidas ({categorizedData.bebidas.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="adicionales" className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      <span className="sm:hidden">Adic.</span>
+                      <span className="hidden sm:inline">Adicionales ({categorizedData.adicionales.length})</span>
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
-                <TabsContent value="platos" className="mt-6">
-                  {categorizedData.platos.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {categorizedData.platos.map((item) => (
-                        <PerformanceItemCard key={item.id} item={item} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No hay datos de platos para el período seleccionado
-                    </div>
-                  )}
-                </TabsContent>
+                <TabsContent value={activeTab} className="m-0">
+                  {filteredAndSortedData.length > 0 ? (
+                    <>
+                      {/* Desktop Table View */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[30%] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
+                                <div className="flex items-center gap-2">
+                                  Producto
+                                  {sortConfig.key === 'name' && <ArrowUpDown className="h-3 w-3" />}
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('quantitySold')}>
+                                <div className="flex items-center justify-end gap-2">
+                                  Ventas
+                                  {sortConfig.key === 'quantitySold' && <ArrowUpDown className="h-3 w-3" />}
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('totalRevenue')}>
+                                <div className="flex items-center justify-end gap-2">
+                                  Ingresos
+                                  {sortConfig.key === 'totalRevenue' && <ArrowUpDown className="h-3 w-3" />}
+                                </div>
+                              </TableHead>
+                              <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('profit')}>
+                                <div className="flex items-center justify-end gap-2">
+                                  Ganancia
+                                  {sortConfig.key === 'profit' && <ArrowUpDown className="h-3 w-3" />}
+                                </div>
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredAndSortedData.map((item) => (
+                              <TableRow key={item.id} className="hover:bg-muted/50">
+                                <TableCell className="font-medium">
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-base">{item.name}</span>
+                                      {item.contexto === 'llevar' && (
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1 bg-orange-50 text-orange-700 border-orange-200">
+                                          <ShoppingBag className="h-3 w-3 mr-1" />
+                                          Llevar
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">{item.category}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex flex-col items-end">
+                                    <span className="font-bold">{item.quantitySold}</span>
+                                    {renderChange(item.quantitySoldChange)}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex flex-col items-end">
+                                    <span>${item.totalRevenue.toFixed(2)}</span>
+                                    {renderChange(item.totalRevenueChange)}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex flex-col items-end">
+                                    <span className="font-bold text-green-600">${item.profit.toFixed(2)}</span>
+                                    {renderChange(item.profitChange)}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
 
-                <TabsContent value="bebidas" className="mt-6">
-                  {categorizedData.bebidas.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {categorizedData.bebidas.map((item) => (
-                        <PerformanceItemCard key={item.id} item={item} />
-                      ))}
-                    </div>
+                      {/* Mobile List View */}
+                      <div className="md:hidden flex flex-col divide-y">
+                        {filteredAndSortedData.map((item) => (
+                          <div key={item.id} className="p-4 hover:bg-muted/50 transition-colors">
+                            <div className="flex justify-between items-start mb-2">
+                              <div>
+                                <h3 className="font-semibold text-base flex items-center gap-2">
+                                  {item.name}
+                                  {item.contexto === 'llevar' && (
+                                    <Badge variant="outline" className="text-[10px] h-5 px-1 bg-orange-50 text-orange-700 border-orange-200">
+                                      <ShoppingBag className="h-3 w-3 mr-1" />
+                                      Llevar
+                                    </Badge>
+                                  )}
+                                </h3>
+                                <p className="text-xs text-muted-foreground">{item.category}</p>
+                              </div>
+                              <Badge variant="secondary" className="ml-2">
+                                {item.quantitySold}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 mt-3">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Ingresos</p>
+                                <div className="flex items-baseline gap-2">
+                                  <span className="font-medium">${item.totalRevenue.toFixed(2)}</span>
+                                  {renderChange(item.totalRevenueChange)}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Ganancia</p>
+                                <div className="flex items-baseline gap-2">
+                                  <span className="font-bold text-green-600">${item.profit.toFixed(2)}</span>
+                                  {renderChange(item.profitChange)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No hay datos de bebidas para el período seleccionado
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="adicionales" className="mt-6">
-                  {categorizedData.adicionales.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {categorizedData.adicionales.map((item) => (
-                        <PerformanceItemCard key={item.id} item={item} />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No hay datos de adicionales para el período seleccionado
+                    <div className="text-center py-12 text-muted-foreground">
+                      {searchQuery ? (
+                        <p>No se encontraron productos que coincidan con "{searchQuery}"</p>
+                      ) : (
+                        <p>No hay datos disponibles para el período seleccionado</p>
+                      )}
                     </div>
                   )}
                 </TabsContent>
