@@ -63,24 +63,35 @@ export type ExpenseCategory = string;
 export type ExpenseSource = 'caja' | 'caja_chica';
 
 export interface Employee {
-    id: string;
-    name: string;
-    role: string;
-    createdAt: number;
+  id: string;
+  name: string;
+  role: string;
+  createdAt: number;
 }
 
 export interface Expense {
-    id:string;
-    amount: number;
-    category: ExpenseCategory;
-    source: ExpenseSource;
-    createdAt: number;
-    createdBy: string;
-    employeeId?: string;
-    employeeName?: string;
+  id: string;
+  amount: number;
+  category: ExpenseCategory;
+  source: ExpenseSource;
+  createdAt: number;
+  createdBy: string;
+  employeeId?: string;
+  employeeName?: string;
 }
 
 export interface DailyData {
-    date: string; // YYYY-MM-DD format
-    initialCash: number;
+  date: string; // YYYY-MM-DD format
+  initialCash: number;
+}
+
+export interface DailyStats {
+  date: string;
+  totalRevenue: number;
+  totalExpenses: number;
+  orderCount: number;
+  paymentMethods: { [key: string]: number };
+  categoryBreakdown: { [key: string]: number };
+  itemSales?: { [itemId: string]: { name: string; quantity: number; revenue: number } };
+  updatedAt: number;
 }

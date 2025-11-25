@@ -4,12 +4,13 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
+import { useDailyStats } from '@/hooks/use-daily-stats';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"; // AÑADIR ESTOS IMPORTS
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import AppSidebar from '@/components/app-sidebar';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegendContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
@@ -32,7 +33,7 @@ const chartConfig = {
 };
 
 export default function ReportsPage() {
-  const { isMounted, currentUser, orders, expenses } = useAppStore();
+  const { isMounted, currentUser } = useAppStore();
   const router = useRouter();
 
   const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_week');
@@ -43,11 +44,6 @@ export default function ReportsPage() {
       router.push('/dashboard');
     }
   }, [currentUser, isMounted, router]);
-
-  const completedOrders = useMemo(() => {
-    if (!orders) return [];
-    return orders.filter(o => o.status === 'completed');
-  }, [orders]);
 
   const dateFilterRange = useMemo(() => {
     const now = new Date();
@@ -64,66 +60,57 @@ export default function ReportsPage() {
         return { from: lastMonthStart, to: endOfMonth(lastMonthStart) };
       case 'custom':
         if (!customDateRange?.from) return null;
-        return { 
-          from: startOfDay(customDateRange.from), 
-          to: customDateRange.to ? endOfDay(customDateRange.to) : endOfDay(customDateRange.from) 
+        return {
+          from: startOfDay(customDateRange.from),
+          to: customDateRange.to ? endOfDay(customDateRange.to) : endOfDay(customDateRange.from)
         };
       default:
         return { from: startOfMonth(now), to: endOfMonth(now) };
     }
   }, [filterPreset, customDateRange]);
 
-  const filteredData = useMemo(() => {
-    if (!completedOrders || !expenses || !dateFilterRange) {
-      return { filteredOrders: [], filteredExpenses: [] };
-    }
-    const { from, to } = dateFilterRange;
-    if (!from || !to) return { filteredOrders: [], filteredExpenses: [] };
-    const interval = { start: from, end: to };
-    const filteredOrders = completedOrders.filter(o => isWithinInterval(new Date(o.createdAt), interval));
-    const filteredExpenses = expenses.filter(e => isWithinInterval(new Date(e.createdAt), interval));
-    return { filteredOrders, filteredExpenses };
-  }, [completedOrders, expenses, dateFilterRange]);
+  // Use the new hook for daily stats
+  const { stats, loading } = useDailyStats(dateFilterRange || undefined);
 
   const summaryKpis = useMemo(() => {
-    const totalIncome = filteredData.filteredOrders.reduce((sum, order) => sum + order.total, 0);
-    const totalExpenses = filteredData.filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalIncome = stats.reduce((sum, day) => sum + day.totalRevenue, 0);
+    const totalExpenses = stats.reduce((sum, day) => sum + day.totalExpenses, 0);
     const netProfit = totalIncome - totalExpenses;
-    return { totalIncome, totalExpenses, netProfit, totalOrders: filteredData.filteredOrders.length };
-  }, [filteredData]);
-  
+    const totalOrders = stats.reduce((sum, day) => sum + day.orderCount, 0);
+    return { totalIncome, totalExpenses, netProfit, totalOrders };
+  }, [stats]);
+
   const dailyChartData = useMemo(() => {
     if (!dateFilterRange?.from || !dateFilterRange.to) return [];
     const days = eachDayOfInterval({ start: dateFilterRange.from, end: dateFilterRange.to });
+
     return days.map(day => {
-      const interval = { start: startOfDay(day), end: endOfDay(day) };
-      const income = filteredData.filteredOrders
-        .filter(o => isWithinInterval(new Date(o.createdAt), interval))
-        .reduce((sum, o) => sum + o.total, 0);
-      const expense = filteredData.filteredExpenses
-        .filter(e => isWithinInterval(new Date(e.createdAt), interval))
-        .reduce((sum, e) => sum + e.amount, 0);
+      const dateStr = format(day, 'yyyy-MM-dd');
+      const dayStat = stats.find(s => s.date === dateStr);
       return {
         date: format(day, 'dd/MM'),
-        Ingresos: parseFloat(income.toFixed(2)),
-        Gastos: parseFloat(expense.toFixed(2)),
+        Ingresos: dayStat ? parseFloat(dayStat.totalRevenue.toFixed(2)) : 0,
+        Gastos: dayStat ? parseFloat(dayStat.totalExpenses.toFixed(2)) : 0,
       };
     });
-  }, [filteredData, dateFilterRange]);
+  }, [stats, dateFilterRange]);
 
   const expenseBreakdownData = useMemo(() => {
     const breakdown: { [key: string]: number } = {};
-    filteredData.filteredExpenses.forEach(expense => {
-      breakdown[expense.category] = (breakdown[expense.category] || 0) + expense.amount;
+    stats.forEach(day => {
+      if (day.categoryBreakdown) {
+        Object.entries(day.categoryBreakdown).forEach(([cat, amount]) => {
+          breakdown[cat] = (breakdown[cat] || 0) + amount;
+        });
+      }
     });
     return Object.entries(breakdown)
       .map(([name, value]) => ({ name, value: parseFloat(value.toFixed(2)) }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredData.filteredExpenses]);
+  }, [stats]);
 
   const handlePrintReport = () => window.print();
 
-  // Helper function for printable report - MOVER ANTES DEL RETURN
   const getFilterDateRangeString = () => {
     if (!dateFilterRange?.from) return "Rango no definido";
     const fromStr = format(dateFilterRange.from, 'dd/MM/yyyy');
@@ -132,7 +119,7 @@ export default function ReportsPage() {
     return `${fromStr} - ${toStr}`;
   };
 
-  if (!isMounted || !currentUser || !orders || !expenses) {
+  if (!isMounted || !currentUser) {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
         <BarChart2 className="h-16 w-16 text-muted-foreground mb-4" />
@@ -157,72 +144,74 @@ export default function ReportsPage() {
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <main className="flex-1 p-4 sm:p-6 md:p-8 print:p-0">
         <div className="print:hidden">
-          {/* Header Section - Mejorado para responsive */}
+          {/* Header Section */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
             <div className='flex items-center gap-3 flex-wrap'>
-                <AppSidebar />
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+              <AppSidebar />
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
                 <BarChart2 className="h-6 w-6 sm:h-8 sm:w-8" />
                 Reportes Financieros
-                </h1>
+              </h1>
             </div>
             <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
-                <Button variant="outline" size="sm" onClick={handlePrintReport} className="flex-1 sm:flex-none min-w-[140px]">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Generar Reporte
+              <Button variant="outline" size="sm" onClick={handlePrintReport} className="flex-1 sm:flex-none min-w-[140px]">
+                <FileText className="mr-2 h-4 w-4" />
+                Generar Reporte
+              </Button>
+              <Link href="/admin/dashboard" className="flex-1 sm:flex-none">
+                <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
+                  <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="hidden sm:inline">Volver al Dashboard</span>
+                  <span className="sm:hidden">Volver</span>
                 </Button>
-                <Link href="/admin/dashboard" className="flex-1 sm:flex-none">
-                    <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
-                    <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                    <span className="hidden sm:inline">Volver al Dashboard</span>
-                    <span className="sm:hidden">Volver</span>
-                    </Button>
-                </Link>
+              </Link>
             </div>
           </div>
 
-          {/* Filtros - Mejorado para responsive */}
-          <Card className="mb-6">
+          {/* Filtros */}
+          <div className="mb-6">
+            <Card>
               <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                  <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
-                      <SelectTrigger className="w-full sm:w-[180px]">
-                        <SelectValue placeholder="Filtrar por fecha" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="this_week">Esta semana</SelectItem>
-                          <SelectItem value="last_week">Semana pasada</SelectItem>
-                          <SelectItem value="this_month">Este mes</SelectItem>
-                          <SelectItem value="last_month">Mes pasado</SelectItem>
-                      </SelectContent>
-                  </Select>
-                  
-                  <Popover>
-                      <PopoverTrigger asChild>
-                      <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal flex-1", !customDateRange && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {customDateRange?.from ? 
-                              customDateRange.to ? 
-                              `${format(customDateRange.from, 'LLL dd, y')} - ${format(customDateRange.to, 'LLL dd, y')}` : 
-                              format(customDateRange.from, 'LLL dd, y') : 
-                              <span>Rango personalizado</span>}
-                      </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                          initialFocus
-                          mode="range"
-                          defaultMonth={customDateRange?.from}
-                          selected={customDateRange}
-                          onSelect={(range) => { setCustomDateRange(range); if(range?.from) setFilterPreset('custom'); }}
-                          numberOfMonths={2}
-                          locale={es}
-                      />
-                      </PopoverContent>
-                  </Popover>
-              </CardContent>
-          </Card>
+                <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filtrar por fecha" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="this_week">Esta semana</SelectItem>
+                    <SelectItem value="last_week">Semana pasada</SelectItem>
+                    <SelectItem value="this_month">Este mes</SelectItem>
+                    <SelectItem value="last_month">Mes pasado</SelectItem>
+                  </SelectContent>
+                </Select>
 
-          {/* KPIs Grid - Mejorado para responsive */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal flex-1", !customDateRange && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customDateRange?.from ?
+                        customDateRange.to ?
+                          `${format(customDateRange.from, 'LLL dd, y')} - ${format(customDateRange.to, 'LLL dd, y')}` :
+                          format(customDateRange.from, 'LLL dd, y') :
+                        <span>Rango personalizado</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={customDateRange?.from}
+                      selected={customDateRange}
+                      onSelect={(range) => { setCustomDateRange(range); if (range?.from) setFilterPreset('custom'); }}
+                      numberOfMonths={2}
+                      locale={es}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* KPIs Grid */}
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -256,152 +245,152 @@ export default function ReportsPage() {
             </Card>
           </div>
 
-          {/* Charts Section - Mejorado para responsive */}
+          {/* Charts Section */}
           <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
-              <Card className="lg:col-span-3">
-                  <CardHeader>
-                      <CardTitle className="text-lg sm:text-xl">Ingresos vs. Gastos</CardTitle>
-                      <CardDescription>Comparación diaria de ingresos y gastos para el período seleccionado.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pl-2">
-                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                          <BarChart accessibilityLayer data={dailyChartData}>
-                              <CartesianGrid vertical={false} />
-                              <XAxis 
-                                dataKey="date" 
-                                tickLine={false} 
-                                tickMargin={10} 
-                                axisLine={false}
-                                fontSize={12}
-                              />
-                              <YAxis 
-                                tickLine={false} 
-                                axisLine={false} 
-                                tickFormatter={(value) => `$${value}`}
-                                fontSize={12}
-                              />
-                              <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                              <Legend content={<ChartLegendContent />} />
-                              <Bar dataKey="Ingresos" fill="var(--color-Ingresos)" radius={4} />
-                              <Bar dataKey="Gastos" fill="var(--color-Gastos)" radius={4} />
-                          </BarChart>
-                      </ChartContainer>
-                  </CardContent>
-              </Card>
-              
-              <Card className="lg:col-span-2">
-                  <CardHeader>
-                      <CardTitle className="text-lg sm:text-xl">Desglose de Gastos</CardTitle>
-                      <CardDescription>Distribución de gastos por categoría.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                      {expenseBreakdownData.length > 0 ? (
-                        <ChartContainer config={{}} className="h-[300px] w-full">
-                            <PieChart>
-                                <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                                <Pie 
-                                  data={expenseBreakdownData} 
-                                  dataKey="value" 
-                                  nameKey="name" 
-                                  cx="50%" 
-                                  cy="50%" 
-                                  outerRadius={100}
-                                  innerRadius={40}
-                                  label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                                >
-                                    {expenseBreakdownData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
-                                    ))}
-                                </Pie>
-                            </PieChart>
-                        </ChartContainer>
-                        ) : (
-                          <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                              No hay datos de gastos para mostrar.
-                          </div>
-                        )}
-                  </CardContent>
-              </Card>
+            <Card className="lg:col-span-3">
+              <CardHeader>
+                <CardTitle className="text-lg sm:text-xl">Ingresos vs. Gastos</CardTitle>
+                <CardDescription>Comparación diaria de ingresos y gastos para el período seleccionado.</CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                  <BarChart accessibilityLayer data={dailyChartData}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tickLine={false}
+                      tickMargin={10}
+                      axisLine={false}
+                      fontSize={12}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => `$${value}`}
+                      fontSize={12}
+                    />
+                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                    <Legend content={<ChartLegendContent />} />
+                    <Bar dataKey="Ingresos" fill="var(--color-Ingresos)" radius={4} />
+                    <Bar dataKey="Gastos" fill="var(--color-Gastos)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-lg sm:text-xl">Desglose de Gastos</CardTitle>
+                <CardDescription>Distribución de gastos por categoría.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {expenseBreakdownData.length > 0 ? (
+                  <ChartContainer config={{}} className="h-[300px] w-full">
+                    <PieChart>
+                      <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                      <Pie
+                        data={expenseBreakdownData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        innerRadius={40}
+                        label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                      >
+                        {expenseBreakdownData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+                    No hay datos de gastos para mostrar.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
         {/* Printable Report Section */}
         <div className="hidden print:block print-report-container print:p-4">
-            <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold">El Puerto de Carola</h1>
-                <h2 className="text-xl font-semibold">Reporte Financiero</h2>
-                <p className="text-sm">Período: {getFilterDateRangeString()}</p>
-                <p className="text-xs">Generado el: {format(new Date(), "dd/MM/yyyy HH:mm")}</p>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="border p-4 rounded-lg print:border print:shadow-none">
-                  <h3 className="font-semibold text-sm">Ingresos Totales</h3>
-                  <p className="text-xl font-bold">${summaryKpis.totalIncome.toFixed(2)}</p>
-                  <p className="text-xs">{summaryKpis.totalOrders} ventas</p>
-              </div>
-              <div className="border p-4 rounded-lg print:border print:shadow-none">
-                  <h3 className="font-semibold text-sm">Gastos Totales</h3>
-                  <p className="text-xl font-bold">${summaryKpis.totalExpenses.toFixed(2)}</p>
-                  <p className="text-xs">{filteredData.filteredExpenses.length} egresos</p>
-              </div>
-              <div className="border p-4 rounded-lg print:border print:shadow-none print:bg-transparent print:text-black">
-                  <h3 className="font-semibold text-sm">Utilidad Neta</h3>
-                  <p className="text-xl font-bold">${summaryKpis.netProfit.toFixed(2)}</p>
-                  <p className="text-xs">Ingresos - Gastos</p>
-              </div>
-            </div>
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold">El Puerto de Carola</h1>
+            <h2 className="text-xl font-semibold">Reporte Financiero</h2>
+            <p className="text-sm">Período: {getFilterDateRangeString()}</p>
+            <p className="text-xs">Generado el: {format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+          </div>
 
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Resumen por Día</h3>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Fecha</TableHead>
-                            <TableHead className="text-right">Ingresos</TableHead>
-                            <TableHead className="text-right">Gastos</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {dailyChartData.map(day => (
-                            <TableRow key={day.date}>
-                                <TableCell>{day.date}</TableCell>
-                                <TableCell className="text-right">${day.Ingresos.toFixed(2)}</TableCell>
-                                <TableCell className="text-right">${day.Gastos.toFixed(2)}</TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Desglose de Gastos</h3>
-                 <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Categoría</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {expenseBreakdownData.length > 0 ? expenseBreakdownData.map(cat => (
-                            <TableRow key={cat.name}>
-                                <TableCell>{cat.name}</TableCell>
-                                <TableCell className="text-right">${cat.value.toFixed(2)}</TableCell>
-                            </TableRow>
-                        )) : (
-                           <TableRow>
-                             <TableCell colSpan={2} className="text-center h-24">No hay gastos en este período.</TableCell>
-                           </TableRow>
-                        )}
-                         <TableRow className="font-bold bg-muted/50">
-                            <TableCell>Total Gastos</TableCell>
-                            <TableCell className="text-right">${summaryKpis.totalExpenses.toFixed(2)}</TableCell>
-                        </TableRow>
-                    </TableBody>
-                </Table>
-              </div>
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="border p-4 rounded-lg print:border print:shadow-none">
+              <h3 className="font-semibold text-sm">Ingresos Totales</h3>
+              <p className="text-xl font-bold">${summaryKpis.totalIncome.toFixed(2)}</p>
+              <p className="text-xs">{summaryKpis.totalOrders} ventas</p>
             </div>
+            <div className="border p-4 rounded-lg print:border print:shadow-none">
+              <h3 className="font-semibold text-sm">Gastos Totales</h3>
+              <p className="text-xl font-bold">${summaryKpis.totalExpenses.toFixed(2)}</p>
+              <p className="text-xs">{stats.reduce((acc, curr) => acc + (curr.totalExpenses > 0 ? 1 : 0), 0)} días con egresos</p>
+            </div>
+            <div className="border p-4 rounded-lg print:border print:shadow-none print:bg-transparent print:text-black">
+              <h3 className="font-semibold text-sm">Utilidad Neta</h3>
+              <p className="text-xl font-bold">${summaryKpis.netProfit.toFixed(2)}</p>
+              <p className="text-xs">Ingresos - Gastos</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Resumen por Día</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead className="text-right">Ingresos</TableHead>
+                    <TableHead className="text-right">Gastos</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {dailyChartData.map(day => (
+                    <TableRow key={day.date}>
+                      <TableCell>{day.date}</TableCell>
+                      <TableCell className="text-right">${day.Ingresos.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">${day.Gastos.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Desglose de Gastos</h3>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {expenseBreakdownData.length > 0 ? expenseBreakdownData.map(cat => (
+                    <TableRow key={cat.name}>
+                      <TableCell>{cat.name}</TableCell>
+                      <TableCell className="text-right">${cat.value.toFixed(2)}</TableCell>
+                    </TableRow>
+                  )) : (
+                    <TableRow>
+                      <TableCell colSpan={2} className="text-center h-24">No hay gastos en este período.</TableCell>
+                    </TableRow>
+                  )}
+                  <TableRow className="font-bold bg-muted/50">
+                    <TableCell>Total Gastos</TableCell>
+                    <TableCell className="text-right">${summaryKpis.totalExpenses.toFixed(2)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </div>
         </div>
       </main>
     </div>

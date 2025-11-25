@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
+import { useOrderHistory } from '@/hooks/use-order-history';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AppSidebar from '@/components/app-sidebar';
@@ -38,14 +39,14 @@ interface SoldItemInfo {
 }
 
 interface PaymentMethodSummary {
-    totalRevenue: number;
-    orderCount: number;
-    method: PaymentMethod;
+  totalRevenue: number;
+  orderCount: number;
+  method: PaymentMethod;
 }
 
-
 export default function HistoryPage() {
-  const { isMounted, currentUser, orders, expenses, cancelOrder, dailyData, setInitialCash } = useAppStore();
+  const { isMounted, currentUser, expenses, cancelOrder, dailyData, setInitialCash } = useAppStore();
+  // Removed 'orders' from useAppStore destructuring
   const router = useRouter();
   const { toast } = useToast();
 
@@ -57,20 +58,52 @@ export default function HistoryPage() {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethodFilter>('all');
   const [filterPreset, setFilterPreset] = useState<FilterPreset>('today');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
-  
+
   const [initialCashInput, setInitialCashInput] = useState('');
+
+  // Calculate date range first so we can pass it to the hook
+  const dateFilterRange = useMemo(() => {
+    const now = new Date();
+    switch (filterPreset) {
+      case 'today':
+        return { from: startOfDay(now), to: endOfDay(now) };
+      case 'yesterday':
+        const yesterday = startOfYesterday();
+        return { from: yesterday, to: endOfYesterday() };
+      case 'this_week':
+        return { from: startOfWeek(now, { locale: es }), to: endOfWeek(now, { locale: es }) };
+      case 'last_7_days':
+        return { from: subDays(startOfDay(now), 6), to: endOfDay(now) };
+      case 'this_month':
+        return { from: startOfMonth(now), to: endOfMonth(now) };
+      case 'last_month':
+        const lastMonthStart = startOfMonth(subMonths(now, 1));
+        return { from: lastMonthStart, to: endOfMonth(lastMonthStart) };
+      case 'custom':
+        if (!customDateRange?.from) return null;
+        return {
+          from: startOfDay(customDateRange.from),
+          to: customDateRange.to ? endOfDay(customDateRange.to) : endOfDay(customDateRange.from)
+        };
+      default:
+        return null;
+    }
+  }, [filterPreset, customDateRange]);
+
+  // Fetch orders based on the calculated range
+  const { orders: historyOrders, loading: historyLoading } = useOrderHistory(dateFilterRange);
 
   useEffect(() => {
     if (isMounted && !currentUser) {
       router.push('/');
     }
   }, [currentUser, isMounted, router]);
-  
+
   useEffect(() => {
     if (dailyData) {
       setInitialCashInput(dailyData.initialCash.toString());
     } else {
-        setInitialCashInput('0');
+      setInitialCashInput('0');
     }
   }, [dailyData]);
 
@@ -91,7 +124,7 @@ export default function HistoryPage() {
         description: `Se estableció la caja inicial en $${amount.toFixed(2)}.`,
       });
     } catch (error: any) {
-       toast({
+      toast({
         variant: 'destructive',
         title: 'Error',
         description: error.message || 'No se pudo guardar el monto.',
@@ -100,64 +133,36 @@ export default function HistoryPage() {
   };
 
   const completedOrders = useMemo(() => {
-    if (!orders) return [];
-    return orders
+    if (!historyOrders) return [];
+    return historyOrders
       .filter(o => o.status === 'completed')
       .sort((a, b) => b.createdAt - a.createdAt);
-  }, [orders]);
-  
-  const dateFilterRange = useMemo(() => {
-    const now = new Date();
-    switch (filterPreset) {
-      case 'today':
-        return { from: startOfDay(now), to: endOfDay(now) };
-      case 'yesterday':
-        const yesterday = startOfYesterday();
-        return { from: yesterday, to: endOfYesterday() };
-      case 'this_week':
-        return { from: startOfWeek(now, { locale: es }), to: endOfWeek(now, { locale: es }) };
-      case 'last_7_days':
-        return { from: subDays(startOfDay(now), 6), to: endOfDay(now) };
-      case 'this_month':
-        return { from: startOfMonth(now), to: endOfMonth(now) };
-      case 'last_month':
-        const lastMonthStart = startOfMonth(subMonths(now, 1));
-        return { from: lastMonthStart, to: endOfMonth(lastMonthStart) };
-      case 'custom':
-        if (!customDateRange?.from) return null;
-        return { 
-          from: startOfDay(customDateRange.from), 
-          to: customDateRange.to ? endOfDay(customDateRange.to) : endOfDay(customDateRange.from) 
-        };
-      default:
-        return null;
-    }
-  }, [filterPreset, customDateRange]);
+  }, [historyOrders]);
 
   const ordersInDateRange = useMemo(() => {
     if (!completedOrders || !dateFilterRange || !dateFilterRange.from) return completedOrders;
 
     return completedOrders.filter(order => {
-        const dateMatch = isWithinInterval(new Date(order.createdAt), { start: dateFilterRange.from!, end: dateFilterRange.to! });
-        return dateMatch;
+      const dateMatch = isWithinInterval(new Date(order.createdAt), { start: dateFilterRange.from!, end: dateFilterRange.to! });
+      return dateMatch;
     });
   }, [completedOrders, dateFilterRange]);
 
   const summaryData = useMemo(() => {
     const baseOrders = ordersInDateRange || completedOrders;
-    
+
     if (!isMounted || !baseOrders || !expenses) {
-        return {
-            totalToday: 0,
-            ordersTodayCount: 0,
-            expectedCashInDrawer: 0,
-            weeklyData: [],
-        };
+      return {
+        totalToday: 0,
+        ordersTodayCount: 0,
+        expectedCashInDrawer: 0,
+        weeklyData: [],
+      };
     }
 
     const today = new Date();
     const todayStart = startOfDay(today);
-    
+
     const todaysOrders = baseOrders.filter(o => isSameDay(new Date(o.createdAt), todayStart));
     const totalToday = todaysOrders.reduce((sum, o) => sum + o.total, 0);
 
@@ -168,23 +173,23 @@ export default function HistoryPage() {
     const cashExpensesToday = (expenses || [])
       .filter(e => isSameDay(new Date(e.createdAt), todayStart) && e.source === 'caja')
       .reduce((sum, e) => sum + e.amount, 0);
-      
+
     const initialCashToday = dailyData?.initialCash || 0;
 
     const expectedCashInDrawer = (initialCashToday + totalCashToday) - cashExpensesToday;
 
     const weeklyData: { date: string, Ventas: number }[] = [];
     for (let i = 6; i >= 0; i--) {
-        const day = subDays(today, i);
-        const dayStart = startOfDay(day);
-        const dailyTotal = completedOrders
-            .filter(o => isSameDay(new Date(o.createdAt), dayStart))
-            .reduce((sum, o) => sum + o.total, 0);
-        
-        weeklyData.push({
-            date: format(day, 'EEE', { locale: es }),
-            Ventas: parseFloat(dailyTotal.toFixed(2)),
-        });
+      const day = subDays(today, i);
+      const dayStart = startOfDay(day);
+      const dailyTotal = completedOrders
+        .filter(o => isSameDay(new Date(o.createdAt), dayStart))
+        .reduce((sum, o) => sum + o.total, 0);
+
+      weeklyData.push({
+        date: format(day, 'EEE', { locale: es }),
+        Ventas: parseFloat(dailyTotal.toFixed(2)),
+      });
     }
 
     return {
@@ -203,36 +208,36 @@ export default function HistoryPage() {
 
     // Filter by order type
     if (orderFilter === 'tables') {
-        baseOrders = baseOrders.filter(order => order.tableId !== 'takeaway');
+      baseOrders = baseOrders.filter(order => order.tableId !== 'takeaway');
     } else if (orderFilter === 'takeaway') {
-        baseOrders = baseOrders.filter(order => order.tableId === 'takeaway');
+      baseOrders = baseOrders.filter(order => order.tableId === 'takeaway');
     }
 
     // Filter by payment method
     if (paymentMethodFilter !== 'all') {
       baseOrders = baseOrders.filter(order => order.paymentMethod === paymentMethodFilter);
     }
-    
+
     // Calculate payment method summary if a filter is selected
     if (paymentMethodFilter !== 'all' && !lowerCaseSearch) {
-        paymentMethodSummary = {
-            method: paymentMethodFilter,
-            orderCount: baseOrders.length,
-            totalRevenue: baseOrders.reduce((sum, order) => sum + order.total, 0),
-        };
+      paymentMethodSummary = {
+        method: paymentMethodFilter,
+        orderCount: baseOrders.length,
+        totalRevenue: baseOrders.reduce((sum, order) => sum + order.total, 0),
+      };
     }
-    
+
     if (!lowerCaseSearch) {
-        return { filteredOrders: baseOrders, soldItemInfo: null, paymentMethodSummary };
+      return { filteredOrders: baseOrders, soldItemInfo: null, paymentMethodSummary };
     }
 
     const matchedMenuItems = ALL_MENU_ITEMS.filter(item => item.nombre.toLowerCase().includes(lowerCaseSearch));
     let ordersWithItemSet = new Set<string>();
-    
+
     // If search term is a menu item, calculate sales data
     if (matchedMenuItems.length > 0 && lowerCaseSearch.length > 3) {
       soldItemInfo = { totalQuantity: 0, totalRevenue: 0, orderCount: 0, name: lowerCaseSearch, notesBreakdown: {} };
-      
+
       baseOrders.forEach(order => {
         let hasItem = false;
         order.items.forEach(item => {
@@ -242,13 +247,13 @@ export default function HistoryPage() {
             soldItemInfo!.totalQuantity += item.quantity;
             const price = item.customPrice || menuItem.precio;
             soldItemInfo!.totalRevenue += price * item.quantity;
-            if(item.notes) {
+            if (item.notes) {
               soldItemInfo!.notesBreakdown[item.notes] = (soldItemInfo!.notesBreakdown[item.notes] || 0) + item.quantity;
             }
           }
         });
         if (hasItem) {
-            ordersWithItemSet.add(order.id);
+          ordersWithItemSet.add(order.id);
         }
       });
       soldItemInfo.orderCount = ordersWithItemSet.size;
@@ -260,9 +265,9 @@ export default function HistoryPage() {
 
     // Otherwise, filter orders by ID or table
     const filtered = baseOrders.filter(order => {
-        const tableIdMatch = `mesa ${order.tableId}`.includes(lowerCaseSearch) || (order.tableId === 'takeaway' && 'para llevar'.includes(lowerCaseSearch));
-        const orderIdMatch = order.id.toString().includes(lowerCaseSearch);
-        return tableIdMatch || orderIdMatch;
+      const tableIdMatch = `mesa ${order.tableId}`.includes(lowerCaseSearch) || (order.tableId === 'takeaway' && 'para llevar'.includes(lowerCaseSearch));
+      const orderIdMatch = order.id.toString().includes(lowerCaseSearch);
+      return tableIdMatch || orderIdMatch;
     });
 
     return { filteredOrders: filtered, soldItemInfo: null, paymentMethodSummary };
@@ -288,7 +293,7 @@ export default function HistoryPage() {
     setIsAlertDialogOpen(false);
     setOrderToCancelId(null);
   };
-  
+
   const resetFilters = () => {
     setOrderFilter('all');
     setPaymentMethodFilter('all');
@@ -297,7 +302,7 @@ export default function HistoryPage() {
     setSearchTerm('');
   };
 
-  if (!isMounted || !currentUser || !orders || !expenses) {
+  if (!isMounted || !currentUser || historyLoading) {
     return (
       <div className="flex h-screen flex-col items-center justify-center text-center">
         <HistoryIcon className="h-16 w-16 text-muted-foreground mb-4" />
@@ -305,344 +310,343 @@ export default function HistoryPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40 overflow-x-hidden">
       <main className="flex-1 p-4 sm:p-6 md:p-8 print:p-0">
         <div className="print:hidden">
           {/* Header Section - Mejorado para responsive */}
-            <div className="fflex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-                <div className = 'flex items-center gap-3 flex-wrap'>
-                <AppSidebar />
-                <h1 className="text-2xl font-semibold flex items-center gap-2">
-                    <HistoryIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
-                    Historial y Reportes
-                </h1>
-                </div>             
+          <div className="fflex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+            <div className='flex items-center gap-3 flex-wrap'>
+              <AppSidebar />
+              <h1 className="text-2xl font-semibold flex items-center gap-2">
+                <HistoryIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                Historial y Reportes
+              </h1>
             </div>
-            <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
-              {currentUser?.role === 'admin' && (
-                <Link href="/reports"className="flex-shrink min-w-[140px]">
-                  <Button variant="outline" size="sm" className="flex-1 sm:flex-none min-w-[140px] whitespace-normal break-words text-center px-3 py-2 text-sm sm:text-base">
-                    Ver Reportes Financieros
-                    </Button>
-                </Link>
-              )}
-              <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"} className="flex-1 sm:flex-none">
-                  <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
-                      <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                      <span className="hidden sm:inline">Volver al Dashboard</span>
-                      <span className="sm:hidden">Volver</span>
-                  </Button>
+          </div>
+          <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
+            {currentUser?.role === 'admin' && (
+              <Link href="/reports" className="flex-shrink min-w-[140px]">
+                <Button variant="outline" size="sm" className="flex-1 sm:flex-none min-w-[140px] whitespace-normal break-words text-center px-3 py-2 text-sm sm:text-base">
+                  Ver Reportes Financieros
+                </Button>
               </Link>
-            </div>
+            )}
+            <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"} className="flex-1 sm:flex-none">
+              <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                <span className="hidden sm:inline">Volver al Dashboard</span>
+                <span className="sm:hidden">Volver</span>
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            <Card className="bg-primary text-primary-foreground min-w-0">
+          <Card className="bg-primary text-primary-foreground min-w-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Efectivo Esperado en Caja</CardTitle>
+              <PiggyBank className="h-4 w-4 text-primary-foreground/80" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">${summaryData.expectedCashInDrawer.toFixed(2)}</div>
+              <p className="text-xs text-primary-foreground/80">
+                (Caja Inicial + Ventas Efectivo) - Gastos de Caja.
+                {(dailyData?.initialCash || 0) > 0 && <span><br />+ ${dailyData.initialCash.toFixed(2)} de caja inicial</span>}
+              </p>
+            </CardContent>
+          </Card>
+
+          {currentUser.role === 'admin' && (
+            <>
+              <Card className="min-w-0">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Efectivo Esperado en Caja</CardTitle>
-                    <PiggyBank className="h-4 w-4 text-primary-foreground/80" />
+                  <CardTitle className="text-sm font-medium">Ventas Totales (Hoy)</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-3xl font-bold">${summaryData.expectedCashInDrawer.toFixed(2)}</div>
-                    <p className="text-xs text-primary-foreground/80">
-                        (Caja Inicial + Ventas Efectivo) - Gastos de Caja.
-                        {(dailyData?.initialCash || 0) > 0 && <span><br />+ ${dailyData.initialCash.toFixed(2)} de caja inicial</span>}
-                    </p>
+                  <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground">{summaryData.ordersTodayCount} pedidos hoy</p>
                 </CardContent>
-            </Card>
-            
-            {currentUser.role === 'admin' && (
-              <>
-                <Card className="min-w-0">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ventas Totales (Hoy)</CardTitle>
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">${summaryData.totalToday.toFixed(2)}</div>
-                        <p className="text-xs text-muted-foreground">{summaryData.ordersTodayCount} pedidos hoy</p>
-                    </CardContent>
-                </Card>
-                <Card className="min-w-0">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium flex items-center justify-between">
-                            Configurar Caja Inicial
-                            <Edit className="h-4 w-4 text-muted-foreground"/>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Input
-                                type="number"
-                                placeholder="Monto inicial..."
-                                value={initialCashInput}
-                                onChange={(e) => setInitialCashInput(e.target.value)}
-                                className="h-9 min-w-0"
-                            />
-                            <Button size="sm" onClick={handleSetInitialCash} className="whitespace-normal">Guardar</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-                <Card className="min-w-0">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Gastos de Caja (Hoy)</CardTitle>
-                        <Wallet className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-600">-${(expenses?.filter(e => isSameDay(new Date(e.createdAt), new Date()) && e.source === 'caja').reduce((s, e) => s + e.amount, 0) || 0).toFixed(2)}</div>
-                    </CardContent>
-                </Card>
-              </>
-            )}
+              </Card>
+              <Card className="min-w-0">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center justify-between">
+                    Configurar Caja Inicial
+                    <Edit className="h-4 w-4 text-muted-foreground" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Monto inicial..."
+                      value={initialCashInput}
+                      onChange={(e) => setInitialCashInput(e.target.value)}
+                      className="h-9 min-w-0"
+                    />
+                    <Button size="sm" onClick={handleSetInitialCash} className="whitespace-normal">Guardar</Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="min-w-0">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Gastos de Caja (Hoy)</CardTitle>
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-red-600">-${(expenses?.filter(e => isSameDay(new Date(e.createdAt), new Date()) && e.source === 'caja').reduce((s, e) => s + e.amount, 0) || 0).toFixed(2)}</div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
-        
+
         <div className="grid gap-6 lg:grid-cols-1">
-            {currentUser.role === 'admin' && (
-                <Card className="min-w-0">
-                    <CardHeader>
-                        <CardTitle>Ventas de la Última Semana</CardTitle>
-                        <CardDescription>Resumen de ingresos de los últimos 7 días.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="pl-2">
-                        <div className="chart-wrapper w-full min-w-0 h-[250px]">
-                            <ChartContainer config={{ Ventas: { label: "Ventas", color: "hsl(var(--primary))" } }} className="h-full w-full">
-                                <BarChart accessibilityLayer data={summaryData.weeklyData} className="w-full h-full">
-                                    <CartesianGrid vertical={false} />
-                                    <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                                    <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                                    <Bar dataKey="Ventas" fill="var(--color-Ventas)" radius={4} />
-                                </BarChart>
-                            </ChartContainer>
+          {currentUser.role === 'admin' && (
+            <Card className="min-w-0">
+              <CardHeader>
+                <CardTitle>Ventas de la Última Semana</CardTitle>
+                <CardDescription>Resumen de ingresos de los últimos 7 días.</CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <div className="chart-wrapper w-full min-w-0 h-[250px]">
+                  <ChartContainer config={{ Ventas: { label: "Ventas", color: "hsl(var(--primary))" } }} className="h-full w-full">
+                    <BarChart accessibilityLayer data={summaryData.weeklyData} className="w-full h-full">
+                      <CartesianGrid vertical={false} />
+                      <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                      <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                      <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                      <Bar dataKey="Ventas" fill="var(--color-Ventas)" radius={4} />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="min-w-0">
+              <CardHeader>
+                <CardTitle>Todos los Pedidos</CardTitle>
+                <CardDescription>Busca y selecciona un pedido para ver los detalles.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 mb-4">
+                  <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+                    <Select value={orderFilter} onValueChange={(v) => setOrderFilter(v as OrderFilter)}>
+                      <SelectTrigger className="w-full sm:w-[150px] min-w-0"><SelectValue placeholder="Tipo de pedido" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los pedidos</SelectItem>
+                        <SelectItem value="tables">Mesas</SelectItem>
+                        <SelectItem value="takeaway">Para Llevar</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={paymentMethodFilter} onValueChange={(v) => setPaymentMethodFilter(v as PaymentMethodFilter)}>
+                      <SelectTrigger className="w-full sm:w-[150px] min-w-0"><SelectValue placeholder="Método de pago" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos los Pagos</SelectItem>
+                        <SelectItem value="Efectivo">Efectivo</SelectItem>
+                        <SelectItem value="DeUna">DeUna</SelectItem>
+                        <SelectItem value="Transferencia">Transferencia</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
+                      <SelectTrigger className="w-full sm:w-[180px] min-w-0"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="today">Hoy</SelectItem>
+                        <SelectItem value="yesterday">Ayer</SelectItem>
+                        <SelectItem value="this_week">Esta semana</SelectItem>
+                        <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
+                        <SelectItem value="this_month">Este mes</SelectItem>
+                        <SelectItem value="last_month">Mes pasado</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal min-w-0", !customDateRange && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {customDateRange?.from ?
+                            customDateRange.to ? `${format(customDateRange.from, 'LLL dd')} - ${format(customDateRange.to, 'LLL dd, y')}` : format(customDateRange.from, 'LLL dd, y') :
+                            <span>Rango personalizado</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          initialFocus mode="range"
+                          defaultMonth={customDateRange?.from}
+                          selected={customDateRange}
+                          onSelect={(range) => { setCustomDateRange(range); if (range?.from) setFilterPreset('custom'); }}
+                          numberOfMonths={2} locale={es}
+                        />
+                      </PopoverContent>
+                    </Popover>
+
+                    <Button variant="ghost" size="icon" onClick={resetFilters} className="flex-shrink-0"><FilterX className="h-4 w-4" /></Button>
+                  </div>
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Buscar por artículo, ID de pedido o mesa..."
+                      className="pl-8 min-w-0"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {soldItemInfo && soldItemInfo.totalQuantity > 0 && (
+                  <Card className="mb-4 bg-blue-50 border-blue-200 min-w-0">
+                    <CardContent className="p-3 text-sm min-w-0">
+                      <p>
+                        Se vendieron <strong>{soldItemInfo.totalQuantity} '{soldItemInfo.name}'</strong> en <strong>{soldItemInfo.orderCount}</strong> pedidos, generando un total de <strong className="text-blue-800">${soldItemInfo.totalRevenue.toFixed(2)}</strong>.
+                      </p>
+                      {Object.keys(soldItemInfo.notesBreakdown).length > 0 && (
+                        <div className="mt-2 text-xs">
+                          <strong>Desglose:</strong> {Object.entries(soldItemInfo.notesBreakdown).map(([note, qty]) => `${note} (x${qty})`).join(', ')}
                         </div>
+                      )}
                     </CardContent>
-                </Card>
-            )}
+                  </Card>
+                )}
 
-            <div className="grid gap-4 md:grid-cols-2">
-                <Card className="min-w-0">
-                    <CardHeader>
-                        <CardTitle>Todos los Pedidos</CardTitle>
-                        <CardDescription>Busca y selecciona un pedido para ver los detalles.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2 mb-4">
-                            <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
-                                <Select value={orderFilter} onValueChange={(v) => setOrderFilter(v as OrderFilter)}>
-                                    <SelectTrigger className="w-full sm:w-[150px] min-w-0"><SelectValue placeholder="Tipo de pedido" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todos los pedidos</SelectItem>
-                                        <SelectItem value="tables">Mesas</SelectItem>
-                                        <SelectItem value="takeaway">Para Llevar</SelectItem>
-                                    </SelectContent>
-                                </Select>
-
-                                 <Select value={paymentMethodFilter} onValueChange={(v) => setPaymentMethodFilter(v as PaymentMethodFilter)}>
-                                    <SelectTrigger className="w-full sm:w-[150px] min-w-0"><SelectValue placeholder="Método de pago" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Todos los Pagos</SelectItem>
-                                        <SelectItem value="Efectivo">Efectivo</SelectItem>
-                                        <SelectItem value="DeUna">DeUna</SelectItem>
-                                        <SelectItem value="Transferencia">Transferencia</SelectItem>
-                                    </SelectContent>
-                                </Select>
-
-                                <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
-                                    <SelectTrigger className="w-full sm:w-[180px] min-w-0"><SelectValue placeholder="Filtrar por fecha" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="today">Hoy</SelectItem>
-                                        <SelectItem value="yesterday">Ayer</SelectItem>
-                                        <SelectItem value="this_week">Esta semana</SelectItem>
-                                        <SelectItem value="last_7_days">Últimos 7 días</SelectItem>
-                                        <SelectItem value="this_month">Este mes</SelectItem>
-                                        <SelectItem value="last_month">Mes pasado</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                    <Button variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal min-w-0", !customDateRange && "text-muted-foreground")}>
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {customDateRange?.from ? 
-                                            customDateRange.to ? `${format(customDateRange.from, 'LLL dd')} - ${format(customDateRange.to, 'LLL dd, y')}` : format(customDateRange.from, 'LLL dd, y') :
-                                            <span>Rango personalizado</span>}
-                                    </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                        initialFocus mode="range"
-                                        defaultMonth={customDateRange?.from}
-                                        selected={customDateRange}
-                                        onSelect={(range) => { setCustomDateRange(range); if (range?.from) setFilterPreset('custom'); }}
-                                        numberOfMonths={2} locale={es}
-                                    />
-                                    </PopoverContent>
-                                </Popover>
-                                
-                                <Button variant="ghost" size="icon" onClick={resetFilters} className="flex-shrink-0"><FilterX className="h-4 w-4" /></Button>
-                            </div>
-                            <div className="relative flex-1 min-w-0">
-                                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input 
-                                    type="search"
-                                    placeholder="Buscar por artículo, ID de pedido o mesa..."
-                                    className="pl-8 min-w-0"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        {soldItemInfo && soldItemInfo.totalQuantity > 0 && (
-                            <Card className="mb-4 bg-blue-50 border-blue-200 min-w-0">
-                                <CardContent className="p-3 text-sm min-w-0">
-                                    <p>
-                                        Se vendieron <strong>{soldItemInfo.totalQuantity} '{soldItemInfo.name}'</strong> en <strong>{soldItemInfo.orderCount}</strong> pedidos, generando un total de <strong className="text-blue-800">${soldItemInfo.totalRevenue.toFixed(2)}</strong>.
-                                    </p>
-                                    {Object.keys(soldItemInfo.notesBreakdown).length > 0 && (
-                                        <div className="mt-2 text-xs">
-                                            <strong>Desglose:</strong> {Object.entries(soldItemInfo.notesBreakdown).map(([note, qty]) => `${note} (x${qty})`).join(', ')}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        )}
-                        
-                        {paymentMethodSummary && (
-                            <Card className="mb-4 bg-green-50 border-green-200 min-w-0">
-                                <CardContent className="p-3 text-sm min-w-0">
-                                    <p>
-                                        Se encontraron <strong>{paymentMethodSummary.orderCount} pedidos</strong> pagados con <strong>{paymentMethodSummary.method}</strong>, sumando un total de <strong className="text-green-800">${paymentMethodSummary.totalRevenue.toFixed(2)}</strong> para el período seleccionado.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        )}
-
-
-                        <div className="table-responsive w-full overflow-x-auto min-w-0">
-                          <ScrollArea className="h-[40vh] min-w-0">
-                              <Table>
-                                  <TableHeader>
-                                      <TableRow>
-                                          <TableHead>Pedido</TableHead>
-                                          <TableHead className="w-[150px] hidden sm:table-cell">Fecha</TableHead>
-                                          <TableHead>Pago</TableHead>
-                                          <TableHead className="text-right">Total</TableHead>
-                                          {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center">Acción</TableHead>}
-                                      </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                      {filteredOrders.length > 0 ? filteredOrders.map(order => (
-                                          <TableRow key={order.id} onClick={() => setSelectedOrder(order)} className="cursor-pointer min-w-0">
-                                              <TableCell>
-                                                  <div className="font-medium min-w-0">
-                                                      {order.tableId === 'takeaway' ? 'PARA LLEVAR' : `Mesa ${order.tableId}`}
-                                                  </div>
-                                                  <div className="text-xs text-muted-foreground md:hidden">
-                                                      {format(new Date(order.createdAt), "dd/MM/yy HH:mm", { locale: es })}
-                                                  </div>
-                                              </TableCell>
-                                              <TableCell className="hidden sm:table-cell">
-                                                  {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}
-                                              </TableCell>
-                                              <TableCell>
-                                                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                                                      order.paymentMethod === 'Efectivo' ? 'bg-green-100 text-green-800' :
-                                                      order.paymentMethod === 'DeUna' ? 'bg-blue-100 text-blue-800' :
-                                                      order.paymentMethod === 'Transferencia' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                                                  }`}>
-                                                      {order.paymentMethod || 'N/A'}
-                                                  </span>
-                                              </TableCell>
-                                              <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
-                                              {currentUser?.role === 'admin' && order.status === 'completed' && (
-                                              <TableCell className="text-center">
-                                                  <Button variant="destructive" size="sm" onClick={(e) => {e.stopPropagation(); handleCancelOrder(order.id)}} className="whitespace-normal">Anular</Button>
-                                              </TableCell>)}
-                                          </TableRow>
-                                      )) : (
-                                          <TableRow>
-                                              <TableCell colSpan={currentUser?.role === 'admin' ? 5 : 4} className="h-24 text-center">
-                                                  No se encontraron resultados.
-                                              </TableCell>
-                                          </TableRow>
-                                      )}
-                                  </TableBody>
-                              </Table>
-                          </ScrollArea>
-                        </div>
+                {paymentMethodSummary && (
+                  <Card className="mb-4 bg-green-50 border-green-200 min-w-0">
+                    <CardContent className="p-3 text-sm min-w-0">
+                      <p>
+                        Se encontraron <strong>{paymentMethodSummary.orderCount} pedidos</strong> pagados con <strong>{paymentMethodSummary.method}</strong>, sumando un total de <strong className="text-green-800">${paymentMethodSummary.totalRevenue.toFixed(2)}</strong> para el período seleccionado.
+                      </p>
                     </CardContent>
-                </Card>
-            
-                <Card className="sticky top-24 min-w-0">
-                    <CardHeader className="flex flex-row items-center justify-between">
-                         <CardTitle>Detalles del Pedido</CardTitle>
-                         {selectedOrder && (
-                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedOrder(null)}>
-                                <XCircle className="h-5 w-5" />
-                             </Button>
-                         )}
-                    </CardHeader>
-                    <CardContent>
-                        {selectedOrder ? (
-                            <div className="space-y-4">
-                                <div>
-                                  <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
-                                    <Button variant="outline" className="flex items-center gap-2 whitespace-normal">
-                                      <ArrowLeft className="h-5 w-5" />
-                                      Volver
-                                    </Button>
-                                  </Link>
+                  </Card>
+                )}
 
-                                    <h3 className="font-semibold">{selectedOrder.tableId === 'takeaway' ? 'Pedido para llevar' : `Mesa ${selectedOrder.tableId}`}</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        {format(new Date(selectedOrder.createdAt), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">ID: {selectedOrder.id}</p>
-                                    {selectedOrder.paymentMethod && <p className="text-sm font-medium">Pagado con: {selectedOrder.paymentMethod}</p>}
-                                </div>
-                                {selectedOrder.notes && (
-                                    <div className="text-sm border-t border-b py-2">
-                                        <p className="font-semibold">Notas Generales:</p>
-                                        <p className="text-muted-foreground whitespace-pre-wrap break-words">{selectedOrder.notes}</p>
-                                    </div>
-                                )}
-                                <ScrollArea className="h-[45vh] min-w-0">
-                                    <ul className="space-y-2 text-sm pr-4">
-                                        {selectedOrder.items.map((item, index) => {
-                                            const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
-                                            const price = item.customPrice || (menuItem ? menuItem.precio : 0);
-                                            return (
-                                                <li key={`${item.menuItemId}-${index}`} className="flex justify-between border-b pb-2 min-w-0">
-                                                    <div className="min-w-0">
-                                                        <span className="font-medium">
-                                                            {menuItem?.nombre} x{item.quantity}
-                                                            {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
-                                                        </span>
-                                                        {item.notes && <p className="text-xs text-amber-700 break-words">Nota: {item.notes}</p>}
-                                                    </div>
-                                                    <span className="min-w-0">${(price * item.quantity).toFixed(2)}</span>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                </ScrollArea>
-                                <CardFooter className="font-bold text-lg flex justify-between p-0 pt-4">
-                                    <span>Total:</span>
-                                    <span>${selectedOrder.total.toFixed(2)}</span>
-                                </CardFooter>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-[60vh] text-center text-muted-foreground">
-                                <Search className="h-12 w-12 mb-4" />
-                                <p>Selecciona un pedido de la lista para ver sus detalles aquí.</p>
-                            </div>
+
+                <div className="table-responsive w-full overflow-x-auto min-w-0">
+                  <ScrollArea className="h-[40vh] min-w-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Pedido</TableHead>
+                          <TableHead className="w-[150px] hidden sm:table-cell">Fecha</TableHead>
+                          <TableHead>Pago</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center">Acción</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrders.length > 0 ? filteredOrders.map(order => (
+                          <TableRow key={order.id} onClick={() => setSelectedOrder(order)} className="cursor-pointer min-w-0">
+                            <TableCell>
+                              <div className="font-medium min-w-0">
+                                {order.tableId === 'takeaway' ? 'PARA LLEVAR' : `Mesa ${order.tableId}`}
+                              </div>
+                              <div className="text-xs text-muted-foreground md:hidden">
+                                {format(new Date(order.createdAt), "dd/MM/yy HH:mm", { locale: es })}
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">
+                              {format(new Date(order.createdAt), "dd MMM yyyy, HH:mm", { locale: es })}
+                            </TableCell>
+                            <TableCell>
+                              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${order.paymentMethod === 'Efectivo' ? 'bg-green-100 text-green-800' :
+                                order.paymentMethod === 'DeUna' ? 'bg-blue-100 text-blue-800' :
+                                  order.paymentMethod === 'Transferencia' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                {order.paymentMethod || 'N/A'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
+                            {currentUser?.role === 'admin' && order.status === 'completed' && (
+                              <TableCell className="text-center">
+                                <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); handleCancelOrder(order.id) }} className="whitespace-normal">Anular</Button>
+                              </TableCell>)}
+                          </TableRow>
+                        )) : (
+                          <TableRow>
+                            <TableCell colSpan={currentUser?.role === 'admin' ? 5 : 4} className="h-24 text-center">
+                              No se encontraron resultados.
+                            </TableCell>
+                          </TableRow>
                         )}
-                    </CardContent>
-                </Card>
-            </div>
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="sticky top-24 min-w-0">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Detalles del Pedido</CardTitle>
+                {selectedOrder && (
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedOrder(null)}>
+                    <XCircle className="h-5 w-5" />
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent>
+                {selectedOrder ? (
+                  <div className="space-y-4">
+                    <div>
+                      <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
+                        <Button variant="outline" className="flex items-center gap-2 whitespace-normal">
+                          <ArrowLeft className="h-5 w-5" />
+                          Volver
+                        </Button>
+                      </Link>
+
+                      <h3 className="font-semibold">{selectedOrder.tableId === 'takeaway' ? 'Pedido para llevar' : `Mesa ${selectedOrder.tableId}`}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(selectedOrder.createdAt), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">ID: {selectedOrder.id}</p>
+                      {selectedOrder.paymentMethod && <p className="text-sm font-medium">Pagado con: {selectedOrder.paymentMethod}</p>}
+                    </div>
+                    {selectedOrder.notes && (
+                      <div className="text-sm border-t border-b py-2">
+                        <p className="font-semibold">Notas Generales:</p>
+                        <p className="text-muted-foreground whitespace-pre-wrap break-words">{selectedOrder.notes}</p>
+                      </div>
+                    )}
+                    <ScrollArea className="h-[45vh] min-w-0">
+                      <ul className="space-y-2 text-sm pr-4">
+                        {selectedOrder.items.map((item, index) => {
+                          const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
+                          const price = item.customPrice || (menuItem ? menuItem.precio : 0);
+                          return (
+                            <li key={`${item.menuItemId}-${index}`} className="flex justify-between border-b pb-2 min-w-0">
+                              <div className="min-w-0">
+                                <span className="font-medium">
+                                  {menuItem?.nombre} x{item.quantity}
+                                  {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
+                                </span>
+                                {item.notes && <p className="text-xs text-amber-700 break-words">Nota: {item.notes}</p>}
+                              </div>
+                              <span className="min-w-0">${(price * item.quantity).toFixed(2)}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </ScrollArea>
+                    <CardFooter className="font-bold text-lg flex justify-between p-0 pt-4">
+                      <span>Total:</span>
+                      <span>${selectedOrder.total.toFixed(2)}</span>
+                    </CardFooter>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-[60vh] text-center text-muted-foreground">
+                    <Search className="h-12 w-12 mb-4" />
+                    <p>Selecciona un pedido de la lista para ver sus detalles aquí.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
       </main>
