@@ -51,6 +51,7 @@ export default function InventoryPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<StockStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isCreateModalOpen, setCreateModalOpen] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -155,6 +156,7 @@ export default function InventoryPage() {
       });
 
       form.reset();
+      setCreateModalOpen(false);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -263,7 +265,11 @@ export default function InventoryPage() {
           </div>
 
           <div className="flex gap-2">
-            <Link href="/inventory/categories">
+            <Button onClick={() => setCreateModalOpen(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Nuevo Item
+              </Button>
+              <Link href="/inventory/categories">
               <Button variant="outline" className="flex items-center gap-2">
                 <FolderPlus className="h-4 w-4" />
                 Categorías
@@ -335,169 +341,10 @@ export default function InventoryPage() {
           </Card>
         )}
 
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
-
-          {/* Formulario de Nuevo Item */}
-          <div className="lg:col-span-2">
-            <Card>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                  <CardHeader>
-                    <CardTitle>Añadir Nuevo Item</CardTitle>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nombre</FormLabel>
-                          <FormControl>
-                            <Input placeholder="ej. Pescado Albacora" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="categoryId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Categoría</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccione categoría" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {categories?.map((cat) => (
-                                <SelectItem key={cat.id} value={cat.id}>
-                                  {cat.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="currentStock"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Stock Inicial</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" step="0.01" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="unit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Unidad</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {UNITS.map((unit) => (
-                                  <SelectItem key={unit} value={unit}>
-                                    {unit}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="minStock"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Stock Mínimo</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" step="0.01" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="costPerUnit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Costo por Unidad ($)</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="0" step="0.01" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="supplier"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Proveedor (opcional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="ej. Mercado Montebello" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="expirationDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Fecha de Caducidad (opcional)</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-
-                  <CardContent>
-                    <Button type="submit" className="w-full">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Añadir Item
-                    </Button>
-                  </CardContent>
-                </form>
-              </Form>
-            </Card>
-          </div>
+        <div className="w-full">
 
           {/* Lista de Inventario */}
-          <div className="lg:col-span-3">
+          <div className="w-full">
             <Card>
               <CardHeader>
                 <CardTitle>Inventario Actual</CardTitle>
@@ -554,6 +401,7 @@ export default function InventoryPage() {
                           <TableHead className="text-right">Stock</TableHead>
                           <TableHead className="text-center">Estado</TableHead>
                           <TableHead className="text-right">Costo/U</TableHead>
+                          <TableHead className="text-center">Caducidad</TableHead>
                           {currentUser.role === 'admin' && (
                             <TableHead className="text-right">Acciones</TableHead>
                           )}
@@ -582,6 +430,9 @@ export default function InventoryPage() {
                               </TableCell>
                               <TableCell className="text-right">
                                 ${item.costPerUnit.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-center text-sm">
+                                {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString('es-ES') : '-'}
                               </TableCell>
                               {currentUser.role === 'admin' && (
                                 <TableCell className="text-right">
@@ -643,6 +494,173 @@ export default function InventoryPage() {
             </Card>
           </div>
         </div>
+        {/* Create Modal */}
+        <Dialog open={isCreateModalOpen} onOpenChange={setCreateModalOpen}>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)}>
+                <DialogHeader>
+                  <DialogTitle>Añadir Nuevo Item</DialogTitle>
+                  <DialogDescription>
+                    Complete los datos del nuevo item de inventario.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4 py-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ej. Pescado Albacora" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categoría</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Seleccione categoría" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories?.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="currentStock"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Stock Inicial</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="0" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="unit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unidad</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {UNITS.map((unit) => (
+                                <SelectItem key={unit} value={unit}>
+                                  {unit}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="minStock"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Stock Mínimo</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="0" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="costPerUnit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Costo por Unidad ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="0" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={form.control}
+                    name="supplier"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Proveedor (opcional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="ej. Mercado Montebello" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="expirationDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha de Caducidad (opcional)</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setCreateModalOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Crear Item
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+
 
         {/* Edit Modal */}
         <Dialog open={isEditModalOpen} onOpenChange={setEditModalOpen}>
