@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { InventoryItem } from '@/types';
 
@@ -40,6 +40,40 @@ export function useInventory() {
                 updatedAt: now,
             });
         } catch (error) {
+            console.error('Error adding inventory item:', error);
+            throw error;
+        }
+    };
+
+    const updateInventoryItem = async (itemId: string, updates: Partial<InventoryItem>) => {
+        try {
+            const itemRef = doc(db, 'inventory_items', itemId);
+
+            // Remove fields that shouldn't be updated and filter out undefined values
+            const { id, createdAt, createdBy, ...updateData } = updates as any;
+
+            // Remove undefined values (Firestore doesn't accept them)
+            const cleanedData = Object.entries(updateData).reduce((acc, [key, value]) => {
+                if (value !== undefined) {
+                    acc[key] = value;
+                }
+                return acc;
+            }, {} as any);
+
+            await updateDoc(itemRef, {
+                ...cleanedData,
+                updatedAt: Date.now(),
+            });
+        } catch (error) {
+            console.error('Error updating inventory item:', error);
+            throw error;
+        }
+    };
+
+    const deleteInventoryItem = async (itemId: string) => {
+        try {
+            const itemRef = doc(db, 'inventory_items', itemId);
+            await deleteDoc(itemRef);
         } catch (error) {
             console.error('Error deleting inventory item:', error);
             throw error;
