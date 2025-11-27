@@ -113,6 +113,38 @@ export default function InventoryPage() {
     return getTotalInventoryValue();
   }, [getTotalInventoryValue]);
 
+  // Analytics: Items próximos a caducar (7 días)
+  const expiringItems = useMemo(() => {
+    if (!items) return [];
+    const sevenDaysFromNow = Date.now() + (7 * 24 * 60 * 60 * 1000);
+    return items.filter(item =>
+      item.expirationDate &&
+      item.expirationDate <= sevenDaysFromNow &&
+      item.expirationDate > Date.now()
+    );
+  }, [items]);
+
+  // Analytics: Valor por categoría
+  const valueByCategory = useMemo(() => {
+    if (!items || !categories) return [];
+    const categoryValues = categories.map(cat => {
+      const categoryItems = items.filter(item => item.categoryId === cat.id);
+      const value = categoryItems.reduce((sum, item) =>
+        sum + (item.currentStock * item.costPerUnit), 0
+      );
+      return { category: cat, value, itemCount: categoryItems.length };
+    }).filter(cv => cv.value > 0);
+
+    return categoryValues.sort((a, b) => b.value - a.value);
+  }, [items, categories]);
+
+  // Analytics: Porcentaje de items críticos
+  const criticalPercentage = useMemo(() => {
+    if (!items || items.length === 0) return 0;
+    const criticalCount = items.filter(item => getStockStatus(item) === 'critical').length;
+    return Math.round((criticalCount / items.length) * 100);
+  }, [items]);
+
   const onSubmit = async (values: z.infer<typeof itemSchema>) => {
     if (!currentUser || !categories) return;
 
@@ -285,7 +317,7 @@ export default function InventoryPage() {
         </div>
 
         {/* KPIs */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total de Items</CardTitle>
@@ -293,6 +325,9 @@ export default function InventoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{items?.length || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                En inventario
+              </p>
             </CardContent>
           </Card>
 
@@ -303,6 +338,9 @@ export default function InventoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">{lowStockItems.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Requieren atención
+              </p>
             </CardContent>
           </Card>
 
@@ -313,6 +351,54 @@ export default function InventoryPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">${totalValue.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Inventario actual
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className={expiringItems.length > 0 ? "border-orange-500" : ""}>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Próximos a Caducar</CardTitle>
+              <TrendingDown className={`h-4 w-4 ${expiringItems.length > 0 ? 'text-orange-600' : 'text-muted-foreground'}`} />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${expiringItems.length > 0 ? 'text-orange-600' : ''}`}>
+                {expiringItems.length}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Próximos 7 días
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Items Críticos</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${criticalPercentage > 20 ? 'text-red-600' : ''}`}>
+                {criticalPercentage}%
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Del inventario total
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Categoría Principal</CardTitle>
+              <FolderPlus className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {valueByCategory[0] ? `$${valueByCategory[0].value.toFixed(0)}` : '$0'}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {valueByCategory[0]?.category.name || 'Sin datos'}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -340,6 +426,79 @@ export default function InventoryPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Insights y Analytics */}
+        {(expiringItems.length > 0 || valueByCategory.length > 0) && (
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Items Próximos a Caducar */}
+            {expiringItems.length > 0 && (
+              <Card className="border-orange-500 bg-orange-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-orange-800">
+                    <TrendingDown className="h-5 w-5" />
+                    Items Próximos a Caducar ({expiringItems.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {expiringItems.slice(0, 5).map(item => (
+                      <div key={item.id} className="flex justify-between items-center text-sm">
+                        <span className="font-medium">{item.name}</span>
+                        <span className="text-orange-700">
+                          {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString('es-ES') : ''}
+                        </span>
+                      </div>
+                    ))}
+                    {expiringItems.length > 5 && (
+                      <p className="text-xs text-muted-foreground text-center pt-2">
+                        +{expiringItems.length - 5} items más
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Distribución de Valor por Categoría */}
+            {valueByCategory.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5" />
+                    Valor por Categoría
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {valueByCategory.slice(0, 5).map(cv => (
+                      <div key={cv.category.id} className="space-y-1">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-medium">{cv.category.name}</span>
+                          <span className="font-bold">${cv.value.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${(cv.value / valueByCategory[0].value) * 100}%`,
+                                backgroundColor: cv.category.color
+                              }}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground w-16 text-right">
+                            {cv.itemCount} items
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
 
         <div className="w-full">
 
