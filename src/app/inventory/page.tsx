@@ -35,6 +35,7 @@ const itemSchema = z.object({
   maxStock: z.coerce.number().optional(),
   costPerUnit: z.coerce.number().min(0, { message: 'El costo debe ser positivo.' }),
   supplier: z.string().optional(),
+  expirationDate: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -64,6 +65,7 @@ export default function InventoryPage() {
       minStock: 0,
       costPerUnit: 0,
       supplier: '',
+      expirationDate: '',
       notes: '',
     },
   });
@@ -117,11 +119,27 @@ export default function InventoryPage() {
       const category = categories.find(c => c.id === values.categoryId);
       if (!category) throw new Error('Categoría no encontrada');
 
-      await addInventoryItem({
-        ...values,
+      // Preparar datos con conversión de fecha
+      const itemData: any = {
+        name: values.name,
+        categoryId: values.categoryId,
         categoryName: category.name,
+        currentStock: values.currentStock,
+        unit: values.unit,
+        minStock: values.minStock,
+        maxStock: values.maxStock,
+        costPerUnit: values.costPerUnit,
+        supplier: values.supplier,
+        notes: values.notes,
         createdBy: currentUser.username,
-      });
+      };
+
+      // Convertir fecha a timestamp si existe
+      if (values.expirationDate) {
+        itemData.expirationDate = new Date(values.expirationDate).getTime();
+      }
+
+      await addInventoryItem(itemData);
 
       toast({
         title: 'Item Creado',
@@ -143,11 +161,26 @@ export default function InventoryPage() {
 
     try {
       const category = categories.find(c => c.id === values.categoryId);
-
-      await updateInventoryItem(selectedItem.id, {
-        ...values,
+      
+      const updateData: any = {
+        name: values.name,
+        categoryId: values.categoryId,
         categoryName: category?.name || selectedItem.categoryName,
-      });
+        currentStock: values.currentStock,
+        unit: values.unit,
+        minStock: values.minStock,
+        maxStock: values.maxStock,
+        costPerUnit: values.costPerUnit,
+        supplier: values.supplier,
+        notes: values.notes,
+      };
+
+      // Convertir fecha a timestamp si existe
+      if (values.expirationDate) {
+        updateData.expirationDate = new Date(values.expirationDate).getTime();
+      }
+
+      await updateInventoryItem(selectedItem.id, updateData);
 
       toast({
         title: 'Item Actualizado',
@@ -546,7 +579,8 @@ export default function InventoryPage() {
                                           maxStock: item.maxStock,
                                           costPerUnit: item.costPerUnit,
                                           supplier: item.supplier || '',
-                                          notes: item.notes || '',
+                                        expirationDate: item.expirationDate ? new Date(item.expirationDate).toISOString().split('T')[0] : '',
+                                        notes: item.notes || '',
                                         });
                                         setEditModalOpen(true);
                                       }}
@@ -725,6 +759,20 @@ export default function InventoryPage() {
                       </FormItem>
                     )}
                   />
+
+                <FormField
+                  control={editForm.control}
+                  name="expirationDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fecha de Caducidad</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 </div>
 
                 <DialogFooter>
