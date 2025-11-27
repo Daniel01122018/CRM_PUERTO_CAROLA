@@ -127,12 +127,20 @@ export default function InventoryPage() {
         currentStock: values.currentStock,
         unit: values.unit,
         minStock: values.minStock,
-        maxStock: values.maxStock,
         costPerUnit: values.costPerUnit,
-        supplier: values.supplier,
-        notes: values.notes,
         createdBy: currentUser.username,
       };
+
+      // Agregar campos opcionales solo si tienen valor
+      if (values.maxStock !== undefined && values.maxStock !== '') {
+        itemData.maxStock = values.maxStock;
+      }
+      if (values.supplier) {
+        itemData.supplier = values.supplier;
+      }
+      if (values.notes) {
+        itemData.notes = values.notes;
+      }
 
       // Convertir fecha a timestamp si existe
       if (values.expirationDate) {
