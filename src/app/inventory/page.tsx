@@ -17,6 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AppSidebar from '@/components/app-sidebar';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Package, AlertTriangle, TrendingDown, DollarSign, Plus, Search, Edit, Trash2, Eye, FolderPlus } from 'lucide-react';
@@ -316,343 +317,382 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* KPIs */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Items</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{items?.length || 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                En inventario
-              </p>
-            </CardContent>
-          </Card>
+        {/* Sistema de Pestañas */}
+        <Tabs defaultValue="inventory" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="inventory">Inventario</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Items Bajo Stock</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{lowStockItems.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Requieren atención
-              </p>
-            </CardContent>
-          </Card>
+          {/* Pestaña de Analytics */}
+          <TabsContent value="analytics" className="space-y-4">
+            {/* KPIs */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total de Items</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{items?.length || 0}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    En inventario
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${totalValue.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Inventario actual
-              </p>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Items Bajo Stock</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-yellow-600">{lowStockItems.length}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Requieren atención
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card className={expiringItems.length > 0 ? "border-orange-500" : ""}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Próximos a Caducar</CardTitle>
-              <TrendingDown className={`h-4 w-4 ${expiringItems.length > 0 ? 'text-orange-600' : 'text-muted-foreground'}`} />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${expiringItems.length > 0 ? 'text-orange-600' : ''}`}>
-                {expiringItems.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Próximos 7 días
-              </p>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">${totalValue.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Inventario actual
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Items Críticos</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${criticalPercentage > 20 ? 'text-red-600' : ''}`}>
-                {criticalPercentage}%
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Del inventario total
-              </p>
-            </CardContent>
-          </Card>
+              <Card className={expiringItems.length > 0 ? "border-orange-500" : ""}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Próximos a Caducar</CardTitle>
+                  <TrendingDown className={`h-4 w-4 ${expiringItems.length > 0 ? 'text-orange-600' : 'text-muted-foreground'}`} />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${expiringItems.length > 0 ? 'text-orange-600' : ''}`}>
+                    {expiringItems.length}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Próximos 7 días
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Categoría Principal</CardTitle>
-              <FolderPlus className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {valueByCategory[0] ? `$${valueByCategory[0].value.toFixed(0)}` : '$0'}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {valueByCategory[0]?.category.name || 'Sin datos'}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Items Críticos</CardTitle>
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${criticalPercentage > 20 ? 'text-red-600' : ''}`}>
+                    {criticalPercentage}%
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Del inventario total
+                  </p>
+                </CardContent>
+              </Card>
 
-        {/* Alertas de Stock Bajo */}
-        {lowStockItems.length > 0 && (
-          <Card className="border-yellow-500 bg-yellow-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-yellow-800">
-                <AlertTriangle className="h-5 w-5" />
-                Alertas de Stock Bajo ({lowStockItems.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {lowStockItems.slice(0, 5).map(item => (
-                  <Badge key={item.id} variant="outline" className="border-yellow-600">
-                    {item.name}: {item.currentStock} {item.unit}
-                  </Badge>
-                ))}
-                {lowStockItems.length > 5 && (
-                  <Badge variant="outline">+{lowStockItems.length - 5} más</Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Categoría Principal</CardTitle>
+                  <FolderPlus className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {valueByCategory[0] ? `$${valueByCategory[0].value.toFixed(0)}` : '$0'}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {valueByCategory[0]?.category.name || 'Sin datos'}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
-        {/* Insights y Analytics */}
-        {(expiringItems.length > 0 || valueByCategory.length > 0) && (
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Items Próximos a Caducar */}
-            {expiringItems.length > 0 && (
-              <Card className="border-orange-500 bg-orange-50">
+            {/* Alertas de Stock Bajo (para Analytics) */}
+            {lowStockItems.length > 0 && (
+              <Card className="border-yellow-500 bg-yellow-50">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-orange-800">
-                    <TrendingDown className="h-5 w-5" />
-                    Items Próximos a Caducar ({expiringItems.length})
+                  <CardTitle className="flex items-center gap-2 text-yellow-800">
+                    <AlertTriangle className="h-5 w-5" />
+                    Alertas de Stock Bajo ({lowStockItems.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {expiringItems.slice(0, 5).map(item => (
-                      <div key={item.id} className="flex justify-between items-center text-sm">
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-orange-700">
-                          {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString('es-ES') : ''}
-                        </span>
-                      </div>
+                  <div className="flex flex-wrap gap-2">
+                    {lowStockItems.slice(0, 5).map(item => (
+                      <Badge key={item.id} variant="outline" className="border-yellow-600">
+                        {item.name}: {item.currentStock} {item.unit}
+                      </Badge>
                     ))}
-                    {expiringItems.length > 5 && (
-                      <p className="text-xs text-muted-foreground text-center pt-2">
-                        +{expiringItems.length - 5} items más
-                      </p>
+                    {lowStockItems.length > 5 && (
+                      <Badge variant="outline">+{lowStockItems.length - 5} más</Badge>
                     )}
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Distribución de Valor por Categoría */}
-            {valueByCategory.length > 0 && (
-              <Card>
+            {/* Insights y Analytics */}
+            {(expiringItems.length > 0 || valueByCategory.length > 0) && (
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Items Próximos a Caducar */}
+                {expiringItems.length > 0 && (
+                  <Card className="border-orange-500 bg-orange-50">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-orange-800">
+                        <TrendingDown className="h-5 w-5" />
+                        Items Próximos a Caducar ({expiringItems.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {expiringItems.slice(0, 5).map(item => (
+                          <div key={item.id} className="flex justify-between items-center text-sm">
+                            <span className="font-medium">{item.name}</span>
+                            <span className="text-orange-700">
+                              {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString('es-ES') : ''}
+                            </span>
+                          </div>
+                        ))}
+                        {expiringItems.length > 5 && (
+                          <p className="text-xs text-muted-foreground text-center pt-2">
+                            +{expiringItems.length - 5} items más
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Distribución de Valor por Categoría */}
+                {valueByCategory.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <DollarSign className="h-5 w-5" />
+                        Valor por Categoría
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {valueByCategory.slice(0, 5).map(cv => (
+                          <div key={cv.category.id} className="space-y-1">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="font-medium">{cv.category.name}</span>
+                              <span className="font-bold">${cv.value.toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all"
+                                  style={{
+                                    width: `${(cv.value / valueByCategory[0].value) * 100}%`,
+                                    backgroundColor: cv.category.color
+                                  }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground w-16 text-right">
+                                {cv.itemCount} items
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Pestaña de Inventario */}
+          <TabsContent value="inventory" className="space-y-4">
+            {/* Alertas de Stock Bajo (Solo críticas) */}
+            {lowStockItems.length > 0 && (
+              <Card className="border-yellow-500 bg-yellow-50">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <DollarSign className="h-5 w-5" />
-                    Valor por Categoría
+                  <CardTitle className="flex items-center gap-2 text-yellow-800">
+                    <AlertTriangle className="h-5 w-5" />
+                    Alertas de Stock Bajo ({lowStockItems.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {valueByCategory.slice(0, 5).map(cv => (
-                      <div key={cv.category.id} className="space-y-1">
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="font-medium">{cv.category.name}</span>
-                          <span className="font-bold">${cv.value.toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all"
-                              style={{
-                                width: `${(cv.value / valueByCategory[0].value) * 100}%`,
-                                backgroundColor: cv.category.color
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs text-muted-foreground w-16 text-right">
-                            {cv.itemCount} items
-                          </span>
-                        </div>
-                      </div>
+                  <div className="flex flex-wrap gap-2">
+                    {lowStockItems.slice(0, 5).map(item => (
+                      <Badge key={item.id} variant="outline" className="border-yellow-600">
+                        {item.name}: {item.currentStock} {item.unit}
+                      </Badge>
                     ))}
+                    {lowStockItems.length > 5 && (
+                      <Badge variant="outline">+{lowStockItems.length - 5} más</Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             )}
-          </div>
-        )}
 
 
-        <div className="w-full">
+            <div className="w-full">
 
-          {/* Lista de Inventario */}
-          <div className="w-full">
-            <Card>
-              <CardHeader>
-                <CardTitle>Inventario Actual</CardTitle>
-              </CardHeader>
+              {/* Lista de Inventario */}
+              <div className="w-full">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Inventario Actual</CardTitle>
+                  </CardHeader>
 
-              <CardContent className="space-y-4">
-                {/* Filtros y Búsqueda */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por nombre..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-8"
-                    />
-                  </div>
+                  <CardContent className="space-y-4">
+                    {/* Filtros y Búsqueda */}
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar por nombre..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-8"
+                        />
+                      </div>
 
-                  <Select value={filterCategory} onValueChange={setFilterCategory}>
-                    <SelectTrigger className="w-full sm:w-[180px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas las categorías</SelectItem>
-                      {categories?.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                      <Select value={filterCategory} onValueChange={setFilterCategory}>
+                        <SelectTrigger className="w-full sm:w-[180px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas las categorías</SelectItem>
+                          {categories?.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
 
-                  <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as StockStatus | 'all')}>
-                    <SelectTrigger className="w-full sm:w-[130px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todos</SelectItem>
-                      <SelectItem value="ok">OK</SelectItem>
-                      <SelectItem value="warning">Bajo</SelectItem>
-                      <SelectItem value="critical">Crítico</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                      <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as StockStatus | 'all')}>
+                        <SelectTrigger className="w-full sm:w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos</SelectItem>
+                          <SelectItem value="ok">OK</SelectItem>
+                          <SelectItem value="warning">Bajo</SelectItem>
+                          <SelectItem value="critical">Crítico</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                {/* Tabla */}
-                <div className="border rounded-lg overflow-x-auto">
-                  <ScrollArea className="h-[50vh]">
-                    <Table>
-                      <TableHeader className="bg-muted/50">
-                        <TableRow>
-                          <TableHead>Nombre</TableHead>
-                          <TableHead>Categoría</TableHead>
-                          <TableHead className="text-right">Stock</TableHead>
-                          <TableHead className="text-center">Estado</TableHead>
-                          <TableHead className="text-right">Costo/U</TableHead>
-                          <TableHead className="text-center">Caducidad</TableHead>
-                          {currentUser.role === 'admin' && (
-                            <TableHead className="text-right">Acciones</TableHead>
-                          )}
-                        </TableRow>
-                      </TableHeader>
-
-                      <TableBody>
-                        {loading ? (
-                          <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
-                              Cargando...
-                            </TableCell>
-                          </TableRow>
-                        ) : filteredItems.length > 0 ? (
-                          filteredItems.map(item => (
-                            <TableRow key={item.id}>
-                              <TableCell className="font-medium">{item.name}</TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {item.categoryName}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {item.currentStock} {item.unit}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {getStatusBadge(getStockStatus(item))}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                ${item.costPerUnit.toFixed(2)}
-                              </TableCell>
-                              <TableCell className="text-center text-sm">
-                                {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString('es-ES') : '-'}
-                              </TableCell>
+                    {/* Tabla */}
+                    <div className="border rounded-lg overflow-x-auto">
+                      <ScrollArea className="h-[50vh]">
+                        <Table>
+                          <TableHeader className="bg-muted/50">
+                            <TableRow>
+                              <TableHead>Nombre</TableHead>
+                              <TableHead>Categoría</TableHead>
+                              <TableHead className="text-right">Stock</TableHead>
+                              <TableHead className="text-center">Estado</TableHead>
+                              <TableHead className="text-right">Costo/U</TableHead>
+                              <TableHead className="text-center">Caducidad</TableHead>
                               {currentUser.role === 'admin' && (
-                                <TableCell className="text-right">
-                                  <div className="flex justify-end gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => {
-                                        setSelectedItem(item);
-                                        editForm.reset({
-                                          name: item.name,
-                                          categoryId: item.categoryId,
-                                          currentStock: item.currentStock,
-                                          unit: item.unit,
-                                          minStock: item.minStock,
-                                          maxStock: item.maxStock,
-                                          costPerUnit: item.costPerUnit,
-                                          supplier: item.supplier || '',
-                                          expirationDate: item.expirationDate ? new Date(item.expirationDate).toISOString().split('T')[0] : '',
-                                          notes: item.notes || '',
-                                        });
-                                        setEditModalOpen(true);
-                                      }}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="text-destructive"
-                                      onClick={() => {
-                                        setSelectedItem(item);
-                                        setDeleteAlertOpen(true);
-                                      }}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
+                                <TableHead className="text-right">Acciones</TableHead>
                               )}
                             </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">
-                              No se encontraron items.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </div>
+                          </TableHeader>
 
-                <div className="flex justify-between items-center text-sm text-muted-foreground">
-                  <span>Mostrando {filteredItems.length} items</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                          <TableBody>
+                            {loading ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="h-24 text-center">
+                                  Cargando...
+                                </TableCell>
+                              </TableRow>
+                            ) : filteredItems.length > 0 ? (
+                              filteredItems.map(item => (
+                                <TableRow key={item.id}>
+                                  <TableCell className="font-medium">{item.name}</TableCell>
+                                  <TableCell className="text-sm text-muted-foreground">
+                                    {item.categoryName}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    {item.currentStock} {item.unit}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {getStatusBadge(getStockStatus(item))}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    ${item.costPerUnit.toFixed(2)}
+                                  </TableCell>
+                                  <TableCell className="text-center text-sm">
+                                    {item.expirationDate ? new Date(item.expirationDate).toLocaleDateString('es-ES') : '-'}
+                                  </TableCell>
+                                  {currentUser.role === 'admin' && (
+                                    <TableCell className="text-right">
+                                      <div className="flex justify-end gap-1">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => {
+                                            setSelectedItem(item);
+                                            editForm.reset({
+                                              name: item.name,
+                                              categoryId: item.categoryId,
+                                              currentStock: item.currentStock,
+                                              unit: item.unit,
+                                              minStock: item.minStock,
+                                              maxStock: item.maxStock,
+                                              costPerUnit: item.costPerUnit,
+                                              supplier: item.supplier || '',
+                                              expirationDate: item.expirationDate ? new Date(item.expirationDate).toISOString().split('T')[0] : '',
+                                              notes: item.notes || '',
+                                            });
+                                            setEditModalOpen(true);
+                                          }}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="text-destructive"
+                                          onClick={() => {
+                                            setSelectedItem(item);
+                                            setDeleteAlertOpen(true);
+                                          }}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              ))
+                            ) : (
+                              <TableRow>
+                                <TableCell colSpan={6} className="h-24 text-center">
+                                  No se encontraron items.
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    </div>
+
+                    <div className="flex justify-between items-center text-sm text-muted-foreground">
+                      <span>Mostrando {filteredItems.length} items</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+
         {/* Create Modal */}
         <Dialog open={isCreateModalOpen} onOpenChange={setCreateModalOpen}>
           <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">

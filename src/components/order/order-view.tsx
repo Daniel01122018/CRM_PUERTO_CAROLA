@@ -74,6 +74,33 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     let initialOrder: Partial<Order> | undefined;
 
+    // 1. Try to load from localStorage first (Draft Persistence)
+    const storageKey = `draft_order_${orderIdOrTableId}`;
+    const savedDraft = localStorage.getItem(storageKey);
+
+    if (savedDraft) {
+      try {
+        const parsedDraft = JSON.parse(savedDraft);
+        // Basic validation: check if it's recent (e.g., less than 24h)
+        const isRecent = Date.now() - parsedDraft.timestamp < 24 * 60 * 60 * 1000;
+
+        if (isRecent && parsedDraft.order) {
+          console.log("Restoring draft from localStorage");
+          setCurrentOrder(parsedDraft.order);
+          if (parsedDraft.order.tableId === 'takeaway') {
+            setActiveMenuContext('llevar');
+          } else {
+            setActiveMenuContext('salon');
+          }
+          return; // Skip Firestore loading if draft exists
+        }
+      } catch (e) {
+        console.error("Error parsing draft:", e);
+        localStorage.removeItem(storageKey);
+      }
+    }
+
+    // 2. If no draft, load from Firestore or initialize new
     if (orderIdOrTableId.startsWith('new-')) {
       const type = orderIdOrTableId.substring(4);
       const isTakeaway = type === 'takeaway';
@@ -126,6 +153,28 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     }
 
   }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast, baseRedirectPath]);
+
+  // Save draft to localStorage whenever currentOrder changes
+  useEffect(() => {
+    if (!currentOrder || !orderIdOrTableId) return;
+
+    // Only save drafts for active/new orders that haven't been fully saved/synced yet
+    // OR if we want to persist unsaved changes to an existing order
+
+    const storageKey = `draft_order_${orderIdOrTableId}`;
+
+    // Don't save if it's empty and new
+    if (currentOrder.items?.length === 0 && orderIdOrTableId.startsWith('new-')) {
+      return;
+    }
+
+    const draftData = {
+      order: currentOrder,
+      timestamp: Date.now()
+    };
+
+    localStorage.setItem(storageKey, JSON.stringify(draftData));
+  }, [currentOrder, orderIdOrTableId]);
 
 
   const total = useMemo(() => {
@@ -266,6 +315,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (newId) {
       toast({ title: successMessage, description: `Pedido para ${currentOrder.tableId === 'takeaway' ? 'llevar' : `Mesa ${currentOrder.tableId}`}.` });
 
+      // Clear draft on successful save
+      const storageKey = `draft_order_${orderIdOrTableId}`;
+      localStorage.removeItem(storageKey);
+
       if (orderIdOrTableId.startsWith('new-')) {
         router.replace(`/order/${newId}`);
         setCurrentOrder(prev => prev ? { ...prev, id: newId } : null);
@@ -288,6 +341,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     if (!currentOrder || !currentOrder.id) return;
     const orderToSave: Order = { ...currentOrder, total, status: 'completed', paymentMethod: paymentMethod } as Order;
     await addOrUpdateOrder(orderToSave);
+
+    // Clear draft
+    const storageKey = `draft_order_${orderIdOrTableId}`;
+    localStorage.removeItem(storageKey);
+
     toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado.` });
     setPaymentDialogOpen(false);
     setAmountReceived('');
@@ -298,6 +356,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const handleCancelOrder = async () => {
     if (!currentOrder || !currentOrder.id) return;
     await cancelOrder(currentOrder.id);
+
+    // Clear draft
+    const storageKey = `draft_order_${orderIdOrTableId}`;
+    localStorage.removeItem(storageKey);
+
     toast({ variant: "destructive", title: "Pedido Cancelado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.` });
     router.push(baseRedirectPath);
   }
