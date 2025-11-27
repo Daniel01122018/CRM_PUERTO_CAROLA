@@ -126,6 +126,20 @@ export default function InventoryPage() {
         categoryId: values.categoryId,
         categoryName: category.name,
         currentStock: values.currentStock,
+        unit: values.unit,
+        minStock: values.minStock,
+        costPerUnit: values.costPerUnit,
+        createdBy: currentUser.username,
+      };
+
+      // Agregar campos opcionales solo si tienen valor
+      if (values.maxStock !== undefined && values.maxStock !== null && values.maxStock !== 0) {
+        itemData.maxStock = values.maxStock;
+      }
+      if (values.supplier) {
+        itemData.supplier = values.supplier;
+      }
+      if (values.notes) {
         itemData.notes = values.notes;
       }
 
