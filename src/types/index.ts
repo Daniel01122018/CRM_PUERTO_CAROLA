@@ -94,5 +94,77 @@ export interface DailyStats {
   paymentMethods: { [key: string]: number };
   categoryBreakdown: { [key: string]: number };
   itemSales?: { [itemId: string]: { name: string; quantity: number; revenue: number } };
-  updatedAt: number;
 }
+
+// ========================================
+// Inventory Management Types
+// ========================================
+
+export type InventoryUnit = 'kg' | 'lb' | 'unidades' | 'litros' | 'bolsas' | 'cajas';
+export type MovementType = 'entrada' | 'salida' | 'ajuste';
+
+export interface InventoryCategory {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string; // Para visualización en UI
+  createdAt: number;
+  createdBy: string;
+}
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  categoryId: string;
+  categoryName: string; // Denormalizado para consultas rápidas
+  currentStock: number;
+  unit: InventoryUnit;
+  minStock: number; // Nivel mínimo para alertas
+  maxStock?: number; // Nivel máximo sugerido (opcional)
+  costPerUnit: number; // Costo promedio ponderado
+  supplier?: string; // Proveedor habitual
+  lastPurchaseDate?: number;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;
+}
+
+export interface InventoryMovement {
+  id: string;
+  itemId: string;
+  itemName: string; // Denormalizado
+  categoryId: string;
+  categoryName: string; // Denormalizado
+  type: MovementType;
+  quantity: number;
+  unit: InventoryUnit;
+  costPerUnit?: number; // Solo para entradas
+  totalCost?: number; // Solo para entradas (compras)
+  reason?: string; // Motivo de salida o ajuste
+  notes?: string;
+  createdAt: number;
+  createdBy: string;
+  relatedExpenseId?: string; // Link al gasto si es una compra
+  relatedOrderId?: string; // Si es deducción automática por receta
+}
+
+// Sistema de Recetas (Opcional)
+export interface RecipeIngredient {
+  itemId: string;
+  itemName: string; // Denormalizado
+  quantity: number;
+  unit: InventoryUnit;
+}
+
+export interface Recipe {
+  id: string;
+  dishName: string; // Nombre del plato del menú
+  menuItemId: number; // ID del item del menú
+  ingredients: RecipeIngredient[];
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;
+}
+

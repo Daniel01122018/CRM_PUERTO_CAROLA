@@ -1,21 +1,759 @@
-
 "use client";
 
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useAppStore } from '@/hooks/use-app-store';
+import { useInventory } from '@/hooks/use-inventory';
+import { useInventoryCategories } from '@/hooks/use-inventory-categories';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ClipboardList, ArrowLeft } from 'lucide-react'; // Import ArrowLeft icon
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import AppSidebar from '@/components/app-sidebar';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, Package, AlertTriangle, TrendingDown, DollarSign, Plus, Search, Edit, Trash2, Eye, FolderPlus } from 'lucide-react';
+import type { InventoryItem, InventoryCategory, InventoryUnit } from '@/types';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
+const UNITS: InventoryUnit[] = ['kg', 'lb', 'unidades', 'litros', 'bolsas', 'cajas'];
+
+const itemSchema = z.object({
+  name: z.string().min(1, { message: 'El nombre es requerido.' }),
+  categoryId: z.string().min(1, { message: 'Debe seleccionar una categoría.' }),
+  currentStock: z.coerce.number().min(0, { message: 'El stock debe ser positivo.' }),
+  unit: z.enum(['kg', 'lb', 'unidades', 'litros', 'bolsas', 'cajas']),
+  minStock: z.coerce.number().min(0, { message: 'El stock mínimo debe ser positivo.' }),
+  maxStock: z.coerce.number().optional(),
+  costPerUnit: z.coerce.number().min(0, { message: 'El costo debe ser positivo.' }),
+  supplier: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type StockStatus = 'ok' | 'warning' | 'critical';
 
 export default function InventoryPage() {
+  const { isMounted, currentUser } = useAppStore();
+  const { items, loading, addInventoryItem, updateInventoryItem, deleteInventoryItem, getLowStockItems, getTotalInventoryValue } = useInventory();
+  const { categories } = useInventoryCategories();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const [filterCategory, setFilterCategory] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<StockStatus | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+
+  const form = useForm<z.infer<typeof itemSchema>>({
+    resolver: zodResolver(itemSchema),
+    defaultValues: {
+      name: '',
+      categoryId: '',
+      currentStock: 0,
+      unit: 'kg',
+      minStock: 0,
+      costPerUnit: 0,
+      supplier: '',
+      notes: '',
+    },
+  });
+
+  const editForm = useForm<z.infer<typeof itemSchema>>({
+    resolver: zodResolver(itemSchema),
+  });
+
+  const getStockStatus = (item: InventoryItem): StockStatus => {
+    if (item.currentStock <= item.minStock) return 'critical';
+    if (item.currentStock <= item.minStock * 1.2) return 'warning';
+    return 'ok';
+  };
+
+  const getStatusBadge = (status: StockStatus) => {
+    switch (status) {
+      case 'critical':
+        return <Badge variant="destructive">Crítico</Badge>;
+      case 'warning':
+        return <Badge variant="outline" className="border-yellow-500 text-yellow-700">Bajo</Badge>;
+      case 'ok':
+        return <Badge variant="default" className="bg-green-600">OK</Badge>;
+    }
+  };
+
+  const filteredItems = useMemo(() => {
+    if (!items) return [];
+
+    return items.filter(item => {
+      const categoryMatch = filterCategory === 'all' || item.categoryId === filterCategory;
+      const statusMatch = filterStatus === 'all' || getStockStatus(item) === filterStatus;
+      const searchMatch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.categoryName.toLowerCase().includes(searchQuery.toLowerCase());
+
+      return categoryMatch && statusMatch && searchMatch;
+    });
+  }, [items, filterCategory, filterStatus, searchQuery]);
+
+  const lowStockItems = useMemo(() => {
+    return getLowStockItems();
+  }, [getLowStockItems]);
+
+  const totalValue = useMemo(() => {
+    return getTotalInventoryValue();
+  }, [getTotalInventoryValue]);
+
+  const onSubmit = async (values: z.infer<typeof itemSchema>) => {
+    if (!currentUser || !categories) return;
+
+    try {
+      const category = categories.find(c => c.id === values.categoryId);
+      if (!category) throw new Error('Categoría no encontrada');
+
+      await addInventoryItem({
+        ...values,
+        categoryName: category.name,
+        createdBy: currentUser.username,
+      });
+
+      toast({
+        title: 'Item Creado',
+        description: `Se ha añadido "${values.name}" al inventario.`,
+      });
+
+      form.reset();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error al crear',
+        description: error.message || 'No se pudo crear el item.',
+      });
+    }
+  };
+
+  const onEditSubmit = async (values: z.infer<typeof itemSchema>) => {
+    if (!selectedItem || !categories) return;
+
+    try {
+      const category = categories.find(c => c.id === values.categoryId);
+
+      await updateInventoryItem(selectedItem.id, {
+        ...values,
+        categoryName: category?.name || selectedItem.categoryName,
+      });
+
+      toast({
+        title: 'Item Actualizado',
+        description: 'Los cambios se han guardado exitosamente.',
+      });
+
+      setEditModalOpen(false);
+      setSelectedItem(null);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error al actualizar',
+        description: error.message || 'No se pudo actualizar el item.',
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedItem) return;
+
+    try {
+      await deleteInventoryItem(selectedItem.id);
+
+      toast({
+        title: 'Item Eliminado',
+        description: 'El item ha sido eliminado del inventario.',
+      });
+
+      setDeleteAlertOpen(false);
+      setSelectedItem(null);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error al eliminar',
+        description: error.message || 'No se pudo eliminar el item.',
+      });
+    }
+  };
+
+  if (!isMounted || !currentUser) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center text-center">
+        <Package className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-4">Cargando...</h1>
+      </div>
+    );
+  }
+
+  if (currentUser.role !== 'admin' && currentUser.role !== 'employee') {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center text-center">
+        <Package className="h-16 w-16 text-muted-foreground mb-4" />
+        <h1 className="text-2xl font-semibold mb-4">Acceso Denegado</h1>
+        <Link href="/dashboard">
+          <Button>Volver al Salón</Button>
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen flex-col items-center justify-center text-center bg-muted/40">
-      <ClipboardList className="h-16 w-16 text-muted-foreground mb-4" />
-      <h1 className="text-2xl font-semibold mb-2">Módulo de Inventario Deshabilitado</h1>
-      <p className="text-muted-foreground mb-6">Esta funcionalidad ha sido temporalmente desactivada.</p>
-      <Link href="/admin/dashboard"> {/* Corrected redirection to admin dashboard */}
-        <Button>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver al Dashboard {/* Updated button text and added icon */}
-        </Button>
-      </Link>
+    <div className="flex min-h-screen w-full flex-col bg-muted/40">
+      <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
+
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-4">
+            <AppSidebar />
+            <h1 className="text-2xl font-semibold flex items-center gap-2">
+              <Package className="h-6 w-6" />
+              Gestión de Inventario
+            </h1>
+          </div>
+
+          <div className="flex gap-2">
+            <Link href="/inventory/categories">
+              <Button variant="outline" className="flex items-center gap-2">
+                <FolderPlus className="h-4 w-4" />
+                Categorías
+              </Button>
+            </Link>
+            <Link href="/admin/dashboard">
+              <Button variant="outline" className="flex items-center gap-2">
+                <ArrowLeft className="h-5 w-5" />
+                Volver
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* KPIs */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de Items</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{items?.length || 0}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Items Bajo Stock</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{lowStockItems.length}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Valor Total</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">${totalValue.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Alertas de Stock Bajo */}
+        {lowStockItems.length > 0 && (
+          <Card className="border-yellow-500 bg-yellow-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-yellow-800">
+                <AlertTriangle className="h-5 w-5" />
+                Alertas de Stock Bajo ({lowStockItems.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {lowStockItems.slice(0, 5).map(item => (
+                  <Badge key={item.id} variant="outline" className="border-yellow-600">
+                    {item.name}: {item.currentStock} {item.unit}
+                  </Badge>
+                ))}
+                {lowStockItems.length > 5 && (
+                  <Badge variant="outline">+{lowStockItems.length - 5} más</Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
+
+          {/* Formulario de Nuevo Item */}
+          <div className="lg:col-span-2">
+            <Card>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)}>
+                  <CardHeader>
+                    <CardTitle>Añadir Nuevo Item</CardTitle>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nombre</FormLabel>
+                          <FormControl>
+                            <Input placeholder="ej. Pescado Albacora" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="categoryId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Categoría</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleccione categoría" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categories?.map((cat) => (
+                                <SelectItem key={cat.id} value={cat.id}>
+                                  {cat.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="currentStock"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Stock Inicial</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" step="0.01" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="unit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Unidad</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {UNITS.map((unit) => (
+                                  <SelectItem key={unit} value={unit}>
+                                    {unit}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="minStock"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Stock Mínimo</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" step="0.01" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="costPerUnit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Costo por Unidad ($)</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" step="0.01" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="supplier"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Proveedor (opcional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="ej. Mercado Montebello" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+
+                  <CardContent>
+                    <Button type="submit" className="w-full">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Añadir Item
+                    </Button>
+                  </CardContent>
+                </form>
+              </Form>
+            </Card>
+          </div>
+
+          {/* Lista de Inventario */}
+          <div className="lg:col-span-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Inventario Actual</CardTitle>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {/* Filtros y Búsqueda */}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por nombre..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+
+                  <Select value={filterCategory} onValueChange={setFilterCategory}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas las categorías</SelectItem>
+                      {categories?.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v as StockStatus | 'all')}>
+                    <SelectTrigger className="w-full sm:w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="ok">OK</SelectItem>
+                      <SelectItem value="warning">Bajo</SelectItem>
+                      <SelectItem value="critical">Crítico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Tabla */}
+                <div className="border rounded-lg overflow-x-auto">
+                  <ScrollArea className="h-[50vh]">
+                    <Table>
+                      <TableHeader className="bg-muted/50">
+                        <TableRow>
+                          <TableHead>Nombre</TableHead>
+                          <TableHead>Categoría</TableHead>
+                          <TableHead className="text-right">Stock</TableHead>
+                          <TableHead className="text-center">Estado</TableHead>
+                          <TableHead className="text-right">Costo/U</TableHead>
+                          {currentUser.role === 'admin' && (
+                            <TableHead className="text-right">Acciones</TableHead>
+                          )}
+                        </TableRow>
+                      </TableHeader>
+
+                      <TableBody>
+                        {loading ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                              Cargando...
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredItems.length > 0 ? (
+                          filteredItems.map(item => (
+                            <TableRow key={item.id}>
+                              <TableCell className="font-medium">{item.name}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {item.categoryName}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {item.currentStock} {item.unit}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {getStatusBadge(getStockStatus(item))}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                ${item.costPerUnit.toFixed(2)}
+                              </TableCell>
+                              {currentUser.role === 'admin' && (
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setSelectedItem(item);
+                                        editForm.reset({
+                                          name: item.name,
+                                          categoryId: item.categoryId,
+                                          currentStock: item.currentStock,
+                                          unit: item.unit,
+                                          minStock: item.minStock,
+                                          maxStock: item.maxStock,
+                                          costPerUnit: item.costPerUnit,
+                                          supplier: item.supplier || '',
+                                          notes: item.notes || '',
+                                        });
+                                        setEditModalOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-destructive"
+                                      onClick={() => {
+                                        setSelectedItem(item);
+                                        setDeleteAlertOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="h-24 text-center">
+                              No se encontraron items.
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+
+                <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>Mostrando {filteredItems.length} items</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Edit Modal */}
+        <Dialog open={isEditModalOpen} onOpenChange={setEditModalOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
+                <DialogHeader>
+                  <DialogTitle>Editar Item</DialogTitle>
+                  <DialogDescription>
+                    Modifique los detalles del item. Los cambios se guardarán inmediatamente.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="grid gap-4 py-4">
+                  <FormField
+                    control={editForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categoría</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories?.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>
+                                {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="currentStock"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Stock Actual</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="0" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="unit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Unidad</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {UNITS.map((unit) => (
+                                <SelectItem key={unit} value={unit}>
+                                  {unit}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={editForm.control}
+                      name="minStock"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Stock Mínimo</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="0" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={editForm.control}
+                      name="costPerUnit"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Costo/U ($)</FormLabel>
+                          <FormControl>
+                            <Input type="number" min="0" step="0.01" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={editForm.control}
+                    name="supplier"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Proveedor</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <DialogFooter>
+                  <Button type="submit">Guardar Cambios</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Alert */}
+        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar este item?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Esta acción no se puede deshacer. El item "{selectedItem?.name}" será eliminado permanentemente del inventario.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+                Eliminar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+      </main>
     </div>
   );
 }
