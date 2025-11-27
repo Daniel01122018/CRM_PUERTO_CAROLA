@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useDailyStats } from '@/hooks/use-daily-stats';
+import { migrateDailyStats } from '@/lib/migrate-daily-stats';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,9 +17,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegendContent }
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText } from 'lucide-react';
+import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText, RefreshCw } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 type FilterPreset = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
 
@@ -35,9 +37,11 @@ const chartConfig = {
 export default function ReportsPage() {
   const { isMounted, currentUser } = useAppStore();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_week');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   useEffect(() => {
     if (isMounted && (!currentUser || currentUser.role !== 'admin')) {
@@ -111,6 +115,30 @@ export default function ReportsPage() {
 
   const handlePrintReport = () => window.print();
 
+  const handleRecalculate = async () => {
+    setIsRecalculating(true);
+    try {
+      const result = await migrateDailyStats();
+      if (result.success) {
+        toast({
+          title: "Datos Recalculados",
+          description: `Se han procesado ${result.daysProcessed} días correctamente.`,
+        });
+        window.location.reload();
+      } else {
+        throw new Error("Error en la migración");
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron recalcular los datos.",
+      });
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
   const getFilterDateRangeString = () => {
     if (!dateFilterRange?.from) return "Rango no definido";
     const fromStr = format(dateFilterRange.from, 'dd/MM/yyyy');
@@ -154,6 +182,16 @@ export default function ReportsPage() {
               </h1>
             </div>
             <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRecalculate}
+                disabled={isRecalculating}
+                className="flex-1 sm:flex-none min-w-[140px]"
+              >
+                <RefreshCw className={cn("mr-2 h-4 w-4", isRecalculating && "animate-spin")} />
+                {isRecalculating ? "Calculando..." : "Recalcular Datos"}
+              </Button>
               <Button variant="outline" size="sm" onClick={handlePrintReport} className="flex-1 sm:flex-none min-w-[140px]">
                 <FileText className="mr-2 h-4 w-4" />
                 Generar Reporte

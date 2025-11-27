@@ -354,7 +354,7 @@ export default function HistoryPage() {
               <div className="text-3xl font-bold">${summaryData.expectedCashInDrawer.toFixed(2)}</div>
               <p className="text-xs text-primary-foreground/80">
                 (Caja Inicial + Ventas Efectivo) - Gastos de Caja.
-                {(dailyData?.initialCash || 0) > 0 && <span><br />+ ${dailyData.initialCash.toFixed(2)} de caja inicial</span>}
+                {(dailyData?.initialCash || 0) > 0 && <span><br />+ ${dailyData?.initialCash.toFixed(2)} de caja inicial</span>}
               </p>
             </CardContent>
           </Card>

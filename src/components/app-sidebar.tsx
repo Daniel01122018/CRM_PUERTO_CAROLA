@@ -8,7 +8,7 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
-import { Menu, UserCircle, LogOut, BarChartBig, Wallet, ChefHat, History, LayoutGrid, Sun, Moon, Laptop, ShoppingBag, UtensilsCrossed, Package, Users, ShieldCheck } from 'lucide-react'; // Importar iconos de tema
+import { Menu, UserCircle, LogOut, BarChartBig, Wallet, ChefHat, History, LayoutGrid, Sun, Moon, Laptop, ShoppingBag, UtensilsCrossed, Package, Users, ShieldCheck, TrendingUp } from 'lucide-react'; // Importar iconos de tema
 import { cn } from '@/lib/utils';
 import { buttonVariants } from './ui/button';
 import { useTheme } from 'next-themes'; // Importar useTheme
@@ -42,6 +42,7 @@ export default function AppSidebar() {
     ...(isAdmin || isEmployee ? [{ label: "Salón de Mesas", icon: LayoutGrid, path: '/dashboard' }] : []),
     ...(isAdmin || isEmployee ? [{ label: "Para Llevar", icon: ShoppingBag, path: '/takeaway' }] : []),
     ...(isAdmin ? [{ label: "Reportes", icon: BarChartBig, path: '/reports' }] : []),
+    ...(isAdmin ? [{ label: "Rendimiento", icon: TrendingUp, path: '/reports/performance' }] : []),
     ...(isAdmin ? [{ label: "Menú", icon: UtensilsCrossed, path: '/menu' }] : []),
     ...(isAdmin ? [{ label: "Inventario", icon: Package, path: '/inventory' }] : []),
     ...(isAdmin ? [{ label: "Empleados", icon: Users, path: '/employees' }] : []),

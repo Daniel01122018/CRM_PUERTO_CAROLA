@@ -20,6 +20,7 @@ export interface FirestoreItem {
     isAvailable: boolean;
     type: 'plato' | 'item';
     paraLlevar?: boolean;
+    oldId?: number;
 }
 
 export function useMenu() {
