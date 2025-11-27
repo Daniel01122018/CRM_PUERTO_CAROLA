@@ -126,20 +126,6 @@ export default function InventoryPage() {
         categoryId: values.categoryId,
         categoryName: category.name,
         currentStock: values.currentStock,
-        unit: values.unit,
-        minStock: values.minStock,
-        costPerUnit: values.costPerUnit,
-        createdBy: currentUser.username,
-      };
-
-      // Agregar campos opcionales solo si tienen valor
-      if (values.maxStock !== undefined && values.maxStock !== '') {
-        itemData.maxStock = values.maxStock;
-      }
-      if (values.supplier) {
-        itemData.supplier = values.supplier;
-      }
-      if (values.notes) {
         itemData.notes = values.notes;
       }
 
@@ -266,10 +252,10 @@ export default function InventoryPage() {
 
           <div className="flex gap-2">
             <Button onClick={() => setCreateModalOpen(true)} className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Nuevo Item
-              </Button>
-              <Link href="/inventory/categories">
+              <Plus className="h-4 w-4" />
+              Nuevo Item
+            </Button>
+            <Link href="/inventory/categories">
               <Button variant="outline" className="flex items-center gap-2">
                 <FolderPlus className="h-4 w-4" />
                 Categorías

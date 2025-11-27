@@ -124,6 +124,7 @@ export interface InventoryItem {
   costPerUnit: number; // Costo promedio ponderado
   supplier?: string; // Proveedor habitual
   lastPurchaseDate?: number;
+  expirationDate?: number; // Fecha de caducidad (timestamp)
   notes?: string;
   createdAt: number;
   updatedAt: number;
