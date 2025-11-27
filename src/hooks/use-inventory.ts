@@ -40,32 +40,6 @@ export function useInventory() {
                 updatedAt: now,
             });
         } catch (error) {
-            console.error('Error adding inventory item:', error);
-            throw error;
-        }
-    };
-
-    const updateInventoryItem = async (itemId: string, updates: Partial<InventoryItem>) => {
-        try {
-            const itemRef = doc(db, 'inventory_items', itemId);
-
-            // Remove fields that shouldn't be updated
-            const { id, createdAt, createdBy, ...updateData } = updates as any;
-
-            await updateDoc(itemRef, {
-                ...updateData,
-                updatedAt: Date.now(),
-            });
-        } catch (error) {
-            console.error('Error updating inventory item:', error);
-            throw error;
-        }
-    };
-
-    const deleteInventoryItem = async (itemId: string) => {
-        try {
-            const itemRef = doc(db, 'inventory_items', itemId);
-            await deleteDoc(itemRef);
         } catch (error) {
             console.error('Error deleting inventory item:', error);
             throw error;

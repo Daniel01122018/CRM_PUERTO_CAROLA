@@ -38,51 +38,28 @@ export function useInventoryCategories() {
                 createdAt: Date.now(),
             });
         } catch (error) {
-            console.error('Error adding category:', error);
-            throw error;
-        }
-    };
-
-    const updateCategory = async (categoryId: string, updates: Partial<InventoryCategory>) => {
-        try {
-            const categoryRef = doc(db, 'inventory_categories', categoryId);
-
-            // Remove fields that shouldn't be updated
-            const { id, createdAt, createdBy, ...updateData } = updates as any;
-
-            await updateDoc(categoryRef, updateData);
-        } catch (error) {
-            console.error('Error updating category:', error);
-            throw error;
-        }
-    };
-
-    const deleteCategory = async (categoryId: string) => {
-        try {
-            // Verificar que no hay items en esta categoría
-            const itemsQuery = query(
-                collection(db, 'inventory_items'),
+            collection(db, 'inventory_items'),
                 where('categoryId', '==', categoryId)
             );
-            const itemsSnapshot = await getDocs(itemsQuery);
+    const itemsSnapshot = await getDocs(itemsQuery);
 
-            if (!itemsSnapshot.empty) {
-                throw new Error('No se puede eliminar una categoría que tiene items asociados.');
-            }
+    if (!itemsSnapshot.empty) {
+        throw new Error('No se puede eliminar una categoría que tiene items asociados.');
+    }
 
-            const categoryRef = doc(db, 'inventory_categories', categoryId);
-            await deleteDoc(categoryRef);
-        } catch (error) {
-            console.error('Error deleting category:', error);
-            throw error;
-        }
+    const categoryRef = doc(db, 'inventory_categories', categoryId);
+    await deleteDoc(categoryRef);
+} catch (error) {
+    console.error('Error deleting category:', error);
+    throw error;
+}
     };
 
-    return {
-        categories,
-        loading,
-        addCategory,
-        updateCategory,
-        deleteCategory,
-    };
+return {
+    categories,
+    loading,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+};
 }
