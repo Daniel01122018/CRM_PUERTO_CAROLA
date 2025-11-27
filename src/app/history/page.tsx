@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useOrderHistory } from '@/hooks/use-order-history';
+import { useWeeklyStats } from '@/hooks/use-weekly-stats';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AppSidebar from '@/components/app-sidebar';
@@ -92,6 +93,7 @@ export default function HistoryPage() {
 
   // Fetch orders based on the calculated range
   const { orders: historyOrders, loading: historyLoading } = useOrderHistory(dateFilterRange);
+  const { stats: weeklyStats } = useWeeklyStats();
 
   useEffect(() => {
     if (isMounted && !currentUser) {
@@ -181,14 +183,12 @@ export default function HistoryPage() {
     const weeklyData: { date: string, Ventas: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const day = subDays(today, i);
-      const dayStart = startOfDay(day);
-      const dailyTotal = completedOrders
-        .filter(o => isSameDay(new Date(o.createdAt), dayStart))
-        .reduce((sum, o) => sum + o.total, 0);
+      const dayStr = format(day, 'yyyy-MM-dd');
+      const stat = weeklyStats.find(s => s.date === dayStr);
 
       weeklyData.push({
         date: format(day, 'EEE', { locale: es }),
-        Ventas: parseFloat(dailyTotal.toFixed(2)),
+        Ventas: stat ? parseFloat(stat.totalRevenue.toFixed(2)) : 0,
       });
     }
 
@@ -198,7 +198,7 @@ export default function HistoryPage() {
       ordersTodayCount: todaysOrders.length,
       weeklyData,
     };
-  }, [completedOrders, expenses, isMounted, dailyData, ordersInDateRange]);
+  }, [completedOrders, expenses, isMounted, dailyData, ordersInDateRange, weeklyStats]);
 
   const { filteredOrders, soldItemInfo, paymentMethodSummary } = useMemo(() => {
     let baseOrders = [...ordersInDateRange];
@@ -316,7 +316,7 @@ export default function HistoryPage() {
       <main className="flex-1 p-4 sm:p-6 md:p-8 print:p-0">
         <div className="print:hidden">
           {/* Header Section - Mejorado para responsive */}
-          <div className="fflex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
             <div className='flex items-center gap-3 flex-wrap'>
               <AppSidebar />
               <h1 className="text-2xl font-semibold flex items-center gap-2">
@@ -324,22 +324,23 @@ export default function HistoryPage() {
                 Historial y Reportes
               </h1>
             </div>
-          </div>
-          <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
-            {currentUser?.role === 'admin' && (
-              <Link href="/reports" className="flex-shrink min-w-[140px]">
-                <Button variant="outline" size="sm" className="flex-1 sm:flex-none min-w-[140px] whitespace-normal break-words text-center px-3 py-2 text-sm sm:text-base">
-                  Ver Reportes Financieros
+
+            <div className="flex items-center flex-wrap gap-2 ml-auto">
+              {currentUser?.role === 'admin' && (
+                <Link href="/reports">
+                  <Button variant="outline" size="sm" className="whitespace-nowrap">
+                    Ver Reportes Financieros
+                  </Button>
+                </Link>
+              )}
+              <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="hidden sm:inline">Volver al Dashboard</span>
+                  <span className="sm:hidden">Volver</span>
                 </Button>
               </Link>
-            )}
-            <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"} className="flex-1 sm:flex-none">
-              <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
-                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                <span className="hidden sm:inline">Volver al Dashboard</span>
-                <span className="sm:hidden">Volver</span>
-              </Button>
-            </Link>
+            </div>
           </div>
         </div>
 
@@ -381,6 +382,7 @@ export default function HistoryPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Input
                       type="number"
+                      min="0"
                       placeholder="Monto inicial..."
                       value={initialCashInput}
                       onChange={(e) => setInitialCashInput(e.target.value)}
@@ -535,7 +537,7 @@ export default function HistoryPage() {
                           <TableHead className="w-[150px] hidden sm:table-cell">Fecha</TableHead>
                           <TableHead>Pago</TableHead>
                           <TableHead className="text-right">Total</TableHead>
-                          {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center">Acción</TableHead>}
+                          {currentUser?.role === 'admin' && <TableHead className="w-[120px] text-center hidden md:table-cell">Acción</TableHead>}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -562,7 +564,7 @@ export default function HistoryPage() {
                             </TableCell>
                             <TableCell className="text-right">${order.total.toFixed(2)}</TableCell>
                             {currentUser?.role === 'admin' && order.status === 'completed' && (
-                              <TableCell className="text-center">
+                              <TableCell className="text-center hidden md:table-cell">
                                 <Button variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); handleCancelOrder(order.id) }} className="whitespace-normal">Anular</Button>
                               </TableCell>)}
                           </TableRow>
@@ -581,31 +583,37 @@ export default function HistoryPage() {
             </Card>
 
             <Card className="sticky top-24 min-w-0">
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between gap-2">
                 <CardTitle>Detalles del Pedido</CardTitle>
                 {selectedOrder && (
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedOrder(null)}>
-                    <XCircle className="h-5 w-5" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {currentUser?.role === 'admin' && selectedOrder.status === 'completed' && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleCancelOrder(selectedOrder.id)}
+                        className="text-xs"
+                      >
+                        Anular
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedOrder(null)}>
+                      <XCircle className="h-5 w-5" />
+                    </Button>
+                  </div>
                 )}
               </CardHeader>
               <CardContent>
                 {selectedOrder ? (
                   <div className="space-y-4">
+                    {/* Información del pedido */}
                     <div>
-                      <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"}>
-                        <Button variant="outline" className="flex items-center gap-2 whitespace-normal">
-                          <ArrowLeft className="h-5 w-5" />
-                          Volver
-                        </Button>
-                      </Link>
-
-                      <h3 className="font-semibold">{selectedOrder.tableId === 'takeaway' ? 'Pedido para llevar' : `Mesa ${selectedOrder.tableId}`}</h3>
+                      <h3 className="font-semibold text-lg">{selectedOrder.tableId === 'takeaway' ? 'Pedido para llevar' : `Mesa ${selectedOrder.tableId}`}</h3>
                       <p className="text-sm text-muted-foreground">
                         {format(new Date(selectedOrder.createdAt), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
                       </p>
                       <p className="text-xs text-muted-foreground">ID: {selectedOrder.id}</p>
-                      {selectedOrder.paymentMethod && <p className="text-sm font-medium">Pagado con: {selectedOrder.paymentMethod}</p>}
+                      {selectedOrder.paymentMethod && <p className="text-sm font-medium mt-1">Pagado con: {selectedOrder.paymentMethod}</p>}
                     </div>
                     {selectedOrder.notes && (
                       <div className="text-sm border-t border-b py-2">
@@ -649,7 +657,7 @@ export default function HistoryPage() {
           </div>
         </div>
 
-      </main>
+      </main >
       <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -665,7 +673,7 @@ export default function HistoryPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-    </div>
+    </div >
   );
 }
 

@@ -37,9 +37,9 @@ export const updateDailyStats = async (date: Date, data: {
                     updatedAt: Date.now()
                 };
 
-                if (data.revenue) updates.totalRevenue = increment(data.revenue);
-                if (data.expenses) updates.totalExpenses = increment(data.expenses);
-                if (data.orderCount) updates.orderCount = increment(data.orderCount);
+                if (data.revenue !== undefined) updates.totalRevenue = increment(data.revenue);
+                if (data.expenses !== undefined) updates.totalExpenses = increment(data.expenses);
+                if (data.orderCount !== undefined) updates.orderCount = increment(data.orderCount);
 
                 // Merge maps manually
                 if (data.paymentMethods) {

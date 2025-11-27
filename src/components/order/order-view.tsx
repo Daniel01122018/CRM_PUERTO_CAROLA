@@ -576,6 +576,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           </DialogHeader>
           <Input
             type="number"
+            min="0"
             placeholder="Monto"
             value={customPrice}
             onChange={(e) => setCustomPrice(e.target.value)}
@@ -610,7 +611,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 <form onSubmit={(e) => { e.preventDefault(); handleFullPayment('Efectivo'); }}>
                   <div className="space-y-2 mt-4">
                     <label htmlFor="amount-received">Monto Recibido</label>
-                    <Input id="amount-received" type="number" placeholder="Ingrese el monto..." value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} autoFocus />
+                    <Input id="amount-received" type="number" min="0" placeholder="Ingrese el monto..." value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} autoFocus />
                     {change > 0 && (
                       <p className="text-sm text-green-600 font-medium text-center pt-2">Vuelto: ${change.toFixed(2)}</p>
                     )}

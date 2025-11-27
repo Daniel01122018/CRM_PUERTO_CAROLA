@@ -87,7 +87,7 @@ export default function ExpensesPage() {
     }
   }, [filterPreset, customDateRange]);
 
-  const { expenses: historyExpenses, loading } = useExpenseHistory(dateFilterRange);
+  const { expenses: historyExpenses, loading, loadMore, hasMore } = useExpenseHistory(dateFilterRange);
 
   const expenses = historyExpenses;
 
@@ -374,7 +374,7 @@ export default function ExpensesPage() {
                         <FormItem>
                           <FormLabel>Monto ($)</FormLabel>
                           <FormControl>
-                            <Input type="number" step="0.01" placeholder="ej. 25.50" {...field} autoFocus />
+                            <Input type="number" min="0" step="0.01" placeholder="ej. 25.50" {...field} autoFocus />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -486,7 +486,6 @@ export default function ExpensesPage() {
               </CardHeader>
 
               <CardContent className="w-full max-w-full">
-
                 <div className="space-y-4 w-full max-w-full">
 
                   <div className="flex flex-col sm:flex-row gap-2 w-full max-w-full flex-wrap">
@@ -564,7 +563,7 @@ export default function ExpensesPage() {
                     </Button>
                   </div>
 
-                  <div className="border rounded-lg overflow-hidden w-full max-w-full">
+                  <div className="border rounded-lg overflow-x-auto w-full max-w-full">
                     <ScrollArea className="h-[45vh] w-full">
 
                       <Table>
@@ -647,6 +646,17 @@ export default function ExpensesPage() {
                           )}
                         </TableBody>
                       </Table>
+                      {hasMore && (
+                        <div className="p-4 flex justify-center">
+                          <Button
+                            variant="outline"
+                            onClick={loadMore}
+                            disabled={loading}
+                          >
+                            {loading ? "Cargando..." : "Cargar más"}
+                          </Button>
+                        </div>
+                      )}
                     </ScrollArea>
                   </div>
 
@@ -661,171 +671,168 @@ export default function ExpensesPage() {
 
                 </div>
 
+                <Dialog open={isEditModalOpen} onOpenChange={setEditModalOpen}>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <Form {...editForm}>
+                      <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
+                        <DialogHeader>
+                          <DialogTitle>Editar Gasto</DialogTitle>
+                          <DialogDescription>
+                            Modifique los detalles del gasto. Haga clic en guardar cuando termine.
+                          </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="grid gap-4 py-4">
+                          {currentUser.role === 'admin' && (
+                            <FormField
+                              control={editForm.control}
+                              name="source"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Fuente del Gasto</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Seleccione una fuente" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <SelectItem value="caja">Caja Registradora</SelectItem>
+                                      <SelectItem value="caja_chica">Caja Chica</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+
+                          <FormField
+                            control={editForm.control}
+                            name="amount"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Monto ($)</FormLabel>
+                                <FormControl>
+                                  <Input type="number" min="0" step="0.01" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={editForm.control}
+                            name="category"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-col w-full max-w-full">
+                                <FormLabel>Categoría</FormLabel>
+                                <Popover open={isEditCategoryPopoverOpen} onOpenChange={setEditCategoryPopoverOpen}>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className="w-full justify-between"
+                                      >
+                                        {field.value || "Seleccionar o escribir categoría"}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command shouldFilter={false}>
+                                      <CommandInput
+                                        placeholder="Buscar o crear categoría..."
+                                        onValueChange={(search) => {
+                                          editForm.setValue("category", search, { shouldValidate: true });
+                                        }}
+                                      />
+                                      <CommandList>
+                                        <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
+                                        <CommandGroup>
+                                          {allCategories.map(cat => (
+                                            <CommandItem
+                                              value={cat}
+                                              key={cat}
+                                              onSelect={() => {
+                                                editForm.setValue("category", cat);
+                                                setEditCategoryPopoverOpen(false);
+                                              }}
+                                            >
+                                              <Check className={cn(
+                                                "mr-2 h-4 w-4",
+                                                cat === field.value ? "opacity-100" : "opacity-0"
+                                              )} />
+                                              {cat}
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          {(editCategoryWatch === 'Sueldos' || editCategoryWatch === 'Comida de Empleado') && (
+                            <FormField
+                              control={editForm.control}
+                              name="employeeId"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Empleado</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Seleccione un empleado" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {employees.map((employee) => (
+                                        <SelectItem key={employee.id} value={employee.id}>
+                                          {employee.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+
+                        <DialogFooter>
+                          <Button type="submit">Guardar Cambios</Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+
+                <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta acción no se puede deshacer. Esto eliminará permanentemente el gasto.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Eliminar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           </div>
-
         </div>
-
-        <Dialog open={isEditModalOpen} onOpenChange={setEditModalOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <Form {...editForm}>
-              <form onSubmit={editForm.handleSubmit(onEditSubmit)}>
-                <DialogHeader>
-                  <DialogTitle>Editar Gasto</DialogTitle>
-                  <DialogDescription>
-                    Modifique los detalles del gasto. Haga clic en guardar cuando termine.
-                  </DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-4 py-4">
-                  {currentUser.role === 'admin' && (
-                    <FormField
-                      control={editForm.control}
-                      name="source"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Fuente del Gasto</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Seleccione una fuente" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="caja">Caja Registradora</SelectItem>
-                              <SelectItem value="caja_chica">Caja Chica</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-
-                  <FormField
-                    control={editForm.control}
-                    name="amount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monto ($)</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={editForm.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col w-full max-w-full">
-                        <FormLabel>Categoría</FormLabel>
-                        <Popover open={isEditCategoryPopoverOpen} onOpenChange={setEditCategoryPopoverOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between"
-                              >
-                                {field.value || "Seleccionar o escribir categoría"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            <Command shouldFilter={false}>
-                              <CommandInput
-                                placeholder="Buscar o crear categoría..."
-                                onValueChange={(search) => {
-                                  editForm.setValue("category", search, { shouldValidate: true });
-                                }}
-                              />
-                              <CommandList>
-                                <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
-                                <CommandGroup>
-                                  {allCategories.map(cat => (
-                                    <CommandItem
-                                      value={cat}
-                                      key={cat}
-                                      onSelect={() => {
-                                        editForm.setValue("category", cat);
-                                        setEditCategoryPopoverOpen(false);
-                                      }}
-                                    >
-                                      <Check className={cn(
-                                        "mr-2 h-4 w-4",
-                                        cat === field.value ? "opacity-100" : "opacity-0"
-                                      )} />
-                                      {cat}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {(editCategoryWatch === 'Sueldos' || editCategoryWatch === 'Comida de Empleado') && (
-                    <FormField
-                      control={editForm.control}
-                      name="employeeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Empleado</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleccione un empleado" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {employees.map((employee) => (
-                                <SelectItem key={employee.id} value={employee.id}>
-                                  {employee.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </div>
-
-                <DialogFooter>
-                  <Button type="submit">Guardar Cambios</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Esta acción no se puede deshacer. Esto eliminará permanentemente el gasto.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Eliminar
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
       </main>
     </div>
   );

@@ -70,6 +70,12 @@ export default function MenuManagementPage() {
     }
 
     const price = parseFloat(itemPrice) || 0;
+
+    if (price < 0) {
+      toast({ variant: "destructive", title: "Precio inválido", description: "El precio no puede ser negativo." });
+      return;
+    }
+
     const category = categories.find(c => c.id === itemCategory);
 
     const itemData: any = {
@@ -198,7 +204,7 @@ export default function MenuManagementPage() {
             {itemType === 'item' && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Precio</Label>
-                <Input className="col-span-3" type="number" value={itemPrice} onChange={e => setItemPrice(e.target.value)} />
+                <Input className="col-span-3" type="number" min="0" value={itemPrice} onChange={e => setItemPrice(e.target.value)} />
               </div>
             )}
             <div className="grid grid-cols-4 items-center gap-4">

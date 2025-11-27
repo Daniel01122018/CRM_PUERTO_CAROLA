@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,6 +11,7 @@ import {
   query,
   where,
   getDoc,
+  deleteField,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Expense } from '@/types';
@@ -20,7 +20,8 @@ import { updateDailyStats } from '@/lib/daily-stats';
 
 export function useExpenses() {
   const { currentUser } = useAuth();
-  const [expenses, setExpenses] = useState<Expense[] | undefined>(undefined);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Optimization: Only fetch expenses for the current month by default
@@ -37,10 +38,12 @@ export function useExpenses() {
       querySnapshot.forEach((doc) => {
         expensesData.push({ id: doc.id, ...doc.data() } as Expense);
       });
-      setExpenses(expensesData);
+      setExpenses(expensesData.sort((a, b) => b.createdAt - a.createdAt));
+      setLoading(false);
     }, (error) => {
       console.error("Error fetching expenses from Firestore:", error);
       setExpenses([]);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -81,12 +84,37 @@ export function useExpenses() {
       if (updatedData.amount !== undefined && updatedData.amount !== oldData.amount) {
         const diff = updatedData.amount - oldData.amount;
         await updateDailyStats(new Date(oldData.createdAt), {
-          expenses: diff
+          expenses: diff,
+          // If category hasn't changed, update the same category
+          categoryBreakdown: !updatedData.category || updatedData.category === oldData.category
+            ? { [oldData.category]: diff }
+            : undefined
+        });
+      }
+
+      // Handle category change
+      if (updatedData.category && updatedData.category !== oldData.category) {
+        // If amount also changed, use the new amount for the new category
+        const amount = updatedData.amount !== undefined ? updatedData.amount : oldData.amount;
+
+        await updateDailyStats(new Date(oldData.createdAt), {
+          categoryBreakdown: {
+            [oldData.category]: -oldData.amount, // Remove full amount from old category
+            [updatedData.category]: amount       // Add full amount to new category
+          }
         });
       }
     }
 
-    await updateDoc(expenseRef, updatedData);
+    // Prepare data for Firestore, replacing undefined with deleteField()
+    const firestoreData: any = { ...updatedData };
+    Object.keys(firestoreData).forEach(key => {
+      if (firestoreData[key] === undefined) {
+        firestoreData[key] = deleteField();
+      }
+    });
+
+    await updateDoc(expenseRef, firestoreData);
   }, [currentUser]);
 
   const deleteExpense = useCallback(async (expenseId: string) => {
@@ -100,7 +128,8 @@ export function useExpenses() {
     if (expenseSnap.exists()) {
       const expenseData = expenseSnap.data() as Expense;
       await updateDailyStats(new Date(expenseData.createdAt), {
-        expenses: -expenseData.amount
+        expenses: -expenseData.amount,
+        categoryBreakdown: { [expenseData.category]: -expenseData.amount }
       });
     }
 
