@@ -161,7 +161,7 @@ export default function InventoryPage() {
 
     try {
       const category = categories.find(c => c.id === values.categoryId);
-      
+
       const updateData: any = {
         name: values.name,
         categoryId: values.categoryId,
@@ -462,6 +462,19 @@ export default function InventoryPage() {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="expirationDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Fecha de Caducidad (opcional)</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </CardContent>
 
                   <CardContent>
@@ -579,8 +592,8 @@ export default function InventoryPage() {
                                           maxStock: item.maxStock,
                                           costPerUnit: item.costPerUnit,
                                           supplier: item.supplier || '',
-                                        expirationDate: item.expirationDate ? new Date(item.expirationDate).toISOString().split('T')[0] : '',
-                                        notes: item.notes || '',
+                                          expirationDate: item.expirationDate ? new Date(item.expirationDate).toISOString().split('T')[0] : '',
+                                          notes: item.notes || '',
                                         });
                                         setEditModalOpen(true);
                                       }}
@@ -760,19 +773,19 @@ export default function InventoryPage() {
                     )}
                   />
 
-                <FormField
-                  control={editForm.control}
-                  name="expirationDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fecha de Caducidad</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <FormField
+                    control={editForm.control}
+                    name="expirationDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha de Caducidad</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
                 <DialogFooter>
