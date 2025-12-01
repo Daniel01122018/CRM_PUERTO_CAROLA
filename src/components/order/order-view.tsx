@@ -83,8 +83,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         const parsedDraft = JSON.parse(savedDraft);
         // Basic validation: check if it's recent (e.g., less than 24h)
         const isRecent = Date.now() - parsedDraft.timestamp < 24 * 60 * 60 * 1000;
+        // Version check to invalidate old drafts that might be stuck
+        const DRAFT_VERSION = 'v1';
+        const isCompatible = parsedDraft.version === DRAFT_VERSION;
 
-        if (isRecent && parsedDraft.order) {
+        if (isRecent && isCompatible && parsedDraft.order) {
           console.log("Restoring draft from localStorage");
           setCurrentOrder(parsedDraft.order);
           if (parsedDraft.order.tableId === 'takeaway') {
@@ -158,10 +161,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   useEffect(() => {
     if (!currentOrder || !orderIdOrTableId) return;
 
-    // Only save drafts for active/new orders that haven't been fully saved/synced yet
-    // OR if we want to persist unsaved changes to an existing order
-
     const storageKey = `draft_order_${orderIdOrTableId}`;
+
+    // If the order is NOT active (e.g. preparing, completed, cancelled), 
+    // we should NOT save it as a draft, and we should actually CLEAR any existing draft
+    // to prevent it from reappearing if the user comes back to this table.
+    if (currentOrder.status !== 'active') {
+      localStorage.removeItem(storageKey);
+      return;
+    }
 
     // Don't save if it's empty and new
     if (currentOrder.items?.length === 0 && orderIdOrTableId.startsWith('new-')) {
@@ -170,7 +178,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     const draftData = {
       order: currentOrder,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      version: 'v1' // Add version to invalidate old drafts
     };
 
     localStorage.setItem(storageKey, JSON.stringify(draftData));
@@ -310,17 +319,21 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     const orderToSave: Omit<Order, 'id'> & { id?: string } = { ...currentOrder, total, status: orderStatus } as Omit<Order, 'id'> & { id?: string };
 
+    // CRITICAL: Clear draft AND update local status BEFORE calling async backend functions.
+    // This prevents the global 'orders' update from triggering a re-render that re-loads the draft
+    // before we have a chance to delete it.
+    const storageKey = `draft_order_${orderIdOrTableId}`;
+    localStorage.removeItem(storageKey);
+    setCurrentOrder(prev => prev ? { ...prev, status: orderStatus } : null);
+
     const newId = await addOrUpdateOrder(orderToSave);
 
     if (newId) {
       toast({ title: successMessage, description: `Pedido para ${currentOrder.tableId === 'takeaway' ? 'llevar' : `Mesa ${currentOrder.tableId}`}.` });
 
-      // Clear draft on successful save
-      const storageKey = `draft_order_${orderIdOrTableId}`;
-      localStorage.removeItem(storageKey);
-
       if (orderIdOrTableId.startsWith('new-')) {
         router.replace(`/order/${newId}`);
+        // Update ID in local state
         setCurrentOrder(prev => prev ? { ...prev, id: newId } : null);
       }
     }
@@ -340,11 +353,13 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const handleFullPayment = async (paymentMethod: PaymentMethod) => {
     if (!currentOrder || !currentOrder.id) return;
     const orderToSave: Order = { ...currentOrder, total, status: 'completed', paymentMethod: paymentMethod } as Order;
-    await addOrUpdateOrder(orderToSave);
 
-    // Clear draft
+    // CRITICAL: Clear draft and update status immediately
     const storageKey = `draft_order_${orderIdOrTableId}`;
     localStorage.removeItem(storageKey);
+    setCurrentOrder(prev => prev ? { ...prev, status: 'completed' } : null);
+
+    await addOrUpdateOrder(orderToSave);
 
     toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado.` });
     setPaymentDialogOpen(false);
@@ -355,11 +370,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
   const handleCancelOrder = async () => {
     if (!currentOrder || !currentOrder.id) return;
-    await cancelOrder(currentOrder.id);
 
-    // Clear draft
+    // CRITICAL: Clear draft immediately
     const storageKey = `draft_order_${orderIdOrTableId}`;
     localStorage.removeItem(storageKey);
+
+    await cancelOrder(currentOrder.id);
 
     toast({ variant: "destructive", title: "Pedido Cancelado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.` });
     router.push(baseRedirectPath);
