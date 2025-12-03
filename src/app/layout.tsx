@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 
+import SWRegistration from "@/components/sw-registration";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -19,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
-                {/* Nuevos enlaces y meta etiquetas del generador de favicons */}
+        {/* Nuevos enlaces y meta etiquetas del generador de favicons */}
         <link rel="icon" type="image/png" href="/icons/favicon-96x96.png" sizes="96x96" />
         <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
         <link rel="shortcut icon" href="/icons/favicon.ico" />
@@ -41,6 +43,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
+          <SWRegistration />
         </ThemeProvider>
       </body>
     </html>
