@@ -8,7 +8,7 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
-import { Menu, UserCircle, LogOut, BarChartBig, Wallet, ChefHat, History, LayoutGrid, Sun, Moon, Laptop, ShoppingBag, UtensilsCrossed, Package, Users, ShieldCheck, TrendingUp } from 'lucide-react'; // Importar iconos de tema
+import { Menu, UserCircle, LogOut, BarChartBig, Wallet, ChefHat, History, LayoutGrid, Sun, Moon, Laptop, ShoppingBag, UtensilsCrossed, Package, Users, ShieldCheck, TrendingUp, Monitor } from 'lucide-react'; // Importar iconos de tema
 import { cn } from '@/lib/utils';
 import { buttonVariants } from './ui/button';
 import { useTheme } from 'next-themes'; // Importar useTheme
@@ -47,6 +47,7 @@ export default function AppSidebar() {
     ...(isAdmin ? [{ label: "Inventario", icon: Package, path: '/inventory' }] : []),
     ...(isAdmin ? [{ label: "Empleados", icon: Users, path: '/employees' }] : []),
     ...(isAdmin || isEmployee ? [{ label: "Gastos", icon: Wallet, path: '/expenses' }] : []),
+    ...(isAdmin ? [{ label: "Autoservicio", icon: Monitor, path: '/autoservice' }] : []),
     { label: "Cocina", icon: ChefHat, path: '/kitchen' },
     { label: "Historial", icon: History, path: '/history' },
   ];

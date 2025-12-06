@@ -8,7 +8,8 @@ const staticUsers = [
   { username: 'Caja001', password: '0123456789', role: 'employee' },
   { username: 'Mesero1', password: '1234567890', role: 'employee' },
   { username: 'admin1', password: 'admin001', role: 'admin' },
-  { username: 'cocina', password: 'cocina01', role: 'kitchen' }
+  { username: 'cocina', password: 'cocina01', role: 'kitchen' },
+  { username: 'autoservicio', password: 'auto001', role: 'kiosk' }
 ];
 
 const setStateToLocalStorage = <T,>(key: string, value: T) => {
@@ -22,17 +23,17 @@ const setStateToLocalStorage = <T,>(key: string, value: T) => {
 };
 
 const getInitialState = <T,>(key: string, defaultValue: T): T => {
-    if (typeof window === 'undefined') {
-      return defaultValue;
-    }
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : defaultValue;
-    } catch (error) {
-      console.error(`Error reading localStorage key "${key}":`, error);
-      return defaultValue;
-    }
-  };
+  if (typeof window === 'undefined') {
+    return defaultValue;
+  }
+  try {
+    const item = window.localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.error(`Error reading localStorage key "${key}":`, error);
+    return defaultValue;
+  }
+};
 
 export function useAuth() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => getInitialState<User | null>('currentUser', null));
@@ -50,7 +51,7 @@ export function useAuth() {
     if (foundUser) {
       const user: User = {
         username: foundUser.username,
-        role: foundUser.role as 'employee' | 'admin' | 'kitchen',
+        role: foundUser.role as 'employee' | 'admin' | 'kitchen' | 'kiosk',
       };
       setCurrentUser(user);
       setStateToLocalStorage('currentUser', user);

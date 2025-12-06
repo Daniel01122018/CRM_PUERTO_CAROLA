@@ -39,7 +39,7 @@ export type PaymentMethod = 'Efectivo' | 'DeUna' | 'Transferencia';
 
 export interface Order {
   id: string; // timestamp based
-  tableId: number | 'takeaway';
+  tableId: number | 'takeaway' | 'kiosk';
   items: OrderItem[];
   status: OrderStatus;
   total: number;
@@ -57,7 +57,7 @@ export interface Table {
 
 export interface User {
   username: string;
-  role: 'employee' | 'admin' | 'kitchen';
+  role: 'employee' | 'admin' | 'kitchen' | 'kiosk';
 }
 
 export type ExpenseCategory = string;
