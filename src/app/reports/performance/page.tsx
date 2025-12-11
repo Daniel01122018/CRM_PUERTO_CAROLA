@@ -95,13 +95,25 @@ const calculatePerformanceData = (stats: DailyStats[], menuItems: FirestoreItem[
         let contexto: 'salon' | 'llevar' | undefined = undefined;
 
         if (menuItem) {
-          // Find full item to get category
-          const fullItem = menuItems.find(i => i.name === menuItem.name.split(' ')[0] || i.id === itemId);
-          if (fullItem) {
-            category = fullItem.categoryName || 'Sin Categoría';
+          // Find full item to get category and context
+          let fullCtxItem = menuItems.find(i => i.id === itemId);
+          if (!fullCtxItem) {
+            // search in variants
+            for (const i of menuItems) {
+              if (i.variants && i.variants.some((v: any) => v.id == itemId)) {
+                fullCtxItem = i;
+                break;
+              }
+            }
+          }
+
+          if (fullCtxItem) {
+            category = fullCtxItem.categoryName || 'Sin Categoría';
+            if (fullCtxItem.paraLlevar) {
+              contexto = 'llevar';
+            }
           }
           cost = menuItem.price || 0;
-          // Context is not strictly in MenuItem, but we can infer or leave undefined
         }
 
         if (!itemMap.has(itemId)) {
