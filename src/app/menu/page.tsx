@@ -56,7 +56,8 @@ export default function MenuManagementPage() {
       setItemName(item.name);
       setItemPrice(item.price.toString());
       setItemCategory(item.categoryId);
-      setItemType(item.type);
+      // Default to 'item' if type is missing (legacy data support)
+      setItemType(item.type || 'item');
       setItemParaLlevar(item.paraLlevar || false);
       setVariants(item.variants || []); // Load variants
     } else {
@@ -224,9 +225,9 @@ export default function MenuManagementPage() {
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label className="text-right">Tipo</Label>
-              <Select value={itemType} onValueChange={(v: 'plato' | 'item') => setItemType(v)}>
+              <Select value={itemType || 'item'} onValueChange={(v) => setItemType(v as 'plato' | 'item')}>
                 <SelectTrigger className="col-span-3">
-                  <SelectValue />
+                  <SelectValue placeholder="Seleccionar tipo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="item">Ítem Simple (Precio fijo)</SelectItem>
