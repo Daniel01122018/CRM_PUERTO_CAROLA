@@ -217,12 +217,12 @@ export default function MenuManagementPage() {
       </Card>
 
       <Dialog open={isItemDialogOpen} onOpenChange={setItemDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[500px] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>{editingItem ? 'Editar Ítem' : 'Nuevo Ítem'}</DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-4">
+          <ScrollArea className="flex-1 px-6">
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Nombre</Label>
@@ -337,7 +337,7 @@ export default function MenuManagementPage() {
               </div>
             </div>
           </ScrollArea>
-          <DialogFooter className="mt-4">
+          <DialogFooter className="p-6 pt-2">
             <Button onClick={handleSaveItem}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
