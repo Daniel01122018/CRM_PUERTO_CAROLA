@@ -64,26 +64,22 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     return isTakeawayOrder ? '/takeaway' : '/dashboard';
   }, [currentUser, isTakeawayOrder]);
 
-  useEffect(() => {
-    if (!isMounted || !currentUser) {
-      if (isMounted) router.push('/');
-      return;
-    }
+  const [initialized, setInitialized] = useState(false);
 
-    if (orders === undefined) return;
+  useEffect(() => {
+    // 1. Initialization Effect: Load initial state ONCE
+    if (!isMounted || !currentUser || orders === undefined || initialized) return;
 
     let initialOrder: Partial<Order> | undefined;
 
-    // 1. Try to load from localStorage first (Draft Persistence)
+    // Try to load from localStorage first (Draft Persistence)
     const storageKey = `draft_order_${orderIdOrTableId}`;
     const savedDraft = localStorage.getItem(storageKey);
 
     if (savedDraft) {
       try {
         const parsedDraft = JSON.parse(savedDraft);
-        // Basic validation: check if it's recent (e.g., less than 24h)
         const isRecent = Date.now() - parsedDraft.timestamp < 24 * 60 * 60 * 1000;
-        // Version check to invalidate old drafts that might be stuck
         const DRAFT_VERSION = 'v1';
         const isCompatible = parsedDraft.version === DRAFT_VERSION;
 
@@ -95,7 +91,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           } else {
             setActiveMenuContext('salon');
           }
-          return; // Skip Firestore loading if draft exists
+          setInitialized(true);
+          return;
         }
       } catch (e) {
         console.error("Error parsing draft:", e);
@@ -103,7 +100,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       }
     }
 
-    // 2. If no draft, load from Firestore or initialize new
+    // If no draft, load from Firestore or initialize new
     if (orderIdOrTableId.startsWith('new-')) {
       const type = orderIdOrTableId.substring(4);
       const isTakeaway = type === 'takeaway';
@@ -155,17 +152,55 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       setActiveMenuContext('salon');
     }
 
-  }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast, baseRedirectPath]);
+    setInitialized(true);
+
+  }, [orderIdOrTableId, isMounted, currentUser, orders, router, toast, baseRedirectPath, initialized]);
+
+  // 2. Synchronization Effect: Sync with Firestore unless local changes exist (isDirty)
+  useEffect(() => {
+    if (!initialized || !currentOrder || !orders) return;
+    if (orderIdOrTableId.startsWith('new-')) return; // Don't sync new orders until saved
+
+    const remoteOrder = orders.find(o => o.id === orderIdOrTableId);
+
+    // If order was deleted remotely
+    if (!remoteOrder && initialized) {
+      // Optional: Handle deletion (e.g. redirect or show alert)
+      // For now, we prefer to keep local state so user can re-save if it was accidental
+      return;
+    }
+
+    if (!remoteOrder) return;
+
+    // Check if dirty (local changes)
+    const localItemsStr = JSON.stringify(currentOrder.items || []);
+    const remoteItemsStr = JSON.stringify(remoteOrder.items || []);
+    const localStatus = currentOrder.status;
+    const remoteStatus = remoteOrder.status;
+
+    const isDirty = localItemsStr !== remoteItemsStr;
+
+    // If local changes exist, DO NOT overwrite with remote changes.
+    // We only update if clean.
+    if (!isDirty) {
+      // Only update if there are actual diffs to avoid render loops
+      if (localItemsStr !== remoteItemsStr || localStatus !== remoteStatus || currentOrder.notes !== remoteOrder.notes) {
+        console.log("Syncing from remote (clean state)");
+        setCurrentOrder(remoteOrder);
+      }
+    } else {
+      console.log("Remote update ignored due to unsaved local changes");
+    }
+
+  }, [orders, orderIdOrTableId, initialized, currentOrder]);
+
 
   // Save draft to localStorage whenever currentOrder changes
   useEffect(() => {
-    if (!currentOrder || !orderIdOrTableId) return;
+    if (!currentOrder || !orderIdOrTableId || !initialized) return;
 
     const storageKey = `draft_order_${orderIdOrTableId}`;
 
-    // If the order is NOT active (e.g. preparing, completed, cancelled), 
-    // we should NOT save it as a draft, and we should actually CLEAR any existing draft
-    // to prevent it from reappearing if the user comes back to this table.
     if (currentOrder.status !== 'active') {
       localStorage.removeItem(storageKey);
       return;
@@ -176,14 +211,20 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       return;
     }
 
+    // Determine isDirty for draft purposes (vs Server)
+    // If it's a new order, it's always dirty if it has items.
+    // If it's an existing order, check vs server.
+    // Actually, we just always save the draft if modified. 
+    // The previous logic for existence was okay.
+
     const draftData = {
       order: currentOrder,
       timestamp: Date.now(),
-      version: 'v1' // Add version to invalidate old drafts
+      version: 'v1'
     };
 
     localStorage.setItem(storageKey, JSON.stringify(draftData));
-  }, [currentOrder, orderIdOrTableId]);
+  }, [currentOrder, orderIdOrTableId, initialized]);
 
 
   const total = useMemo(() => {
