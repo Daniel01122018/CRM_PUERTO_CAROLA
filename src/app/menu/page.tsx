@@ -16,7 +16,6 @@ import { MenuTabs } from '@/components/menu/menu-tabs';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function MenuManagementPage() {
   const router = useRouter();
@@ -222,7 +221,7 @@ export default function MenuManagementPage() {
             <DialogTitle>{editingItem ? 'Editar Ítem' : 'Nuevo Ítem'}</DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 px-6">
+          <div className="flex-1 px-6 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label className="text-right">Nombre</Label>
@@ -336,7 +335,7 @@ export default function MenuManagementPage() {
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
           <DialogFooter className="p-6 pt-2">
             <Button onClick={handleSaveItem}>Guardar</Button>
           </DialogFooter>
