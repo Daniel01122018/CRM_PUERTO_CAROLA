@@ -61,52 +61,15 @@ export function useActiveOrders() {
 
                 // Check if status changed to completed to update daily stats
                 if (order.status === 'completed' && currentOrder && currentOrder.status !== 'completed') {
-                    const revenue = order.total;
-                    const paymentMethod = order.paymentMethod || 'efectivo'; // Default to efectivo if missing
-
-                    const itemSales: { [itemId: string]: { name: string; quantity: number; revenue: number } } = {};
-
-                    order.items.forEach(item => {
-                        const itemId = item.menuItemId.toString();
-                        // Find item name and price
-                        let name = "Item Desconocido";
-                        let price = 0;
-
-                        const menuItem = menuItems.find(i => i.id === itemId || (i as any).oldId === item.menuItemId);
-                        if (menuItem) {
-                            name = menuItem.name;
-                            price = menuItem.price;
-                        } else {
-                            // Try variants
-                            for (const i of menuItems as any[]) {
-                                if (i.variants) {
-                                    const v = i.variants.find((v: any) => v.id === item.menuItemId);
-                                    if (v) {
-                                        name = `${i.name} ${v.nombre}`;
-                                        price = v.precio;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        // Override with custom price if present
-                        if (item.customPrice) price = item.customPrice;
-
-                        const itemRevenue = price * item.quantity;
-
-                        if (!itemSales[itemId]) {
-                            itemSales[itemId] = { name, quantity: 0, revenue: 0 };
-                        }
-                        itemSales[itemId].quantity += item.quantity;
-                        itemSales[itemId].revenue += itemRevenue;
-                    });
+                    // Use helper to calculate stats
+                    const { calculateOrderStats } = await import('@/lib/stats-helper');
+                    const stats = calculateOrderStats({ ...order, items: order.items || [] } as any, menuItems);
 
                     await updateDailyStats(new Date(), {
-                        revenue: revenue,
+                        revenue: stats.revenue,
                         orderCount: 1,
-                        paymentMethods: { [paymentMethod]: revenue },
-                        itemSales: itemSales
+                        paymentMethods: stats.paymentMethods,
+                        itemSales: stats.itemSales
                     });
                 }
 
@@ -117,50 +80,14 @@ export function useActiveOrders() {
 
                 // If created as completed (unlikely but possible)
                 if (orderData.status === 'completed') {
-                    const revenue = orderData.total;
-                    const paymentMethod = orderData.paymentMethod || 'efectivo';
-
-                    const itemSales: { [itemId: string]: { name: string; quantity: number; revenue: number } } = {};
-
-                    orderData.items.forEach(item => {
-                        const itemId = item.menuItemId.toString();
-                        // Find item name and price
-                        let name = "Item Desconocido";
-                        let price = 0;
-
-                        const menuItem = menuItems.find(i => i.id === itemId || (i as any).oldId === item.menuItemId);
-                        if (menuItem) {
-                            name = menuItem.name;
-                            price = menuItem.price;
-                        } else {
-                            // Try variants
-                            for (const i of menuItems as any[]) {
-                                if (i.variants) {
-                                    const v = i.variants.find((v: any) => v.id === item.menuItemId);
-                                    if (v) {
-                                        name = `${i.name} ${v.nombre}`;
-                                        price = v.precio;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        if (item.customPrice) price = item.customPrice;
-                        const itemRevenue = price * item.quantity;
-
-                        if (!itemSales[itemId]) {
-                            itemSales[itemId] = { name, quantity: 0, revenue: 0 };
-                        }
-                        itemSales[itemId].quantity += item.quantity;
-                        itemSales[itemId].revenue += itemRevenue;
-                    });
+                    const { calculateOrderStats } = await import('@/lib/stats-helper');
+                    const stats = calculateOrderStats({ ...orderData, items: orderData.items || [] } as any, menuItems);
 
                     await updateDailyStats(new Date(), {
-                        revenue: revenue,
+                        revenue: stats.revenue,
                         orderCount: 1,
-                        paymentMethods: { [paymentMethod]: revenue },
-                        itemSales: itemSales
+                        paymentMethods: stats.paymentMethods,
+                        itemSales: stats.itemSales
                     });
                 }
 
@@ -175,6 +102,43 @@ export function useActiveOrders() {
     const cancelOrder = useCallback(async (orderId: string) => {
         try {
             const orderRef = doc(db, 'orders', orderId);
+            const orderSnap = await getDoc(orderRef);
+
+            if (!orderSnap.exists()) {
+                console.error("Order not found");
+                return;
+            }
+
+            const order = { id: orderSnap.id, ...orderSnap.data() } as Order;
+
+            // If order was completed, we need to revert the stats
+            if (order.status === 'completed') {
+                const { calculateOrderStats } = await import('@/lib/stats-helper');
+                const stats = calculateOrderStats(order, menuItems);
+
+                // Invert values for cancellation
+                const invertedItemSales: any = {};
+                Object.keys(stats.itemSales).forEach(key => {
+                    invertedItemSales[key] = {
+                        ...stats.itemSales[key],
+                        quantity: -stats.itemSales[key].quantity,
+                        revenue: -stats.itemSales[key].revenue
+                    };
+                });
+
+                const invertedPaymentMethods: any = {};
+                Object.keys(stats.paymentMethods).forEach(key => {
+                    invertedPaymentMethods[key] = -stats.paymentMethods[key];
+                });
+
+                await updateDailyStats(new Date(order.createdAt), {
+                    revenue: -stats.revenue,
+                    orderCount: -1,
+                    paymentMethods: invertedPaymentMethods,
+                    itemSales: invertedItemSales
+                });
+            }
+
             await updateDoc(orderRef, {
                 status: 'cancelled',
                 cancelledAt: Date.now(),
@@ -182,7 +146,7 @@ export function useActiveOrders() {
         } catch (error) {
             console.error("Error cancelling order:", error);
         }
-    }, []);
+    }, [menuItems]);
 
     return { orders, addOrUpdateOrder, cancelOrder };
 }
