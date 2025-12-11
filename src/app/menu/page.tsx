@@ -302,13 +302,18 @@ export default function MenuManagementPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Para Llevar</Label>
-                <div className="col-span-3 flex items-center space-x-2">
-                  <Checkbox id="llevar" checked={itemParaLlevar} onCheckedChange={(c) => setItemParaLlevar(!!c)} />
-                  <label htmlFor="llevar" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Es exclusivo para llevar
-                  </label>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-right mt-2">Disponibilidad</Label>
+                <div className="col-span-3 space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="llevar" checked={itemParaLlevar} onCheckedChange={(c) => setItemParaLlevar(!!c)} />
+                    <label htmlFor="llevar" className="text-sm font-medium leading-none cursor-pointer">
+                      Solo para llevar
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Si se marca, este ítem NO estará disponible para pedidos en mesa (Salón).
+                  </p>
                 </div>
               </div>
             </div>
