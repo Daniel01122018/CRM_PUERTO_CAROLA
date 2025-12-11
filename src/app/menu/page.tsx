@@ -224,11 +224,11 @@ export default function MenuManagementPage() {
           <div className="flex-1 px-6 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Nombre</Label>
+                <Label className="text-left">Nombre</Label>
                 <Input className="col-span-3" value={itemName} onChange={e => setItemName(e.target.value)} />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Categoría</Label>
+                <Label className="text-left">Categoría</Label>
                 <Select value={itemCategory} onValueChange={setItemCategory}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Selecciona..." />
@@ -241,7 +241,7 @@ export default function MenuManagementPage() {
                 </Select>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Tipo</Label>
+                <Label className="text-left">Tipo</Label>
                 <Select value={itemType || 'item'} onValueChange={(v) => setItemType(v as 'plato' | 'item')}>
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Seleccionar tipo" />
@@ -254,7 +254,7 @@ export default function MenuManagementPage() {
               </div>
               {itemType === 'item' && (
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label className="text-right">Precio</Label>
+                  <Label className="text-left">Precio</Label>
                   <Input className="col-span-3" type="number" min="0" value={itemPrice} onChange={e => setItemPrice(e.target.value)} />
                 </div>
               )}
@@ -262,7 +262,7 @@ export default function MenuManagementPage() {
               {/* Variants Section */}
               {itemType === 'plato' && (
                 <div className="grid grid-cols-4 items-start gap-4 border-t pt-4 mt-2">
-                  <Label className="text-right mt-2">Variantes</Label>
+                  <Label className="text-left mt-2">Variantes</Label>
                   <div className="col-span-3 space-y-3">
                     <div className="space-y-2">
                       {variants.map((v, idx) => (
@@ -321,7 +321,7 @@ export default function MenuManagementPage() {
               )}
 
               <div className="grid grid-cols-4 items-start gap-4">
-                <Label className="text-right mt-2">Disponibilidad</Label>
+                <Label className="text-left mt-2">Disponibilidad</Label>
                 <div className="col-span-3 space-y-2">
                   <div className="flex items-center space-x-2">
                     <Checkbox id="llevar" checked={itemParaLlevar} onCheckedChange={(c) => setItemParaLlevar(!!c)} />
