@@ -1,23 +1,34 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useActiveOrders } from '@/hooks/use-active-orders';
+import { useMenu } from '@/hooks/use-menu';
+import { findMenuItem } from '@/lib/stats-helper';
 import AppSidebar from '@/components/app-sidebar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { ALL_MENU_ITEMS } from '@/lib/data';
-import type { Order } from '@/types';
+import type { Order, FirestoreItem } from '@/types';
 import { Utensils, Clock, StickyNote, ArrowLeft, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-const KitchenOrderCard = ({ order }: { order: Order }) => {
+interface KitchenOrderCardProps {
+  order: Order;
+  menuItems: FirestoreItem[];
+}
+
+const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
   const isCancelled = order.status === 'cancelled';
+
+  const getMenuItemName = (id: string | number) => {
+    const item = findMenuItem(menuItems, id);
+    return item ? item.name : "Item Desconocido";
+  };
 
   return (
     <Card className={`flex flex-col ${isCancelled ? 'bg-red-100 border-red-300 shadow-lg' : ''}`}>
@@ -44,14 +55,16 @@ const KitchenOrderCard = ({ order }: { order: Order }) => {
         <Separator className="mb-4" />
         <ul className="space-y-3">
           {order.items.map((item, index) => {
-            const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
+            const menuItem = findMenuItem(menuItems, item.menuItemId);
+            const itemName = menuItem ? menuItem.name : "Item Desconocido";
+            const price = menuItem ? menuItem.price : 0;
 
             return (
               <li key={`${item.menuItemId}-${index}`} className="flex items-start">
                 <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500' : 'text-primary'}`} />
                 <div>
                   <p className="font-semibold">
-                    {menuItem?.nombre}{' '}
+                    {itemName}{' '}
                     {item.customPrice && `($${item.customPrice.toFixed(2)})`}{' '}
                     <span className={`font-bold ${isCancelled ? 'text-red-700' : 'text-primary'}`}>x{item.quantity}</span>
                     {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
@@ -77,6 +90,7 @@ const KitchenOrderCard = ({ order }: { order: Order }) => {
 export default function KitchenPage() {
   const { isMounted, currentUser } = useAppStore();
   const { orders } = useActiveOrders();
+  const { items: menuItems } = useMenu();
   const router = useRouter();
   const [visibleOrders, setVisibleOrders] = useState<Order[]>([]);
 
@@ -134,7 +148,9 @@ export default function KitchenPage() {
         {visibleOrders.length > 0 ? (
           <ScrollArea className="h-[calc(100vh-150px)]">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleOrders.map(order => <KitchenOrderCard key={order.id} order={order} />)}
+              {visibleOrders.map(order => (
+                <KitchenOrderCard key={order.id} order={order} menuItems={menuItems} />
+              ))}
             </div>
           </ScrollArea>
         ) : (

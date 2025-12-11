@@ -9,14 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { ALL_MENU_ITEMS } from '@/lib/data';
+import { useMenu } from '@/hooks/use-menu';
 import type { Order } from '@/types';
 import { Utensils, Clock, ArrowLeft, PlusCircle, ShoppingBag } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { findMenuItem } from '@/lib/stats-helper';
 
 export default function TakeawayQueuePage() {
   const { isMounted, currentUser, orders } = useAppStore();
+  const { items: menuItems } = useMenu();
   const router = useRouter();
 
   useEffect(() => {
@@ -31,6 +33,12 @@ export default function TakeawayQueuePage() {
       .filter(o => o.tableId === 'takeaway' && (o.status === 'active' || o.status === 'preparing'))
       .sort((a, b) => a.createdAt - b.createdAt);
   }, [orders, isMounted]);
+
+  const getMenuItemName = (id: string | number) => {
+    if (!menuItems || menuItems.length === 0) return "Cargando...";
+    const item = findMenuItem(menuItems, id);
+    return item ? item.name : "Item Desconocido";
+  };
 
   if (!isMounted || !currentUser || !orders) {
     return <div className="flex h-screen items-center justify-center">Cargando...</div>;
@@ -94,13 +102,12 @@ export default function TakeawayQueuePage() {
                       <Separator className="mb-4" />
                       <ul className="space-y-2 text-xs sm:text-sm">
                         {order.items.slice(0, 3).map((item, index) => {
-                          const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
                           return (
                             <li key={`${item.menuItemId}-${index}`} className="flex items-start">
                               <Utensils className="h-3 w-3 sm:h-4 sm:w-4 mr-2 mt-0.5 sm:mt-1 text-primary flex-shrink-0" />
                               <div className="min-w-0 flex-1">
                                 <p className="font-semibold truncate">
-                                  {menuItem?.nombre} <span className="font-bold text-primary">x{item.quantity}</span>
+                                  {getMenuItemName(item.menuItemId)} <span className="font-bold text-primary">x{item.quantity}</span>
                                 </p>
                                 {item.notes && (
                                   <p className="text-xs text-amber-700 truncate">Nota: {item.notes}</p>

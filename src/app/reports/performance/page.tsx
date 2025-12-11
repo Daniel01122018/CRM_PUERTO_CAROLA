@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useDailyStats } from '@/hooks/use-daily-stats';
+import { useMenu, FirestoreItem } from '@/hooks/use-menu';
+import { findMenuItem } from '@/lib/stats-helper';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,7 +29,6 @@ import { es } from 'date-fns/locale';
 import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Gem, TrendingUp, TrendingDown, Utensils, Coffee, Plus, Search, ArrowUpDown, ShoppingBag } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
-import { ALL_MENU_ITEMS } from '@/lib/data';
 import { Order, MenuItem, DailyStats } from '@/types';
 
 type FilterPreset = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
@@ -81,20 +82,26 @@ const generateDateRange = (preset: FilterPreset, customRange: DateRange | undefi
 };
 
 // Helper function to calculate performance data from DailyStats
-const calculatePerformanceData = (stats: DailyStats[]): Map<string, MenuItemPerformance> => {
+const calculatePerformanceData = (stats: DailyStats[], menuItems: FirestoreItem[]): Map<string, MenuItemPerformance> => {
   const itemMap = new Map<string, MenuItemPerformance>();
 
   stats.forEach(stat => {
     if (stat.itemSales) {
       Object.entries(stat.itemSales).forEach(([itemId, salesInfo]) => {
-        const menuItem = ALL_MENU_ITEMS.find(item => item.id.toString() === itemId);
+        const menuItem = findMenuItem(menuItems, itemId);
 
         let category = 'Sin Categoría';
         let cost = 0;
+        let contexto: 'salon' | 'llevar' | undefined = undefined;
 
         if (menuItem) {
-          category = menuItem.category || 'Sin Categoría';
-          cost = menuItem.precio || 0;
+          // Find full item to get category
+          const fullItem = menuItems.find(i => i.name === menuItem.name.split(' ')[0] || i.id === itemId);
+          if (fullItem) {
+            category = fullItem.categoryName || 'Sin Categoría';
+          }
+          cost = menuItem.price || 0;
+          // Context is not strictly in MenuItem, but we can infer or leave undefined
         }
 
         if (!itemMap.has(itemId)) {
@@ -106,7 +113,7 @@ const calculatePerformanceData = (stats: DailyStats[]): Map<string, MenuItemPerf
             totalRevenue: 0,
             cost,
             profit: 0,
-            contexto: menuItem?.contexto
+            contexto
           });
         }
 
@@ -146,6 +153,7 @@ const categorizeMenuItems = (performanceData: MenuItemComparisonPerformance[]) =
 
 export default function PerformanceReportPage() {
   const { isMounted, currentUser } = useAppStore();
+  const { items: menuItems } = useMenu();
   const router = useRouter();
 
   // Primary Period State
@@ -173,8 +181,8 @@ export default function PerformanceReportPage() {
   const { stats: primaryStats, loading: primaryLoading } = useDailyStats(primaryDateFilterRange);
   const { stats: comparisonStats, loading: comparisonLoading } = useDailyStats(comparisonDateFilterRange);
 
-  const primaryPerformanceDataMap = useMemo(() => calculatePerformanceData(primaryStats || []), [primaryStats]);
-  const comparisonPerformanceDataMap = useMemo(() => calculatePerformanceData(comparisonStats || []), [comparisonStats]);
+  const primaryPerformanceDataMap = useMemo(() => calculatePerformanceData(primaryStats || [], menuItems), [primaryStats, menuItems]);
+  const comparisonPerformanceDataMap = useMemo(() => calculatePerformanceData(comparisonStats || [], menuItems), [comparisonStats, menuItems]);
 
   const combinedPerformanceData = useMemo(() => {
     const combined: MenuItemComparisonPerformance[] = [];

@@ -18,7 +18,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { ALL_MENU_ITEMS } from '@/lib/data';
+import { useMenu } from '@/hooks/use-menu';
+import { findMenuItem } from '@/lib/stats-helper';
 import type { Order, MenuItem, PaymentMethod } from '@/types';
 import { format, subDays, startOfDay, isSameDay, startOfYesterday, endOfDay, endOfYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -47,7 +48,7 @@ interface PaymentMethodSummary {
 
 export default function HistoryPage() {
   const { isMounted, currentUser, expenses, cancelOrder, dailyData, setInitialCash } = useAppStore();
-  // Removed 'orders' from useAppStore destructuring
+  const { items: menuItems } = useMenu();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -231,21 +232,23 @@ export default function HistoryPage() {
       return { filteredOrders: baseOrders, soldItemInfo: null, paymentMethodSummary };
     }
 
-    const matchedMenuItems = ALL_MENU_ITEMS.filter(item => item.nombre.toLowerCase().includes(lowerCaseSearch));
+    // Dynamic Menu Search logic
     let ordersWithItemSet = new Set<string>();
 
-    // If search term is a menu item, calculate sales data
-    if (matchedMenuItems.length > 0 && lowerCaseSearch.length > 3) {
+    // Check if search term might be an item name
+    if (lowerCaseSearch.length > 2) {
       soldItemInfo = { totalQuantity: 0, totalRevenue: 0, orderCount: 0, name: lowerCaseSearch, notesBreakdown: {} };
 
       baseOrders.forEach(order => {
         let hasItem = false;
         order.items.forEach(item => {
-          const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
-          if (menuItem && menuItem.nombre.toLowerCase().includes(lowerCaseSearch)) {
+          // Use shared helper to resolve item details from dynamic menu
+          const menuItem = findMenuItem(menuItems, item.menuItemId);
+
+          if (menuItem && menuItem.name.toLowerCase().includes(lowerCaseSearch)) {
             hasItem = true;
             soldItemInfo!.totalQuantity += item.quantity;
-            const price = item.customPrice || menuItem.precio;
+            const price = item.customPrice || menuItem.price;
             soldItemInfo!.totalRevenue += price * item.quantity;
             if (item.notes) {
               soldItemInfo!.notesBreakdown[item.notes] = (soldItemInfo!.notesBreakdown[item.notes] || 0) + item.quantity;
@@ -256,22 +259,32 @@ export default function HistoryPage() {
           ordersWithItemSet.add(order.id);
         }
       });
-      soldItemInfo.orderCount = ordersWithItemSet.size;
 
-      const ordersWithItem = baseOrders.filter(order => ordersWithItemSet.has(order.id));
-
-      return { filteredOrders: ordersWithItem, soldItemInfo, paymentMethodSummary };
+      // Only return soldItemInfo if we actually found matches
+      if (soldItemInfo.totalQuantity === 0) {
+        soldItemInfo = null;
+      }
     }
 
-    // Otherwise, filter orders by ID or table
+    // If we found orders by item name, use those. 
+    // Otherwise, we still need to check for ID/Table matches, merging results if needed.
+    // The original logic returned immediately if matchedMenuItems > 0. 
+    // Here we will include item matches in the filter.
+
     const filtered = baseOrders.filter(order => {
       const tableIdMatch = `mesa ${order.tableId}`.includes(lowerCaseSearch) || (order.tableId === 'takeaway' && 'para llevar'.includes(lowerCaseSearch));
       const orderIdMatch = order.id.toString().includes(lowerCaseSearch);
-      return tableIdMatch || orderIdMatch;
+      const hasItemMatch = ordersWithItemSet.has(order.id);
+      return tableIdMatch || orderIdMatch || hasItemMatch;
     });
 
-    return { filteredOrders: filtered, soldItemInfo: null, paymentMethodSummary };
-  }, [ordersInDateRange, searchTerm, orderFilter, paymentMethodFilter]);
+    // Recalculate SoldInfo order count based on the filtered set if valid
+    if (soldItemInfo) {
+      soldItemInfo.orderCount = ordersWithItemSet.size;
+    }
+
+    return { filteredOrders: filtered, soldItemInfo, paymentMethodSummary };
+  }, [ordersInDateRange, searchTerm, orderFilter, paymentMethodFilter, menuItems]);
 
   const handleCancelOrder = (orderId: string) => {
     if (!currentUser || currentUser.role !== 'admin') {
@@ -624,13 +637,14 @@ export default function HistoryPage() {
                     <ScrollArea className="h-[45vh] min-w-0">
                       <ul className="space-y-2 text-sm pr-4">
                         {selectedOrder.items.map((item, index) => {
-                          const menuItem = ALL_MENU_ITEMS.find(mi => mi.id === item.menuItemId);
-                          const price = item.customPrice || (menuItem ? menuItem.precio : 0);
+                          const menuItem = findMenuItem(menuItems, item.menuItemId);
+                          const price = item.customPrice || (menuItem ? menuItem.price : 0);
+                          const itemName = menuItem ? menuItem.name : "Item Desconocido";
                           return (
                             <li key={`${item.menuItemId}-${index}`} className="flex justify-between border-b pb-2 min-w-0">
                               <div className="min-w-0">
                                 <span className="font-medium">
-                                  {menuItem?.nombre} x{item.quantity}
+                                  {itemName} x{item.quantity}
                                   {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
                                 </span>
                                 {item.notes && <p className="text-xs text-amber-700 break-words">Nota: {item.notes}</p>}
