@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useMenu } from "@/hooks/use-menu";
 import { useAppStore } from "@/hooks/use-app-store";
+import { useAuth } from "@/hooks/use-auth";
 import { Order, MenuItem } from "@/types";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -16,25 +17,15 @@ import { KioskVariantModal } from "@/components/kiosk/kiosk-variant-modal";
 
 // Adapter to convert FirestoreItem to MenuItem
 const adaptItem = (fireItem: any): MenuItem => {
-    // Determine category properly. FirestoreItem has categoryName
-    // MenuItem expects specific Union type.
-    // We map any unknown to 'Adicionales' to be safe, or use logic based on known categories.
-
-    // Simple heuristic or mapping if possible.
-    // For Kiosk we rely on filtering by category NAME from the tabs anyway.
-
     return {
-        id: parseInt(fireItem.id) || fireItem.oldId || 0, // Ensure numeric ID if possible for legacy compatibility, or handle string consistency elsewhere
+        id: parseInt(fireItem.id) || fireItem.oldId || 0,
         nombre: fireItem.name,
         precio: fireItem.price,
-        category: "Platos", // Dummy Default, logic uses activeCategory string match
+        category: "Platos", // Dummy Default
         variantes: fireItem.variants,
         sabores: fireItem.flavors,
         paraLlevar: fireItem.paraLlevar,
         contexto: 'salon',
-
-        // Pass through raw category name safe-guarded to be used in filtering
-        // We cast to any to inject it if needed for robust filtering or fix the Type
         // @ts-ignore
         categoryName: fireItem.categoryName
     };
@@ -45,6 +36,7 @@ export function KioskView() {
     const { toast } = useToast();
     const { categories, items: firestoreItems, loading } = useMenu();
     const { addOrUpdateOrder } = useAppStore();
+    const { currentUser, isMounted } = useAuth();
 
     const [activeCategory, setActiveCategory] = useState<string>("Platos");
     const [currentOrder, setCurrentOrder] = useState<Partial<Order>>({
@@ -60,11 +52,25 @@ export function KioskView() {
     const [selectedItemForVariant, setSelectedItemForVariant] = useState<MenuItem | null>(null);
     const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
 
+    // Access Control Effect
+    useEffect(() => {
+        if (!isMounted) return;
+
+        if (!currentUser) {
+            router.push('/');
+            return;
+        }
+
+        const allowedRoles = ['admin', 'kiosk'];
+        if (!allowedRoles.includes(currentUser.role)) {
+            router.push('/dashboard');
+        }
+    }, [currentUser, isMounted, router]);
+
     // Initial load - Set default category if available
     useEffect(() => {
         if (categories.length > 0 && activeCategory === "Platos") {
             // Optional: Set to first category
-            // setActiveCategory(categories[0].name);
         }
 
         setCurrentOrder({
@@ -83,8 +89,6 @@ export function KioskView() {
 
     const currentItems = useMemo(() => {
         if (!activeCategory) return [];
-
-        // Filter logic: Match adaptItem's injected categoryName OR the Firestore Item's categoryName
         return menuItems.filter((item, index) => {
             const original = firestoreItems[index];
             return original.categoryName === activeCategory;
@@ -96,11 +100,6 @@ export function KioskView() {
             let price = item.customPrice;
 
             if (price === undefined) {
-                // Find item in menuItems. Note: Item.menuItemId might be a variant ID now.
-                // If it's a variant ID, we might not find it in the main List if ID is unique.
-                // However, we passed customPrice for variants in handleAddItem, so we should hit the first case.
-
-                // If not variant, it's a base item
                 const menuItem = menuItems.find(i => i.id === item.menuItemId);
                 price = menuItem?.precio || 0;
             }
@@ -197,8 +196,12 @@ export function KioskView() {
 
             const newId = await addOrUpdateOrder(orderToSubmit as Order);
 
-            const orderNumber = newId.slice(-4);
-            router.push(`/autoservice/success?id=${orderNumber}`);
+            if (newId) {
+                const orderNumber = newId.slice(-4);
+                router.push(`/autoservice/success?id=${orderNumber}`);
+            } else {
+                throw new Error("Failed to create order");
+            }
 
         } catch (error) {
             console.error("Error submitting order:", error);
@@ -211,6 +214,9 @@ export function KioskView() {
             setIsSubmitting(false);
         }
     };
+
+
+    if (!isMounted || !currentUser) return null;
 
     if (loading) {
         return (
@@ -225,12 +231,16 @@ export function KioskView() {
         <div className="min-h-screen bg-gray-50 pb-32">
             <header className="bg-white shadow-sm sticky top-0 z-10">
                 <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
-                    <Link href="/autoservice">
-                        <Button variant="ghost" className="flex items-center text-lg hover:bg-gray-100">
-                            <ArrowLeft className="mr-2 h-6 w-6" />
-                            Volver
-                        </Button>
-                    </Link>
+                    {currentUser.role === 'admin' ? (
+                        <Link href="/admin/dashboard">
+                            <Button variant="ghost" className="flex items-center text-lg hover:bg-gray-100">
+                                <ArrowLeft className="mr-2 h-6 w-6" />
+                                Volver
+                            </Button>
+                        </Link>
+                    ) : (
+                        <div className="w-24" />
+                    )}
                     <h1 className="text-2xl font-black text-gray-900">AUTOSERVICIO</h1>
                     <div className="w-24" />
                 </div>
