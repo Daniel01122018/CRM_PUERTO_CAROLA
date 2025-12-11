@@ -40,6 +40,7 @@ export default function MenuManagementPage() {
   const [variants, setVariants] = useState<MenuItemVariant[]>([]);
   const [newVariantName, setNewVariantName] = useState('');
   const [newVariantPrice, setNewVariantPrice] = useState('');
+  const [newVariantContext, setNewVariantContext] = useState<'salon' | 'llevar'>('salon');
   const [variantToDeleteIndex, setVariantToDeleteIndex] = useState<number | null>(null);
 
   const [itemToDelete, setItemToDelete] = useState<FirestoreItem | null>(null);
@@ -73,6 +74,7 @@ export default function MenuManagementPage() {
     }
     setNewVariantName('');
     setNewVariantPrice('');
+    setNewVariantContext('salon');
     setItemDialogOpen(true);
   };
 
@@ -86,7 +88,7 @@ export default function MenuManagementPage() {
       id: Date.now(), // Temp ID
       nombre: newVariantName,
       precio: price,
-      contexto: 'salon'
+      contexto: newVariantContext
     };
 
     setVariants([...variants, newVariant]);
@@ -268,6 +270,11 @@ export default function MenuManagementPage() {
                         <div key={idx} className="flex items-center gap-2">
                           <Input disabled value={v.nombre} className="flex-1 h-8 text-sm" />
                           <div className="w-20 text-sm font-bold text-right">${v.precio.toFixed(2)}</div>
+                          <div className="w-20 flex justify-center">
+                            <span className={`px-2 py-1 rounded-full text-[10px] uppercase font-bold ${v.contexto === 'llevar' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {v.contexto || 'salon'}
+                            </span>
+                          </div>
                           <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => initiateRemoveVariant(idx)}>
                             <div className="h-4 w-4">x</div>
                           </Button>
@@ -276,7 +283,7 @@ export default function MenuManagementPage() {
                     </div>
 
                     <div className="flex gap-2 items-end border-t pt-2">
-                      <div className="flex-1">
+                      <div className="flex-[2]">
                         <Label className="text-xs mb-1 block">Nombre</Label>
                         <Input
                           value={newVariantName}
@@ -285,7 +292,19 @@ export default function MenuManagementPage() {
                           className="h-8 text-sm"
                         />
                       </div>
-                      <div className="w-24">
+                      <div className="flex-1">
+                        <Label className="text-xs mb-1 block">Contexto</Label>
+                        <Select value={newVariantContext} onValueChange={(v: 'salon' | 'llevar') => setNewVariantContext(v)}>
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="salon">Mesa</SelectItem>
+                            <SelectItem value="llevar">Llevar</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-20">
                         <Label className="text-xs mb-1 block">Precio</Label>
                         <Input
                           type="number"
