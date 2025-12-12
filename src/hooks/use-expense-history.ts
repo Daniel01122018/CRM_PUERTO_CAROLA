@@ -102,9 +102,13 @@ export function useExpenseHistory(dateRange: DateRange | null) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dateRange]);
 
+    const refresh = () => {
+        fetchExpenses(true);
+    };
+
     const loadMore = () => {
         fetchExpenses(false);
     };
 
-    return { expenses, loading, error, loadMore, hasMore };
+    return { expenses, loading, error, loadMore, hasMore, refresh };
 }

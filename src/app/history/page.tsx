@@ -93,7 +93,7 @@ export default function HistoryPage() {
   }, [filterPreset, customDateRange]);
 
   // Fetch orders based on the calculated range
-  const { orders: historyOrders, loading: historyLoading } = useOrderHistory(dateFilterRange);
+  const { orders: historyOrders, loading: historyLoading, refresh } = useOrderHistory(dateFilterRange);
   const { stats: weeklyStats } = useWeeklyStats();
 
   useEffect(() => {
@@ -302,6 +302,7 @@ export default function HistoryPage() {
   const confirmCancelOrder = async () => {
     if (orderToCancelId) {
       await cancelOrder(orderToCancelId);
+      refresh();
     }
     setIsAlertDialogOpen(false);
     setOrderToCancelId(null);

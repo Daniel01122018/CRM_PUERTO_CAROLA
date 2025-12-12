@@ -62,7 +62,8 @@ export function useExpenses() {
 
     // Update daily stats
     await updateDailyStats(new Date(), {
-      expenses: expenseData.amount
+      expenses: expenseData.amount,
+      categoryBreakdown: { [expenseData.category]: expenseData.amount }
     });
   }, [currentUser]);
 

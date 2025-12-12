@@ -87,7 +87,7 @@ export default function ExpensesPage() {
     }
   }, [filterPreset, customDateRange]);
 
-  const { expenses: historyExpenses, loading, loadMore, hasMore } = useExpenseHistory(dateFilterRange);
+  const { expenses: historyExpenses, loading, loadMore, hasMore, refresh } = useExpenseHistory(dateFilterRange);
 
   const expenses = historyExpenses;
 
@@ -145,6 +145,7 @@ export default function ExpensesPage() {
       }
 
       await addExpense(expenseData);
+      refresh();
       toast({
         title: 'Gasto Registrado',
         description: `Se ha añadido un gasto en "${values.category}" por un monto de $${values.amount.toFixed(2)}.`,
@@ -179,6 +180,7 @@ export default function ExpensesPage() {
 
     try {
       await updateExpense(selectedExpense.id, updatedData);
+      refresh();
       toast({
         title: 'Gasto Actualizado',
         description: 'El gasto ha sido modificado exitosamente.',
@@ -198,6 +200,7 @@ export default function ExpensesPage() {
     if (!selectedExpense) return;
     try {
       await deleteExpense(selectedExpense.id);
+      refresh();
       toast({
         title: 'Gasto Eliminado',
         description: 'El gasto ha sido eliminado exitosamente.',
