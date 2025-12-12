@@ -62,15 +62,15 @@ export default function TakeawayQueuePage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
-            <Link href="/order/new-takeaway" className="flex-1 sm:flex-none">
-              <Button className="flex items-center gap-2 w-full sm:w-auto">
+            <Link href="/order/new-takeaway" className="w-full sm:w-auto">
+              <Button className="flex items-center justify-center gap-2 w-full sm:w-auto">
                 <PlusCircle className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span className="hidden sm:inline">Nuevo Pedido</span>
                 <span className="sm:hidden">Nuevo</span>
               </Button>
             </Link>
-            <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"} className="flex-1 sm:flex-none">
-              <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
+            <Link href={currentUser.role === 'admin' ? "/admin/dashboard" : "/dashboard"} className="w-full sm:w-auto">
+              <Button variant="outline" className="flex items-center justify-center gap-2 w-full sm:w-auto">
                 <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span className="hidden sm:inline">Volver al Salón</span>
                 <span className="sm:hidden">Volver</span>
@@ -134,8 +134,8 @@ export default function TakeawayQueuePage() {
               <ShoppingBag className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
               <p className="text-lg font-semibold text-muted-foreground mb-2">No hay pedidos para llevar activos.</p>
               <p className="text-sm text-muted-foreground mb-4">Crea un nuevo pedido para empezar.</p>
-              <Link href="/order/new-takeaway">
-                <Button className="flex items-center gap-2">
+              <Link href="/order/new-takeaway" className="flex justify-center">
+                <Button className="flex items-center justify-center gap-2">
                   <PlusCircle className="h-4 w-4" />
                   Crear Primer Pedido
                 </Button>
