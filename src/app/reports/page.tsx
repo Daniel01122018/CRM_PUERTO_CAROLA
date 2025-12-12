@@ -21,6 +21,16 @@ import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, Pig
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type FilterPreset = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
 
@@ -42,6 +52,7 @@ export default function ReportsPage() {
   const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_week');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [isRecalculateAlertOpen, setIsRecalculateAlertOpen] = useState(false);
 
   useEffect(() => {
     if (isMounted && (!currentUser || currentUser.role !== 'admin')) {
@@ -117,6 +128,7 @@ export default function ReportsPage() {
 
   const handleRecalculate = async () => {
     setIsRecalculating(true);
+    setIsRecalculateAlertOpen(false);
     try {
       const result = await migrateDailyStats();
       if (result.success) {
@@ -185,7 +197,7 @@ export default function ReportsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleRecalculate}
+                onClick={() => setIsRecalculateAlertOpen(true)}
                 disabled={isRecalculating}
                 className="flex-1 sm:flex-none min-w-[140px]"
               >
@@ -431,6 +443,22 @@ export default function ReportsPage() {
           </div>
         </div>
       </main>
+
+      <AlertDialog open={isRecalculateAlertOpen} onOpenChange={setIsRecalculateAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Está seguro de recalcular los datos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción utilizará muchos recursos de la base de datos para rehacer los cálculos históricos.
+              Esto podría ralentizar el sistema momentáneamente. ¿Desea continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRecalculate}>Continuar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
