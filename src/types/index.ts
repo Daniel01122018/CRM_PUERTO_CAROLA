@@ -26,6 +26,20 @@ export interface MenuItem {
   contexto?: 'salon' | 'llevar'; // Contexto de servicio
 }
 
+export interface FirestoreItem {
+  id: string;
+  name: string;
+  categoryId: string;
+  categoryName: string;
+  price: number;
+  variants?: MenuItemVariant[];
+  flavors?: string[];
+  isAvailable: boolean;
+  type: 'plato' | 'item';
+  paraLlevar?: boolean;
+  oldId?: number;
+}
+
 export interface OrderItem {
   menuItemId: number | string;
   quantity: number;

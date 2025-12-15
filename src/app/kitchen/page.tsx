@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -50,20 +52,20 @@ const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
 
   let cardClasses = "flex flex-col border shadow-sm transition-colors ";
   if (isCancelled) {
-    cardClasses += "bg-red-50 border-red-300 shadow-md";
+    cardClasses += "bg-red-50 border-red-300 dark:bg-red-950/50 dark:border-red-800 shadow-md";
   } else if (isCompleted) {
     // Paid takeaway
-    cardClasses += "bg-green-50 border-green-300 opacity-90";
+    cardClasses += "bg-green-50 border-green-300 dark:bg-green-950/50 dark:border-green-800 opacity-90";
   } else if (isWarning) {
     // Late order
-    cardClasses += "bg-orange-50 border-orange-400 shadow-md animate-in fade-in";
+    cardClasses += "bg-orange-50 border-orange-400 dark:bg-orange-950/50 dark:border-orange-800 shadow-md animate-in fade-in";
   }
 
   return (
     <Card className={cardClasses}>
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
-          <span className={`flex items-center gap-2 ${isCancelled ? 'text-red-700' : isCompleted ? 'text-green-700' : isWarning ? 'text-orange-700' : ''}`}>
+          <span className={`flex items-center gap-2 ${isCancelled ? 'text-red-700 dark:text-red-400' : isCompleted ? 'text-green-700 dark:text-green-400' : isWarning ? 'text-orange-700 dark:text-orange-400' : ''}`}>
             {order.tableId === 'takeaway' ? `LLEVAR #${order.id.slice(-4)}` : `Mesa ${order.tableId}`}
             {isWarning && !isCancelled && !isCompleted && <AlertTriangle className="h-4 w-4 text-orange-500 animate-pulse" />}
           </span>
@@ -73,12 +75,12 @@ const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
           </span>
         </CardTitle>
         {isCancelled ? (
-          <CardDescription className="flex items-center gap-2 font-bold text-red-700 pt-1">
+          <CardDescription className="flex items-center gap-2 font-bold text-red-700 dark:text-red-400 pt-1">
             <XCircle className="h-5 w-5" />
             ORDEN DESECHADA
           </CardDescription>
         ) : isCompleted ? (
-          <CardDescription className="flex items-center gap-2 font-bold text-green-700 pt-1">
+          <CardDescription className="flex items-center gap-2 font-bold text-green-700 dark:text-green-400 pt-1">
             <CheckCircle className="h-5 w-5" />
             LISTO / PAGADO
           </CardDescription>
@@ -95,15 +97,15 @@ const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
 
             return (
               <li key={`${item.menuItemId}-${index}`} className="flex items-start">
-                <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500' : isCompleted ? 'text-green-600' : 'text-primary'}`} />
+                <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500 dark:text-red-400' : isCompleted ? 'text-green-600 dark:text-green-400' : 'text-primary'}`} />
                 <div>
                   <p className="font-semibold">
                     {itemName}{' '}
                     {item.customPrice && `($${item.customPrice.toFixed(2)})`}{' '}
-                    <span className={`font-bold ${isCancelled ? 'text-red-700' : 'text-primary'}`}>x{item.quantity}</span>
-                    {item.contexto === 'llevar' && <span className="text-xs text-blue-600 font-semibold ml-1">(P/ Llevar)</span>}
+                    <span className={`font-bold ${isCancelled ? 'text-red-700 dark:text-red-400' : 'text-primary'}`}>x{item.quantity}</span>
+                    {item.contexto === 'llevar' && <span className="text-xs text-blue-600 dark:text-blue-400 font-semibold ml-1">(P/ Llevar)</span>}
                   </p>
-                  {item.notes && <p className="text-xs text-amber-700">Sabor/Nota: {item.notes}</p>}
+                  {item.notes && <p className="text-xs text-amber-700 dark:text-amber-500">Sabor/Nota: {item.notes}</p>}
                 </div>
               </li>
             );

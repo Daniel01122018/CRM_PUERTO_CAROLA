@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import type { MenuPlato, MenuItem, MenuItemVariant } from '@/types';
+import type { MenuPlato, MenuItem, MenuItemVariant, FirestoreItem } from '@/types';
 
 export interface Category {
     id: string;
@@ -9,19 +9,7 @@ export interface Category {
     order: number;
 }
 
-export interface FirestoreItem {
-    id: string;
-    name: string;
-    categoryId: string;
-    categoryName: string;
-    price: number;
-    variants?: MenuItemVariant[];
-    flavors?: string[];
-    isAvailable: boolean;
-    type: 'plato' | 'item';
-    paraLlevar?: boolean;
-    oldId?: number;
-}
+// FirestoreItem removed (moved to types)
 
 export function useMenu() {
     const [categories, setCategories] = useState<Category[]>([]);
