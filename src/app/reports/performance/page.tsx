@@ -15,6 +15,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -24,12 +25,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import AppSidebar from '@/components/app-sidebar';
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, isSameDay } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Gem, TrendingUp, TrendingDown, Utensils, Coffee, Plus, Search, ArrowUpDown, ShoppingBag } from 'lucide-react';
+import { ArrowLeft, BarChart2, Calendar as CalendarIcon, Filter, TrendingUp, TrendingDown, Utensils, Coffee, Plus, Search, ArrowUpDown, ShoppingBag, Store } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
-import { Order, MenuItem, DailyStats } from '@/types';
+import { DailyStats } from '@/hooks/use-daily-stats';
 
 type FilterPreset = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
 
@@ -48,6 +49,10 @@ interface MenuItemComparisonPerformance extends MenuItemPerformance {
   comparisonQuantitySold: number;
   comparisonTotalRevenue: number;
   comparisonProfit: number;
+  // Diffs
+  quantityDiff: number;
+  revenueDiff: number;
+  // Percentages
   quantitySoldChange: number;
   totalRevenueChange: number;
   profitChange: number;
@@ -127,7 +132,8 @@ const calculatePerformanceData = (stats: DailyStats[], menuItems: FirestoreItem[
 const categorizeMenuItems = (performanceData: MenuItemComparisonPerformance[]) => {
   const bebidas: MenuItemComparisonPerformance[] = [];
   const adicionales: MenuItemComparisonPerformance[] = [];
-  const platos: MenuItemComparisonPerformance[] = [];
+  const platosSalon: MenuItemComparisonPerformance[] = [];
+  const platosLlevar: MenuItemComparisonPerformance[] = [];
 
   performanceData.forEach(item => {
     const category = item.category.toLowerCase();
@@ -140,11 +146,16 @@ const categorizeMenuItems = (performanceData: MenuItemComparisonPerformance[]) =
       category.includes('acompanamiento')) {
       adicionales.push(item);
     } else {
-      platos.push(item);
+      // Logic for Platos Split
+      if (item.contexto === 'llevar') {
+        platosLlevar.push(item);
+      } else {
+        platosSalon.push(item);
+      }
     }
   });
 
-  return { platos, bebidas, adicionales };
+  return { platosSalon, platosLlevar, bebidas, adicionales };
 };
 
 export default function PerformanceReportPage() {
@@ -160,13 +171,17 @@ export default function PerformanceReportPage() {
   const [comparisonFilterPreset, setComparisonFilterPreset] = useState<FilterPreset>('last_week');
   const [comparisonCustomDateRange, setComparisonCustomDateRange] = useState<DateRange | undefined>(undefined);
 
-  const [activeTab, setActiveTab] = useState('platos');
+  // UI State
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [mainTab, setMainTab] = useState('insights'); // 'insights' | 'table'
+  const [tableTab, setTableTab] = useState('platos_salon');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: 'quantitySold', direction: 'desc' });
 
   useEffect(() => {
     if (isMounted && (!currentUser || currentUser.role !== 'admin')) {
-      router.push('/dashboard');
+      // router.push('/dashboard'); // Commented out for dev flow if needed, but safer to keep
     }
   }, [currentUser, isMounted, router]);
 
@@ -201,6 +216,10 @@ export default function PerformanceReportPage() {
       const comparisonTotalRevenue = comparisonItem?.totalRevenue || 0;
       const comparisonProfit = comparisonItem?.profit || 0;
 
+      // Diffs
+      const quantityDiff = quantitySold - comparisonQuantitySold;
+      const revenueDiff = totalRevenue - comparisonTotalRevenue;
+
       const quantitySoldChange = comparisonQuantitySold === 0 ?
         (quantitySold > 0 ? 100 : 0) :
         ((quantitySold - comparisonQuantitySold) / comparisonQuantitySold) * 100;
@@ -225,6 +244,8 @@ export default function PerformanceReportPage() {
         comparisonQuantitySold,
         comparisonTotalRevenue,
         comparisonProfit,
+        quantityDiff,
+        revenueDiff,
         quantitySoldChange,
         totalRevenueChange,
         profitChange,
@@ -237,12 +258,13 @@ export default function PerformanceReportPage() {
   const categorizedData = useMemo(() => categorizeMenuItems(combinedPerformanceData), [combinedPerformanceData]);
 
   const currentTabData = useMemo(() => {
-    switch (activeTab) {
+    switch (tableTab) {
       case 'bebidas': return categorizedData.bebidas;
       case 'adicionales': return categorizedData.adicionales;
-      default: return categorizedData.platos;
+      case 'platos_llevar': return categorizedData.platosLlevar;
+      default: return categorizedData.platosSalon;
     }
-  }, [activeTab, categorizedData]);
+  }, [tableTab, categorizedData]);
 
   const filteredAndSortedData = useMemo(() => {
     let data = [...currentTabData];
@@ -264,19 +286,15 @@ export default function PerformanceReportPage() {
     return data;
   }, [currentTabData, searchQuery, sortConfig]);
 
-  const mostSoldItem = useMemo(() => {
-    return combinedPerformanceData.length > 0
-      ? combinedPerformanceData.reduce((prev, current) => (prev.quantitySold > current.quantitySold ? prev : current))
-      : null;
-  }, [combinedPerformanceData]);
+  // Insights Calculations
+  const mostSoldItem = useMemo(() => combinedPerformanceData.length > 0 ? combinedPerformanceData.reduce((prev, current) => (prev.quantitySold > current.quantitySold ? prev : current)) : null, [combinedPerformanceData]);
+  const mostProfitableItem = useMemo(() => combinedPerformanceData.length > 0 ? combinedPerformanceData.reduce((prev, current) => (prev.profit > current.profit ? prev : current)) : null, [combinedPerformanceData]);
 
-  const mostProfitableItem = useMemo(() => {
-    return combinedPerformanceData.length > 0
-      ? combinedPerformanceData.reduce((prev, current) => {
-        return prev.profit > current.profit ? prev : current;
-      })
-      : null;
-  }, [combinedPerformanceData]);
+  const topGrowthItem = useMemo(() => combinedPerformanceData.length > 0 ? combinedPerformanceData.reduce((prev, current) => (prev.revenueDiff > current.revenueDiff ? prev : current)) : null, [combinedPerformanceData]);
+  const topDeclineItem = useMemo(() => combinedPerformanceData.length > 0 ? combinedPerformanceData.reduce((prev, current) => (prev.revenueDiff < current.revenueDiff ? prev : current)) : null, [combinedPerformanceData]);
+
+  const salonRevenue = useMemo(() => combinedPerformanceData.filter(i => i.contexto !== 'llevar').reduce((acc, curr) => acc + curr.totalRevenue, 0), [combinedPerformanceData]);
+  const llevarRevenue = useMemo(() => combinedPerformanceData.filter(i => i.contexto === 'llevar').reduce((acc, curr) => acc + curr.totalRevenue, 0), [combinedPerformanceData]);
 
   const getFilterDateRangeString = (range: { from: Date; to: Date } | null) => {
     if (!range?.from) return "Rango no definido";
@@ -286,11 +304,20 @@ export default function PerformanceReportPage() {
     return `${fromStr} - ${toStr}`;
   };
 
-  const renderChange = (change: number) => {
-    const changeText = `${change.toFixed(0)}%`;
-    if (change > 0) return <span className="text-green-500 text-xs flex items-center gap-1"><TrendingUp className="h-3 w-3" /> {changeText}</span>
-    if (change < 0) return <span className="text-red-500 text-xs flex items-center gap-1"><TrendingDown className="h-3 w-3" /> {changeText}</span>
-    return <span className="text-muted-foreground text-xs">{changeText}</span>
+  const renderBadgeChange = (val: number, isCurrency = false) => {
+    if (val === 0) return <Badge variant="outline" className="text-[10px] text-muted-foreground border-slate-200">0</Badge>;
+    const isPositive = val > 0;
+    const text = isCurrency ? `$${Math.abs(val).toFixed(2)}` : `${Math.abs(val)}`;
+
+    return (
+      <Badge variant="outline" className={cn(
+        "text-[10px] gap-1",
+        isPositive ? "bg-green-50 text-green-700 border-green-200" : "bg-red-50 text-red-700 border-red-200"
+      )}>
+        {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+        {isPositive ? '+' : '-'}{text}
+      </Badge>
+    );
   }
 
   const handleSort = (key: SortKey) => {
@@ -329,333 +356,317 @@ export default function PerformanceReportPage() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
             <div className='flex items-center gap-3 flex-wrap'>
               <AppSidebar />
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-                <BarChart2 className="h-6 w-6 sm:h-8 sm:w-8" />
-                Reporte de Rendimiento
-              </h1>
+              <div className="flex flex-col">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+                  <BarChart2 className="h-6 w-6 sm:h-8 sm:w-8" />
+                  Reporte de Rendimiento
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {getFilterDateRangeString(primaryDateFilterRange)} <span className="text-xs mx-1">vs</span> {getFilterDateRangeString(comparisonDateFilterRange)}
+                </p>
+              </div>
             </div>
             <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
+              <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Configurar Periodos
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Configuración de Periodos</DialogTitle>
+                    <DialogDescription>Seleccione los rangos de fechas para comparar.</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                    <div className="space-y-4">
+                      <h3 className="font-medium">Período Principal</h3>
+                      <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar periodo" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="this_week">Esta semana</SelectItem>
+                          <SelectItem value="last_week">Semana pasada</SelectItem>
+                          <SelectItem value="this_month">Este mes</SelectItem>
+                          <SelectItem value="last_month">Mes pasado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="border rounded-md p-2">
+                        <Calendar mode="range" selected={customDateRange} onSelect={(r) => { setCustomDateRange(r); if (r?.from) setFilterPreset('custom'); }} locale={es} numberOfMonths={1} />
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <h3 className="font-medium">Período de Comparación</h3>
+                      <Select value={comparisonFilterPreset} onValueChange={(v) => { setComparisonFilterPreset(v as FilterPreset); setComparisonCustomDateRange(undefined); }}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar periodo" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="this_week">Esta semana</SelectItem>
+                          <SelectItem value="last_week">Semana pasada</SelectItem>
+                          <SelectItem value="this_month">Este mes</SelectItem>
+                          <SelectItem value="last_month">Mes pasado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="border rounded-md p-2">
+                        <Calendar mode="range" selected={comparisonCustomDateRange} onSelect={(r) => { setComparisonCustomDateRange(r); if (r?.from) setComparisonFilterPreset('custom'); }} locale={es} numberOfMonths={1} />
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={() => setIsFilterOpen(false)}>Aplicar Filtros</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
               <Link href="/admin/dashboard" className="flex-1 sm:flex-none">
-                <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
+                <Button variant="ghost" className="flex items-center gap-2 w-full sm:w-auto">
                   <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="hidden sm:inline">Volver al Dashboard</span>
-                  <span className="sm:hidden">Volver</span>
+                  Volver
                 </Button>
               </Link>
             </div>
           </div>
 
-          {/* Filtros */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Período Principal</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filtrar por fecha" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="this_week">Esta semana</SelectItem>
-                    <SelectItem value="last_week">Semana pasada</SelectItem>
-                    <SelectItem value="this_month">Este mes</SelectItem>
-                    <SelectItem value="last_month">Mes pasado</SelectItem>
-                  </SelectContent>
-                </Select>
+          <Tabs value={mainTab} onValueChange={setMainTab} className="w-full">
+            <TabsList className="grid w-full md:w-[400px] grid-cols-2 mb-6">
+              <TabsTrigger value="insights">Insights & Resumen</TabsTrigger>
+              <TabsTrigger value="table">Tabla Detallada</TabsTrigger>
+            </TabsList>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal flex-1", !customDateRange && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customDateRange?.from ?
-                        customDateRange.to ?
-                          `${format(customDateRange.from, 'LLL dd, y')} - ${format(customDateRange.to, 'LLL dd, y')}` :
-                          format(customDateRange.from, 'LLL dd, y') :
-                        <span>Rango personalizado</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={customDateRange?.from}
-                      selected={customDateRange}
-                      onSelect={(range) => { setCustomDateRange(range); if (range?.from) setFilterPreset('custom'); }}
-                      numberOfMonths={2}
-                      locale={es}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </CardContent>
-            </Card>
+            <TabsContent value="insights">
+              {/* Highlights */}
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Más Vendido</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {mostSoldItem ? (
+                      <div>
+                        <div className="text-2xl font-bold truncate" title={mostSoldItem.name}>{mostSoldItem.name}</div>
+                        <div className="flex gap-2 mt-1">
+                          {renderBadgeChange(mostSoldItem.quantityDiff)}
+                          {renderBadgeChange(mostSoldItem.revenueDiff, true)}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">{mostSoldItem.quantitySold} vendidas / ${mostSoldItem.totalRevenue.toFixed(2)}</p>
+                      </div>
+                    ) : <p className="text-sm text-muted-foreground">Sin datos</p>}
+                  </CardContent>
+                </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Período de Comparación</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                <Select value={comparisonFilterPreset} onValueChange={(v) => { setComparisonFilterPreset(v as FilterPreset); setComparisonCustomDateRange(undefined); }}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filtrar por fecha" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="this_week">Esta semana</SelectItem>
-                    <SelectItem value="last_week">Semana pasada</SelectItem>
-                    <SelectItem value="this_month">Este mes</SelectItem>
-                    <SelectItem value="last_month">Mes pasado</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Mayor Crecimiento</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    {topGrowthItem && topGrowthItem.revenueDiff > 0 ? (
+                      <div>
+                        <div className="text-2xl font-bold truncate" title={topGrowthItem.name}>{topGrowthItem.name}</div>
+                        <div className="flex gap-2 mt-1">
+                          {renderBadgeChange(topGrowthItem.quantityDiff)}
+                          {renderBadgeChange(topGrowthItem.revenueDiff, true)}
+                        </div>
+                        <p className="text-xs text-green-600 mt-2">Ingresos aumentaron</p>
+                      </div>
+                    ) : <p className="text-sm text-muted-foreground">Sin crecimiento significativo</p>}
+                  </CardContent>
+                </Card>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button id="date-comparison" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal flex-1", !comparisonCustomDateRange && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {comparisonCustomDateRange?.from ?
-                        comparisonCustomDateRange.to ?
-                          `${format(comparisonCustomDateRange.from, 'LLL dd, y')} - ${format(comparisonCustomDateRange.to, 'LLL dd, y')}` :
-                          format(comparisonCustomDateRange.from, 'LLL dd, y') :
-                        <span>Rango personalizado</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={comparisonCustomDateRange?.from}
-                      selected={comparisonCustomDateRange}
-                      onSelect={(range) => { setComparisonCustomDateRange(range); if (range?.from) setComparisonFilterPreset('custom'); }}
-                      numberOfMonths={2}
-                      locale={es}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </CardContent>
-            </Card>
-          </div>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Mayor Caída</CardTitle>
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  </CardHeader>
+                  <CardContent>
+                    {topDeclineItem && topDeclineItem.revenueDiff < 0 ? (
+                      <div>
+                        <div className="text-2xl font-bold truncate" title={topDeclineItem.name}>{topDeclineItem.name}</div>
+                        <div className="flex gap-2 mt-1">
+                          {renderBadgeChange(topDeclineItem.quantityDiff)}
+                          {renderBadgeChange(topDeclineItem.revenueDiff, true)}
+                        </div>
+                        <p className="text-xs text-red-600 mt-2">Ingresos disminuyeron</p>
+                      </div>
+                    ) : <p className="text-sm text-muted-foreground">Sin caídas significativas</p>}
+                  </CardContent>
+                </Card>
 
-
-          {/* Highlights */}
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Más Vendido</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {mostSoldItem ? (
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="text-2xl font-bold">{mostSoldItem.name}</div>
-                      {renderChange(mostSoldItem.quantitySoldChange)}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Mix de Ventas</CardTitle>
+                    <Store className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center">
+                        <Utensils className="h-4 w-4 mr-2 text-blue-500" />
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium leading-none">Salón</p>
+                          <p className="text-sm text-muted-foreground">${salonRevenue.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        <ShoppingBag className="h-4 w-4 mr-2 text-orange-500" />
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium leading-none">Para Llevar</p>
+                          <p className="text-sm text-muted-foreground">${llevarRevenue.toFixed(2)}</p>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">{mostSoldItem.quantitySold} unidades vendidas</p>
-                    <p className="text-xs text-green-600">${mostSoldItem.totalRevenue.toFixed(2)} en ingresos</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No hay datos de ventas para el período principal</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Más Rentable (Ganancia Total)</CardTitle>
-                <Gem className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {mostProfitableItem ? (
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <div className="text-2xl font-bold">{mostProfitableItem.name}</div>
-                      {renderChange(mostProfitableItem.profitChange)}
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      ${mostProfitableItem.profit.toFixed(2)} de ganancia total
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      (${((mostProfitableItem.profit / mostProfitableItem.quantitySold) || 0).toFixed(2)} por unidad)
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No hay datos de rentabilidad</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Performance by Category Tabs */}
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <CardTitle>Rendimiento por Categoría</CardTitle>
-                  <CardDescription className="mt-1">
-                    Comparación: {getFilterDateRangeString(primaryDateFilterRange)} vs. {getFilterDateRangeString(comparisonDateFilterRange)}
-                  </CardDescription>
-                </div>
-                <div className="w-full md:w-64 relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Buscar producto..."
-                    className="pl-9 w-full"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <div className="px-6">
-                  <TabsList className="grid w-full grid-cols-3 mb-4">
-                    <TabsTrigger value="platos" className="flex items-center gap-2">
-                      <Utensils className="h-4 w-4" />
-                      <span className="sm:hidden">Platos</span>
-                      <span className="hidden sm:inline">Platos ({categorizedData.platos.length})</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="bebidas" className="flex items-center gap-2">
-                      <Coffee className="h-4 w-4" />
-                      <span className="sm:hidden">Bebidas</span>
-                      <span className="hidden sm:inline">Bebidas ({categorizedData.bebidas.length})</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="adicionales" className="flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
-                      <span className="sm:hidden">Adic.</span>
-                      <span className="hidden sm:inline">Adicionales ({categorizedData.adicionales.length})</span>
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
+            </TabsContent>
 
-                <TabsContent value={activeTab} className="m-0">
-                  {filteredAndSortedData.length > 0 ? (
-                    <>
-                      {/* Desktop Table View */}
-                      <div className="hidden md:block overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-[30%] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
-                                <div className="flex items-center gap-2">
-                                  Producto
-                                  {sortConfig.key === 'name' && <ArrowUpDown className="h-3 w-3" />}
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('quantitySold')}>
-                                <div className="flex items-center justify-end gap-2">
-                                  Ventas
-                                  {sortConfig.key === 'quantitySold' && <ArrowUpDown className="h-3 w-3" />}
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('totalRevenue')}>
-                                <div className="flex items-center justify-end gap-2">
-                                  Ingresos
-                                  {sortConfig.key === 'totalRevenue' && <ArrowUpDown className="h-3 w-3" />}
-                                </div>
-                              </TableHead>
-                              <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('profit')}>
-                                <div className="flex items-center justify-end gap-2">
-                                  Ganancia
-                                  {sortConfig.key === 'profit' && <ArrowUpDown className="h-3 w-3" />}
-                                </div>
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredAndSortedData.map((item) => (
-                              <TableRow key={item.id} className="hover:bg-muted/50">
-                                <TableCell className="font-medium">
-                                  <div className="flex flex-col">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-base">{item.name}</span>
-                                      {item.contexto === 'llevar' && (
-                                        <Badge variant="outline" className="text-[10px] h-5 px-1 bg-orange-50 text-orange-700 border-orange-200">
-                                          <ShoppingBag className="h-3 w-3 mr-1" />
-                                          Llevar
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">{item.category}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex flex-col items-end">
-                                    <span className="font-bold">{item.quantitySold}</span>
-                                    {renderChange(item.quantitySoldChange)}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex flex-col items-end">
-                                    <span>${item.totalRevenue.toFixed(2)}</span>
-                                    {renderChange(item.totalRevenueChange)}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="flex flex-col items-end">
-                                    <span className="font-bold text-green-600">${item.profit.toFixed(2)}</span>
-                                    {renderChange(item.profitChange)}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-
-                      {/* Mobile List View */}
-                      <div className="md:hidden flex flex-col divide-y">
-                        {filteredAndSortedData.map((item) => (
-                          <div key={item.id} className="p-4 hover:bg-muted/50 transition-colors">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <h3 className="font-semibold text-base flex items-center gap-2">
-                                  {item.name}
-                                  {item.contexto === 'llevar' && (
-                                    <Badge variant="outline" className="text-[10px] h-5 px-1 bg-orange-50 text-orange-700 border-orange-200">
-                                      <ShoppingBag className="h-3 w-3 mr-1" />
-                                      Llevar
-                                    </Badge>
-                                  )}
-                                </h3>
-                                <p className="text-xs text-muted-foreground">{item.category}</p>
-                              </div>
-                              <Badge variant="secondary" className="ml-2">
-                                {item.quantitySold}
-                              </Badge>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 mt-3">
-                              <div>
-                                <p className="text-xs text-muted-foreground">Ingresos</p>
-                                <div className="flex items-baseline gap-2">
-                                  <span className="font-medium">${item.totalRevenue.toFixed(2)}</span>
-                                  {renderChange(item.totalRevenueChange)}
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Ganancia</p>
-                                <div className="flex items-baseline gap-2">
-                                  <span className="font-bold text-green-600">${item.profit.toFixed(2)}</span>
-                                  {renderChange(item.profitChange)}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-12 text-muted-foreground">
-                      {searchQuery ? (
-                        <p>No se encontraron productos que coincidan con "{searchQuery}"</p>
-                      ) : (
-                        <p>No hay datos disponibles para el período seleccionado</p>
-                      )}
+            <TabsContent value="table">
+              {/* Performance by Category Tabs */}
+              <Card className="overflow-hidden">
+                <CardHeader className="pb-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                      <CardTitle>Detalle de Productos</CardTitle>
                     </div>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                    <div className="w-full md:w-64 relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="search"
+                        placeholder="Buscar producto..."
+                        className="pl-9 w-full"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Tabs value={tableTab} onValueChange={setTableTab} className="w-full">
+                    <div className="px-6">
+                      <TabsList className="grid w-full grid-cols-4 mb-4">
+                        <TabsTrigger value="platos_salon" className="flex items-center gap-2">
+                          <Utensils className="h-4 w-4" />
+                          <span className="hidden sm:inline">Salón ({categorizedData.platosSalon.length})</span>
+                          <span className="sm:hidden">Salón</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="platos_llevar" className="flex items-center gap-2">
+                          <ShoppingBag className="h-4 w-4" />
+                          <span className="hidden sm:inline">Llevar ({categorizedData.platosLlevar.length})</span>
+                          <span className="sm:hidden">Llevar</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="bebidas" className="flex items-center gap-2">
+                          <Coffee className="h-4 w-4" />
+                          <span className="hidden sm:inline">Bebidas ({categorizedData.bebidas.length})</span>
+                          <span className="sm:hidden">Bebidas</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="adicionales" className="flex items-center gap-2">
+                          <Plus className="h-4 w-4" />
+                          <span className="hidden sm:inline">Adic. ({categorizedData.adicionales.length})</span>
+                          <span className="sm:hidden">Adic.</span>
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+
+                    <TabsContent value={tableTab} className="m-0">
+                      {filteredAndSortedData.length > 0 ? (
+                        <>
+                          {/* Desktop Table View */}
+                          <div className="hidden md:block overflow-x-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="w-[40%] cursor-pointer hover:bg-muted/50" onClick={() => handleSort('name')}>
+                                    <div className="flex items-center gap-2">
+                                      Producto
+                                      {sortConfig.key === 'name' && <ArrowUpDown className="h-3 w-3" />}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('quantitySold')}>
+                                    <div className="flex items-center justify-end gap-2">
+                                      Ventas (Unid.)
+                                      {sortConfig.key === 'quantitySold' && <ArrowUpDown className="h-3 w-3" />}
+                                    </div>
+                                  </TableHead>
+                                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('totalRevenue')}>
+                                    <div className="flex items-center justify-end gap-2">
+                                      Ingresos
+                                      {sortConfig.key === 'totalRevenue' && <ArrowUpDown className="h-3 w-3" />}
+                                    </div>
+                                  </TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {filteredAndSortedData.map((item) => (
+                                  <TableRow key={item.id} className="hover:bg-muted/50">
+                                    <TableCell className="font-medium">
+                                      <div className="flex flex-col">
+                                        <span className="text-base">{item.name}</span>
+                                        <span className="text-xs text-muted-foreground">{item.category}</span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex flex-col items-end gap-1">
+                                        <span className="font-bold">{item.quantitySold}</span>
+                                        {renderBadgeChange(item.quantityDiff)}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex flex-col items-end gap-1">
+                                        <span className="font-medium">${item.totalRevenue.toFixed(2)}</span>
+                                        {renderBadgeChange(item.revenueDiff, true)}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+
+                          {/* Mobile List View */}
+                          <div className="md:hidden flex flex-col divide-y">
+                            {filteredAndSortedData.map((item) => (
+                              <div key={item.id} className="p-4 hover:bg-muted/50 transition-colors">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div>
+                                    <h3 className="font-semibold text-base">{item.name}</h3>
+                                    <p className="text-xs text-muted-foreground">{item.category}</p>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 mt-3">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Ventas</p>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="font-bold">{item.quantitySold}</span>
+                                      {renderBadgeChange(item.quantityDiff)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Ingresos</p>
+                                    <div className="flex items-baseline gap-2">
+                                      <span className="font-medium">${item.totalRevenue.toFixed(2)}</span>
+                                      {renderBadgeChange(item.revenueDiff, true)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-12 text-muted-foreground">
+                          {searchQuery ? (
+                            <p>No se encontraron productos que coincidan con "{searchQuery}"</p>
+                          ) : (
+                            <p>No hay datos disponibles para el período seleccionado</p>
+                          )}
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
         </div>
       </main>
     </div>

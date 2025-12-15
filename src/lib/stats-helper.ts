@@ -9,7 +9,7 @@ export interface OrderStats {
     itemSales: { [itemId: string]: { name: string; quantity: number; revenue: number } };
 }
 
-export function findMenuItem(menuItems: FirestoreItem[], id: string | number): { name: string; price: number } | null {
+export function findMenuItem(menuItems: FirestoreItem[], id: string | number): { name: string; price: number; category?: string; contexto?: 'salon' | 'llevar' } | null {
     if (!menuItems || menuItems.length === 0) return null;
 
     const idStr = id.toString();
@@ -17,7 +17,12 @@ export function findMenuItem(menuItems: FirestoreItem[], id: string | number): {
     // 1. Try Firestore Items first
     const menuItem = menuItems.find(i => i.id === idStr || i.oldId === Number(id));
     if (menuItem) {
-        return { name: menuItem.name, price: menuItem.price };
+        return {
+            name: menuItem.name,
+            price: menuItem.price,
+            category: menuItem.categoryName,
+            contexto: menuItem.type === 'plato' ? 'salon' : undefined // Infer or map if needed, or maybe add to FirestoreItem
+        };
     }
 
     // 2. Try variants
@@ -26,7 +31,12 @@ export function findMenuItem(menuItems: FirestoreItem[], id: string | number): {
             // Loose comparison for ID to handle string/number mismatch
             const v = i.variants.find((v: any) => v.id == id);
             if (v) {
-                return { name: `${i.name} ${v.nombre}`, price: v.precio };
+                return {
+                    name: `${i.name} ${v.nombre}`,
+                    price: v.precio,
+                    category: i.categoryName, // Inherit category from parent
+                    contexto: v.contexto
+                };
             }
         }
     }
@@ -34,7 +44,12 @@ export function findMenuItem(menuItems: FirestoreItem[], id: string | number): {
     // 3. Fallback to ALL_MENU_ITEMS (Static Data)
     const staticItem = ALL_MENU_ITEMS.find(i => i.id == id);
     if (staticItem) {
-        return { name: staticItem.nombre, price: staticItem.precio };
+        return {
+            name: staticItem.nombre,
+            price: staticItem.precio,
+            category: staticItem.category,
+            contexto: staticItem.contexto
+        };
     }
 
     return null;
