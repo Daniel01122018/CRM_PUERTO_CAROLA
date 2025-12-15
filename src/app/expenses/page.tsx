@@ -136,7 +136,6 @@ export default function ExpensesPage() {
       let expenseData: any = {
         amount: values.amount,
         category: values.category,
-        category: values.category,
         source: currentUser.role === 'admin' ? values.source : 'caja',
         note: values.note,
       };
