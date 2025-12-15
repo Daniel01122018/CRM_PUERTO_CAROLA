@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useExpenseHistory } from '@/hooks/use-expense-history';
+import { useExpenseCategories } from '@/hooks/use-expense-categories';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,29 +23,29 @@ import AppSidebar from '@/components/app-sidebar';
 import { useToast } from '@/hooks/use-toast';
 import { format, startOfDay, startOfMonth, endOfMonth, subDays, startOfWeek, endOfWeek, isWithinInterval, subMonths, startOfYesterday, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX, ChevronsUpDown, Check, Users, Trash2, Edit } from 'lucide-react';
-import type { Expense, ExpenseCategory, Employee, ExpenseSource } from '@/types';
+import { ArrowLeft, Wallet, PlusCircle, BarChart2, Calendar as CalendarIcon, FilterX, ChevronsUpDown, Check, Users, Trash2, Edit, Settings, Plus } from 'lucide-react';
+import type { Expense, ExpenseCategory, ExpenseCategoryConfig, Employee, ExpenseSource } from '@/types';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const expenseSchema = z.object({
   amount: z.coerce.number().positive({ message: 'El monto debe ser positivo.' }),
   category: z.string().min(1, { message: 'Debe seleccionar o ingresar una categoría.' }),
   source: z.enum(['caja', 'caja_chica']),
   employeeId: z.string().optional(),
+  note: z.string().optional(),
 });
-
-const PREDEFINED_CATEGORIES: ExpenseCategory[] = [
-  "Comida de Empleado", "Pescado", "Chifles", "Supermercado", "Mercado Montebello", "Sueldos",
-  "Yuca", "Camarón", "Pedido de Colas", "Pan", "Gas", "Gasto Personal", "Pasajes", "Bollos"
-];
 
 type FilterPreset = 'all' | 'today' | 'yesterday' | 'this_week' | 'last_7_days' | 'this_month' | 'last_month' | 'custom';
 
 export default function ExpensesPage() {
   const { isMounted, currentUser, expenses: currentMonthExpenses, addExpense, employees, updateExpense, deleteExpense } = useAppStore();
+  const { categories, addCategory, deleteCategory } = useExpenseCategories();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -55,6 +56,9 @@ export default function ExpensesPage() {
   const [isCategoryPopoverOpen, setIsCategoryPopoverOpen] = useState(false);
   const [isEditCategoryPopoverOpen, setEditCategoryPopoverOpen] = useState(false);
   const [isEditModalOpen, setEditModalOpen] = useState(false);
+  const [isManageCategoriesOpen, setManageCategoriesOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryRequiresNote, setNewCategoryRequiresNote] = useState(false);
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
 
@@ -88,14 +92,13 @@ export default function ExpensesPage() {
   }, [filterPreset, customDateRange]);
 
   const { expenses: historyExpenses, loading, loadMore, hasMore, refresh } = useExpenseHistory(dateFilterRange);
-
   const expenses = historyExpenses;
 
-  const allCategories = useMemo(() => {
-    const source = expenses.length > 0 ? expenses : (currentMonthExpenses || []);
-    const dynamicCategories = source.map(e => e.category);
-    return [...new Set([...PREDEFINED_CATEGORIES, ...dynamicCategories])];
-  }, [expenses, currentMonthExpenses]);
+  // Use category names from the hook
+  const activeCategoryNames = useMemo(() => {
+    return categories.map(c => c.name);
+  }, [categories]);
+
 
 
   const form = useForm<z.infer<typeof expenseSchema>>({
@@ -133,7 +136,9 @@ export default function ExpensesPage() {
       let expenseData: any = {
         amount: values.amount,
         category: values.category,
+        category: values.category,
         source: currentUser.role === 'admin' ? values.source : 'caja',
+        note: values.note,
       };
 
       if ((values.category === 'Sueldos' || values.category === 'Comida de Empleado') && values.employeeId) {
@@ -213,6 +218,27 @@ export default function ExpensesPage() {
         title: 'Error al eliminar',
         description: error.message || 'No se pudo eliminar el gasto.',
       });
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      await addCategory(newCategoryName, newCategoryRequiresNote);
+      setNewCategoryName("");
+      setNewCategoryRequiresNote(false);
+      toast({ title: "Categoría creada", description: "La categoría se ha añadido exitosamente." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      await deleteCategory(id);
+      toast({ title: "Categoría eliminada", description: "Se ha eliminado la categoría." });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Error", description: e.message });
     }
   };
 
@@ -307,6 +333,12 @@ export default function ExpensesPage() {
                 Volver
               </Button>
             </Link>
+            {currentUser.role === 'admin' && (
+              <Button variant="outline" onClick={() => setManageCategoriesOpen(true)}>
+                <Settings className="mr-2 h-4 w-4" />
+                Gestionar Categorías
+              </Button>
+            )}
           </div>
         </div>
 
@@ -414,9 +446,9 @@ export default function ExpensesPage() {
                                   }}
                                 />
                                 <CommandList>
-                                  <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
+                                  <CommandEmpty>No se encontró. Administra las categorías para agregar nuevas.</CommandEmpty>
                                   <CommandGroup>
-                                    {allCategories.map(cat => (
+                                    {activeCategoryNames.map(cat => (
                                       <CommandItem
                                         value={cat}
                                         key={cat}
@@ -441,6 +473,22 @@ export default function ExpensesPage() {
                         </FormItem>
                       )}
                     />
+
+                    {(categoryWatch === 'Gasto Personal' || categories.find(c => c.name === categoryWatch)?.requiresNote) && (
+                      <FormField
+                        control={form.control}
+                        name="note"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nota / Detalle</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Describa el gasto..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
                     {(categoryWatch === 'Sueldos' || categoryWatch === 'Comida de Empleado') && (
                       <FormField
@@ -499,7 +547,8 @@ export default function ExpensesPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todas las categorías</SelectItem>
-                        {allCategories.map(cat => (
+                        <SelectItem value="all">Todas las categorías</SelectItem>
+                        {[...new Set([...activeCategoryNames /* Optionally include dynamic ones from history if not in active list? Keeping simple for now */])].map(cat => (
                           <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                         ))}
                       </SelectContent>
@@ -606,6 +655,11 @@ export default function ExpensesPage() {
                                   <div className="font-medium">{expense.category}</div>
                                   {expense.employeeName && (
                                     <div className="text-xs text-muted-foreground">{expense.employeeName}</div>
+                                  )}
+                                  {expense.note && (
+                                    <div className="text-xs text-muted-foreground italic max-w-[200px] truncate" title={expense.note}>
+                                      {expense.note}
+                                    </div>
                                   )}
                                   <div className="text-xs text-muted-foreground">
                                     {expense.source === 'caja_chica' ? 'C. Chica' : 'C. Registradora'}
@@ -752,9 +806,9 @@ export default function ExpensesPage() {
                                         }}
                                       />
                                       <CommandList>
-                                        <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
+                                        <CommandEmpty>No se encontró. Administra las categorías si falta alguna.</CommandEmpty>
                                         <CommandGroup>
-                                          {allCategories.map(cat => (
+                                          {activeCategoryNames.map(cat => (
                                             <CommandItem
                                               value={cat}
                                               key={cat}
@@ -779,6 +833,22 @@ export default function ExpensesPage() {
                               </FormItem>
                             )}
                           />
+
+                          {(editCategoryWatch === 'Gasto Personal' || categories.find(c => c.name === editCategoryWatch)?.requiresNote) && (
+                            <FormField
+                              control={editForm.control}
+                              name="note"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Nota / Detalle</FormLabel>
+                                  <FormControl>
+                                    <Textarea placeholder="Describa el gasto..." {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
 
                           {(editCategoryWatch === 'Sueldos' || editCategoryWatch === 'Comida de Empleado') && (
                             <FormField
@@ -835,8 +905,81 @@ export default function ExpensesPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Dialog open={isManageCategoriesOpen} onOpenChange={setManageCategoriesOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Gestionar Categorías</DialogTitle>
+                <DialogDescription>
+                  Añade o elimina categorías de gastos disponibles.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Nueva categoría..."
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateCategory();
+                      }
+                    }}
+                  />
+                  <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="requiresNote"
+                    checked={newCategoryRequiresNote}
+                    onCheckedChange={(checked) => setNewCategoryRequiresNote(checked as boolean)}
+                  />
+                  <Label htmlFor="requiresNote">¿Requiere nota/detalle?</Label>
+                </div>
+              </div>
+
+              <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                <Table>
+                  <TableBody>
+                    {categories.map((cat) => (
+                      <TableRow key={cat.id}>
+                        <TableCell className="py-2">{cat.name}</TableCell>
+                        <TableCell className="text-right py-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => handleDeleteCategory(cat.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {categories.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center py-4 text-muted-foreground">
+                          No hay categorías registradas.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setManageCategoriesOpen(false)}>
+                  Cerrar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 }

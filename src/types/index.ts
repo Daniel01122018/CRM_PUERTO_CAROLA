@@ -79,6 +79,15 @@ export interface Expense {
   createdBy: string;
   employeeId?: string;
   employeeName?: string;
+  note?: string;
+}
+
+export interface ExpenseCategoryConfig {
+  id: string;
+  name: string;
+  requiresNote?: boolean;
+  createdAt: number;
+  createdBy: string;
 }
 
 export interface DailyData {
