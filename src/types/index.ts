@@ -44,6 +44,7 @@ export interface Order {
   status: OrderStatus;
   total: number;
   createdAt: number;
+  completedAt?: number;
   cancelledAt?: number;
   notes?: string;
   paymentMethod?: PaymentMethod;

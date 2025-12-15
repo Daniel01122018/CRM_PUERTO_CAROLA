@@ -57,6 +57,11 @@ export function useActiveOrders() {
                 const orderSnap = await getDoc(orderRef);
                 const currentOrder = orderSnap.exists() ? orderSnap.data() as Order : null;
 
+                // If status is becoming completed, add completedAt timestamp
+                if (order.status === 'completed' && (!currentOrder || currentOrder.status !== 'completed')) {
+                    order.completedAt = Date.now();
+                }
+
                 await setDoc(orderRef, order, { merge: true });
 
                 // Check if status changed to completed to update daily stats
@@ -80,6 +85,7 @@ export function useActiveOrders() {
 
                 // If created as completed (unlikely but possible)
                 if (orderData.status === 'completed') {
+                    orderData.completedAt = Date.now();
                     const { calculateOrderStats } = await import('@/lib/stats-helper');
                     const stats = calculateOrderStats({ ...orderData, items: orderData.items || [] } as any, menuItems);
 

@@ -1,6 +1,4 @@
-"use client";
-
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
@@ -13,7 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import type { Order, FirestoreItem } from '@/types';
-import { Utensils, Clock, StickyNote, ArrowLeft, XCircle } from 'lucide-react';
+import { Utensils, Clock, StickyNote, ArrowLeft, XCircle, CheckCircle, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -24,18 +22,50 @@ interface KitchenOrderCardProps {
 
 const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
   const isCancelled = order.status === 'cancelled';
+  const isCompleted = order.status === 'completed';
+
+  // Warning calculation (> 5 mins)
+  const [isWarning, setIsWarning] = useState(false);
+
+  useEffect(() => {
+    if (isCancelled || isCompleted) return;
+
+    // Check every 30s
+    const checkWarning = () => {
+      const now = Date.now();
+      const diff = now - order.createdAt;
+      // 5 minutes = 300,000 ms
+      setIsWarning(diff > 300000);
+    };
+
+    checkWarning();
+    const interval = setInterval(checkWarning, 30000);
+    return () => clearInterval(interval);
+  }, [order.createdAt, isCancelled, isCompleted]);
 
   const getMenuItemName = (id: string | number) => {
     const item = findMenuItem(menuItems, id);
     return item ? item.name : "Item Desconocido";
   };
 
+  let cardClasses = "flex flex-col border shadow-sm transition-colors ";
+  if (isCancelled) {
+    cardClasses += "bg-red-50 border-red-300 shadow-md";
+  } else if (isCompleted) {
+    // Paid takeaway
+    cardClasses += "bg-green-50 border-green-300 opacity-90";
+  } else if (isWarning) {
+    // Late order
+    cardClasses += "bg-orange-50 border-orange-400 shadow-md animate-in fade-in";
+  }
+
   return (
-    <Card className={`flex flex-col ${isCancelled ? 'bg-red-100 border-red-300 shadow-lg' : ''}`}>
+    <Card className={cardClasses}>
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
-          <span className={`${isCancelled ? 'text-red-700' : ''}`}>
+          <span className={`flex items-center gap-2 ${isCancelled ? 'text-red-700' : isCompleted ? 'text-green-700' : isWarning ? 'text-orange-700' : ''}`}>
             {order.tableId === 'takeaway' ? `LLEVAR #${order.id.slice(-4)}` : `Mesa ${order.tableId}`}
+            {isWarning && !isCancelled && !isCompleted && <AlertTriangle className="h-4 w-4 text-orange-500 animate-pulse" />}
           </span>
           <span className={`text-sm font-normal flex items-center gap-1 ${isCancelled ? 'text-red-600' : 'text-muted-foreground'}`}>
             <Clock className="h-3 w-3" />
@@ -47,6 +77,11 @@ const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
             <XCircle className="h-5 w-5" />
             ORDEN DESECHADA
           </CardDescription>
+        ) : isCompleted ? (
+          <CardDescription className="flex items-center gap-2 font-bold text-green-700 pt-1">
+            <CheckCircle className="h-5 w-5" />
+            LISTO / PAGADO
+          </CardDescription>
         ) : (
           <CardDescription>ID: {order.id}</CardDescription>
         )}
@@ -57,11 +92,10 @@ const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
           {order.items.map((item, index) => {
             const menuItem = findMenuItem(menuItems, item.menuItemId);
             const itemName = menuItem ? menuItem.name : "Item Desconocido";
-            const price = menuItem ? menuItem.price : 0;
 
             return (
               <li key={`${item.menuItemId}-${index}`} className="flex items-start">
-                <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500' : 'text-primary'}`} />
+                <Utensils className={`h-5 w-5 mr-3 mt-1 ${isCancelled ? 'text-red-500' : isCompleted ? 'text-green-600' : 'text-primary'}`} />
                 <div>
                   <p className="font-semibold">
                     {itemName}{' '}
@@ -94,6 +128,17 @@ export default function KitchenPage() {
   const router = useRouter();
   const [visibleOrders, setVisibleOrders] = useState<Order[]>([]);
 
+  // Sound effect ref
+  const prevOrdersCountRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Simple beep sound or hosted URL
+    const audio = new Audio("https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav");
+    audio.volume = 0.5;
+    audioRef.current = audio;
+  }, []);
+
   useEffect(() => {
     if (isMounted && !currentUser) {
       router.push('/');
@@ -101,15 +146,43 @@ export default function KitchenPage() {
   }, [currentUser, isMounted, router]);
 
   useEffect(() => {
+    if (!orders) return;
+
+    // Check for new orders to play sound
+    // Only if count increases
+    if (orders.length > prevOrdersCountRef.current) {
+      // Play sound if there are actually active orders
+      const hasNewActive = orders.some(o => o.status === 'preparing');
+      if (hasNewActive && audioRef.current && prevOrdersCountRef.current > 0) {
+        // Only play if we are not on initial load (0 -> N) to avoid noise on refresh, 
+        // unless user wants it. Let's assume yes but maybe safely.
+        audioRef.current.play().catch(e => console.log("Audio play failed", e));
+      }
+    }
+    prevOrdersCountRef.current = orders.length;
+
+  }, [orders]);
+
+
+  useEffect(() => {
     if (!isMounted || !orders) return;
 
     const getVisible = () => {
       const now = Date.now();
       return orders
-        .filter(o =>
-          o.status === 'preparing' ||
-          (o.status === 'cancelled' && o.cancelledAt && (now - o.cancelledAt < 30000))
-        )
+        .filter(o => {
+          if (o.status === 'preparing') return true;
+          if (o.status === 'cancelled') {
+            return o.cancelledAt && (now - o.cancelledAt < 30000); // 30s for cancelled
+          }
+          if (o.status === 'completed' && o.tableId === 'takeaway') {
+            // 5 minutes = 300000 ms
+            // Fallback to updated at or created at if completedAt missing (migration safety)
+            const timeRef = o.completedAt || o.createdAt;
+            return (now - timeRef < 300000);
+          }
+          return false;
+        })
         .sort((a, b) => b.createdAt - a.createdAt);
     };
 
@@ -117,7 +190,7 @@ export default function KitchenPage() {
 
     const interval = setInterval(() => {
       setVisibleOrders(getVisible());
-    }, 1000);
+    }, 5000); // Check every 5s for expiration
 
     return () => clearInterval(interval);
   }, [orders, isMounted]);
