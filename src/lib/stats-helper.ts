@@ -1,6 +1,5 @@
 
-import type { Order } from '@/types';
-import { FirestoreItem } from '@/hooks/use-menu';
+import type { Order, FirestoreItem } from '@/types';
 import { ALL_MENU_ITEMS } from '@/lib/data';
 
 export interface OrderStats {

@@ -136,8 +136,12 @@ export default function KitchenPage() {
 
   useEffect(() => {
     // Simple beep sound or hosted URL
-    const audio = new Audio("https://codeskulptor-demos.commondatastorage.googleapis.com/GalaxyInvaders/pause.wav");
-    audio.volume = 0.5;
+    // Softer bell sound (Service Bell / Ding)
+    const audio = new Audio("https://cdn.freesound.org/previews/320/320655_5260872-lq.mp3"); // Or a reliable CDN link
+    // Backup: https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3
+    // Let's use the Mixkit one as it is cleaner
+    audio.src = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3";
+    audio.volume = 0.6;
     audioRef.current = audio;
   }, []);
 
