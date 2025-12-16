@@ -4,12 +4,21 @@ import { useEffect, useState, useCallback } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { InventoryItem } from '@/types';
+import { useAuth } from './use-auth';
 
 export function useInventory() {
+    const { currentUser } = useAuth();
     const [items, setItems] = useState<InventoryItem[] | undefined>(undefined);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // 🔒 OPTIMIZATION: Only admins need inventory data
+        if (!currentUser || currentUser.role !== 'admin') {
+            setItems([]);
+            setLoading(false);
+            return;
+        }
+
         const q = query(
             collection(db, 'inventory_items'),
             orderBy('createdAt', 'desc')
@@ -29,7 +38,7 @@ export function useInventory() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [currentUser]);
 
     const addInventoryItem = async (itemData: Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>) => {
         try {

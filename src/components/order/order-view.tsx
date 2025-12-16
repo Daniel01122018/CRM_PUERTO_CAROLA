@@ -487,14 +487,14 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const hasUnsentChanges = JSON.stringify(currentOrder.items) !== JSON.stringify(orders.find(o => o.id === currentOrder.id)?.items ?? []);
 
   return (
-    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-      <div className="lg:col-span-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-4">
+    <div className="flex flex-col gap-4 p-4 lg:flex-row lg:gap-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-hidden">
+      <div className="flex-1 lg:flex-[2]">
+        <Card className="flex flex-col h-full lg:overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between p-4 lg:p-3">
+            <div className="flex items-center gap-3 lg:gap-2">
               <AppSidebar />
-              <CardTitle>Menú</CardTitle>
-              <div className="flex items-center gap-1 ml-4">
+              <CardTitle className="text-lg lg:text-base">Menú</CardTitle>
+              <div className="flex items-center gap-1 lg:gap-0.5 ml-3 lg:ml-2">
                 <Button variant="ghost" size="icon" onClick={() => window.location.reload()} title="Recargar App">
                   <RefreshCw className="h-5 w-5" />
                 </Button>
@@ -519,7 +519,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               </Tabs>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-hidden flex flex-col">
             <MenuTabs categories={categories}>
               {(categoryId) => (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -546,17 +546,17 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         </Card>
       </div>
 
-      <div>
-        <Card className="sticky top-24">
-          <CardHeader>
-            <CardTitle>
+      <div className="flex-1">
+        <Card className="flex flex-col h-full lg:overflow-hidden">
+          <CardHeader className="p-4 lg:p-3">
+            <CardTitle className="text-lg lg:text-base">
               {isKioskOrder ? `Kiosko #${currentOrder.id?.slice(-4)}` :
                 tableId === 'takeaway' ? `Para Llevar #${currentOrder.id?.slice(-4)}` :
                   `Mesa ${tableId}`}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[45vh]">
+          <CardContent className="flex-1 overflow-hidden flex flex-col">
+            <ScrollArea className="h-[300px] lg:h-auto lg:flex-1">
               {currentOrder.items && currentOrder.items.length > 0 ? (
                 <div className="space-y-4 pr-4">
                   {currentOrder.items.map((orderItem, index) => {
@@ -622,7 +622,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 <p className="text-muted-foreground text-center py-8">Añade artículos del menú para empezar.</p>
               )}
             </ScrollArea>
-            <div className="pt-4 pr-4">
+            <div className="pt-3 lg:pt-2 pr-4">
               <Dialog open={isNotesDialogOpen} onOpenChange={setNotesDialogOpen}>
                 <DialogTrigger asChild>
                   {currentOrder.notes ? (
@@ -659,19 +659,19 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               </Dialog>
             </div>
           </CardContent>
-          <CardFooter className="flex-col space-y-4 pt-4">
+          <CardFooter className="flex-col space-y-3 lg:space-y-2 pt-4 lg:pt-3">
             <div className="flex justify-between w-full text-2xl font-bold text-primary"><span>Total:</span><span>${total.toFixed(2)}</span></div>
 
             <div className="grid grid-cols-1 gap-2 w-full">
-              {currentOrder.status === 'active' && (<Button size="lg" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4" /> Enviar a Cocina</Button>)}
+              {currentOrder.status === 'active' && (<Button size="lg" className="lg:h-10" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4" /> Enviar a Cocina</Button>)}
               {currentOrder.status === 'preparing' && (
                 <div className="grid grid-cols-1 gap-2 w-full">
-                  {hasUnsentChanges && (<Button size="lg" onClick={() => saveOrderAndNavigate('preparing', 'Actualización enviada a cocina')}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
+                  {hasUnsentChanges && (<Button size="lg" className="lg:h-10" onClick={() => saveOrderAndNavigate('preparing', 'Actualización enviada a cocina')}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
 
-                  <Button size="lg" variant="default" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)}>Finalizar y Cobrar</Button>
+                  <Button size="lg" className="lg:h-10 bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)}>Finalizar y Cobrar</Button>
 
                   <AlertDialog>
-                    <AlertDialogTrigger asChild><Button size="lg" variant="destructive"><XCircle className="mr-2 h-4 w-4" /> Desechar Pedido</Button></AlertDialogTrigger>
+                    <AlertDialogTrigger asChild><Button size="lg" className="lg:h-10" variant="destructive"><XCircle className="mr-2 h-4 w-4" /> Desechar Pedido</Button></AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de desechar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible y solo debe hacerse si el cliente ya no quiere el pedido. El pedido será marcado como cancelado y se notificará a la cocina.</AlertDialogDescription></AlertDialogHeader>
                       <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, desechar pedido</AlertDialogAction></AlertDialogFooter>
@@ -679,7 +679,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   </AlertDialog>
                 </div>
               )}
-              <Button size="lg" variant="outline" onClick={handleBack}><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button>
+              <Button size="lg" className="lg:h-10" variant="outline" onClick={handleBack}><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button>
             </div>
           </CardFooter>
         </Card>
@@ -735,7 +735,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         </DialogContent>
       </Dialog>
 
-  // Payment Modal
+
+      {/* Payment Modal */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
         <DialogContent className="sm:max-w-5xl">
           <DialogHeader>

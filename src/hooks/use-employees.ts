@@ -21,7 +21,8 @@ export function useEmployees() {
 
   // 🔹 Fetch de empleados desde Firestore
   useEffect(() => {
-    if (!currentUser) {
+    // 🔒 OPTIMIZATION: Only admins need employee data
+    if (!currentUser || currentUser.role !== 'admin') {
       setManualEmployees([]);
       return;
     }
