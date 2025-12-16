@@ -133,13 +133,19 @@ export default function ExpensesPage() {
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
     if (!employees || !currentUser) return;
     try {
+      // Build expense data object, excluding undefined fields
       let expenseData: any = {
         amount: values.amount,
         category: values.category,
         source: currentUser.role === 'admin' ? values.source : 'caja',
-        note: values.note,
       };
 
+      // Only include note if it has a value (not undefined or empty)
+      if (values.note && values.note.trim()) {
+        expenseData.note = values.note;
+      }
+
+      // Add employee data only for specific categories
       if ((values.category === 'Sueldos' || values.category === 'Comida de Empleado') && values.employeeId) {
         const employee = employees.find(e => e.id === values.employeeId);
         if (employee) {

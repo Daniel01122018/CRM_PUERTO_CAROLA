@@ -31,8 +31,7 @@ export function useExpenseCategories() {
 
     // Initial load and subscription
     useEffect(() => {
-        // 🔒 OPTIMIZATION: Only admins need expense categories
-        if (!currentUser || currentUser.role !== 'admin') {
+        if (!currentUser) {
             setCategories([]);
             setLoading(false);
             return;
