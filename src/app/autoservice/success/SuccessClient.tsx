@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Home, Clock, Receipt, Printer, History, ArrowLeft } from "lucide-react";
+import { CheckCircle2, Home, Clock, Sparkles, PartyPopper, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function SuccessClient() {
@@ -11,6 +11,7 @@ export default function SuccessClient() {
     const searchParams = useSearchParams();
     const orderId = searchParams.get("id");
     const [countdown, setCountdown] = useState(10);
+    const [showConfetti, setShowConfetti] = useState(true);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -24,107 +25,139 @@ export default function SuccessClient() {
             });
         }, 1000);
 
-        return () => clearInterval(timer);
+        // Hide confetti after 3 seconds
+        const confettiTimer = setTimeout(() => setShowConfetti(false), 3000);
+
+        return () => {
+            clearInterval(timer);
+            clearTimeout(confettiTimer);
+        };
     }, [router]);
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-gray-50 to-gray-100">
-            {/* Card Principal */}
-            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-gray-200">
+        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 relative overflow-hidden">
+            {/* Animated background elements */}
+            <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute top-10 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute bottom-20 right-20 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+            </div>
 
-                {/* Header con gradiente sutil */}
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-center">
-                    <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-white/10 backdrop-blur-sm mb-4">
-                        <CheckCircle2 className="h-8 w-8 text-white" />
+            {/* Confetti effect */}
+            {showConfetti && (
+                <div className="absolute inset-0 pointer-events-none">
+                    {[...Array(30)].map((_, i) => (
+                        <div
+                            key={i}
+                            className="absolute w-2 h-2 bg-yellow-300 rounded-full animate-ping"
+                            style={{
+                                left: `${Math.random() * 100}%`,
+                                top: `${Math.random() * 100}%`,
+                                animationDelay: `${Math.random() * 2}s`,
+                                animationDuration: `${1 + Math.random() * 2}s`
+                            }}
+                        />
+                    ))}
+                </div>
+            )}
+
+            {/* Main card */}
+            <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border-8 border-white/20 backdrop-blur-xl relative z-10 animate-in zoom-in duration-500">
+
+                {/* Success header with gradient */}
+                <div className="bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 p-8 text-center relative overflow-hidden">
+                    {/* Animated circles */}
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/20 rounded-full blur-2xl" />
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/20 rounded-full blur-2xl" />
+
+                    {/* Success icon */}
+                    <div className="inline-flex items-center justify-center h-24 w-24 rounded-full bg-white shadow-2xl mb-6 relative animate-bounce">
+                        <CheckCircle2 className="h-14 w-14 text-green-500" />
+                        <div className="absolute inset-0 rounded-full bg-green-400 animate-ping opacity-20" />
                     </div>
-                    <h1 className="text-2xl font-bold text-white mb-2">
-                        Orden Confirmada
+
+                    <h1 className="text-4xl font-black text-white mb-3 drop-shadow-lg">
+                        ¡Pedido Confirmado!
                     </h1>
-                    <p className="text-blue-100 text-sm">
-                        Tu pedido está siendo procesado
-                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                        <PartyPopper className="h-5 w-5 text-yellow-300" />
+                        <p className="text-green-50 text-lg font-medium">
+                            Tu pedido está siendo preparado
+                        </p>
+                        <Sparkles className="h-5 w-5 text-yellow-300" />
+                    </div>
                 </div>
 
-                {/* Contenido Principal */}
-                <div className="p-6 space-y-6">
-                    {/* Número de Orden */}
+                {/* Content */}
+                <div className="p-8 space-y-6">
+                    {/* Order number */}
                     <div className="text-center">
-                        <div className="inline-flex items-center gap-2 text-gray-600 text-sm font-medium mb-3">
-                            <Receipt className="h-4 w-4" />
-                            Número de Orden
+                        <div className="inline-flex items-center gap-3 text-gray-600 text-sm font-bold mb-4 uppercase tracking-wider">
+                            <Sparkles className="h-5 w-5 text-purple-500" />
+                            Tu Número de Orden
+                            <Sparkles className="h-5 w-5 text-purple-500" />
                         </div>
                         {orderId && (
-                            <div className="border-2 border-blue-100 bg-blue-50 rounded-xl p-4">
-                                <p className="text-5xl font-black text-blue-700 tracking-tight">
-                                    #{orderId}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Conserve este número para referencias
-                                </p>
+                            <div className="relative">
+                                <div className="border-4 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-8 shadow-xl">
+                                    <p className="text-7xl font-black bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent tracking-tight">
+                                        #{orderId}
+                                    </p>
+                                    <p className="text-sm text-gray-600 mt-4 font-medium">
+                                        Conserva este número para referencias
+                                    </p>
+                                </div>
+                                {/* Decorative elements */}
+                                <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full animate-pulse" />
+                                <div className="absolute -bottom-2 -left-2 w-6 h-6 bg-pink-400 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
                             </div>
                         )}
                     </div>
 
-                    {/* Mensaje de confirmación */}
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                        <p className="text-gray-700 text-center">
-                            <span className="font-semibold text-gray-900">¡Gracias por tu compra!</span>
-                            <br />
+                    {/* Thank you message */}
+                    <div className="bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 rounded-2xl p-6 border-2 border-purple-100">
+                        <p className="text-center text-gray-800 font-medium leading-relaxed">
+                            <span className="font-black text-xl text-transparent bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text block mb-2">
+                                ¡Gracias por tu compra!
+                            </span>
                             Recibirás tu pedido en breve.
+                            <br />
+                            Esperamos que lo disfrutes 😊
                         </p>
                     </div>
 
-                    {/* Contador */}
-                    <div className="flex items-center justify-center gap-3 bg-amber-50 border border-amber-100 rounded-lg p-3">
-                        <Clock className="h-5 w-5 text-amber-600" />
+                    {/* Countdown timer */}
+                    <div className="flex items-center justify-center gap-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-5">
+                        <Clock className="h-8 w-8 text-amber-600 animate-pulse" />
                         <div className="text-center">
-                            <p className="text-sm text-gray-700">
-                                Redireccionando en
+                            <p className="text-sm text-gray-700 font-bold mb-1">
+                                Redireccionando automáticamente en
                             </p>
-                            <div className="flex items-center justify-center gap-1">
-                                <div className="h-8 w-8 flex items-center justify-center bg-amber-500 text-white font-bold rounded">
+                            <div className="flex items-center justify-center gap-2">
+                                <div className="h-14 w-14 flex items-center justify-center bg-gradient-to-br from-amber-500 to-orange-600 text-white font-black text-2xl rounded-xl shadow-lg animate-pulse">
                                     {countdown}
                                 </div>
-                                <span className="text-sm text-gray-600">segundos</span>
+                                <span className="text-lg text-gray-700 font-bold">segundos</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Botones de Acción */}
-                    <div className="space-y-3">
+                    {/* Action buttons */}
+                    <div className="space-y-3 pt-4">
                         <Button
                             onClick={() => router.push("/autoservice")}
-                            className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg"
+                            className="w-full h-16 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 hover:from-purple-700 hover:via-pink-700 hover:to-red-700 text-white font-black text-lg rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 active:scale-95"
                         >
-                            <Home className="mr-2 h-5 w-5" />
-                            Nuevo Pedido
+                            <Home className="mr-3 h-6 w-6" />
+                            Hacer Nuevo Pedido
                         </Button>
-
-                        <div className="grid grid-cols-2 gap-3">
-                            <Button
-                                variant="outline"
-                                onClick={() => window.print()}
-                                className="h-11 border-gray-300 hover:bg-gray-50 rounded-lg"
-                            >
-                                <Printer className="mr-2 h-4 w-4" />
-                                Imprimir
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => router.push("/autoservice/history")}
-                                className="h-11 border-gray-300 hover:bg-gray-50 rounded-lg"
-                            >
-                                <History className="mr-2 h-4 w-4" />
-                                Historial
-                            </Button>
-                        </div>
 
                         <Link href="/dashboard" className="block">
                             <Button
-                                variant="ghost"
-                                className="w-full h-11 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+                                variant="outline"
+                                className="w-full h-14 text-gray-700 hover:text-gray-900 hover:bg-gray-50 font-bold rounded-2xl border-2 border-gray-300 transition-all hover:scale-105"
                             >
-                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                <ArrowLeft className="mr-2 h-5 w-5" />
                                 Volver al Dashboard
                             </Button>
                         </Link>
@@ -132,38 +165,15 @@ export default function SuccessClient() {
                 </div>
 
                 {/* Footer */}
-                <div className="border-t border-gray-100 p-4 bg-gray-50">
-                    <div className="flex items-center justify-center gap-4">
-                        <div className="text-center">
-                            <p className="text-xs text-gray-500">
-                                ¿Necesitas ayuda?
-                            </p>
-                            <a
-                                href="#"
-                                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                                Contactar Soporte
-                            </a>
-                        </div>
-                        <div className="h-8 w-px bg-gray-300"></div>
-                        <div className="text-center">
-                            <p className="text-xs text-gray-500">
-                                Horario de atención
-                            </p>
-                            <p className="text-sm text-gray-700 font-medium">
-                                24/7
-                            </p>
-                        </div>
+                <div className="border-t-2 border-gray-100 p-6 bg-gradient-to-r from-gray-50 to-gray-100">
+                    <div className="flex items-center justify-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse shadow-lg shadow-green-500/50" />
+                        <p className="text-sm text-gray-600 font-bold">
+                            Sistema Autoservicio Activo
+                        </p>
+                        <Sparkles className="h-4 w-4 text-yellow-500" />
                     </div>
                 </div>
-            </div>
-
-            {/* Indicador de Sistema */}
-            <div className="mt-6 flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-                <p className="text-xs text-gray-500 font-medium">
-                    Sistema de Autoservicio • Conectado
-                </p>
             </div>
         </div>
     );

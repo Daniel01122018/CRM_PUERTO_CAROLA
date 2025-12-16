@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
-import { useMenu, FirestoreItem } from '@/hooks/use-menu';
-import type { Order, OrderItem, MenuItemVariant, MenuPlato, PaymentMethod } from '@/types';
+import { useMenu } from '@/hooks/use-menu';
+import type { Order, OrderItem, MenuItemVariant, MenuPlato, PaymentMethod, FirestoreItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,12 +13,13 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, Smartphone, Banknote, Edit } from 'lucide-react';
+import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, Smartphone, Banknote, Edit, Unlock, RefreshCw } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import AppSidebar from '@/components/app-sidebar';
 import { MenuTabs } from '@/components/menu/menu-tabs';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
+import { NumericKeypad } from '@/components/ui/numeric-keypad';
 
 interface OrderViewProps {
   orderIdOrTableId: string;
@@ -29,7 +30,7 @@ type MenuContext = 'salon' | 'llevar';
 export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders } = useAppStore();
+  const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders, resetTableLock } = useAppStore();
   const { categories, items: menuItems, loading: menuLoading } = useMenu();
 
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
@@ -57,12 +58,18 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     return existingOrder?.tableId === 'takeaway';
   }, [orderIdOrTableId, orders]);
 
+  const isKioskOrder = useMemo(() => {
+    const existingOrder = orders?.find(o => o.id === orderIdOrTableId);
+    return existingOrder?.tableId === 'kiosk';
+  }, [orderIdOrTableId, orders]);
+
   const baseRedirectPath = useMemo(() => {
     if (currentUser?.role === 'admin') {
       return '/admin/dashboard';
     }
+    if (isKioskOrder) return '/kiosk-admin';
     return isTakeawayOrder ? '/takeaway' : '/dashboard';
-  }, [currentUser, isTakeawayOrder]);
+  }, [currentUser, isTakeawayOrder, isKioskOrder]);
 
   const [initialized, setInitialized] = useState(false);
 
@@ -487,8 +494,23 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             <div className="flex items-center gap-4">
               <AppSidebar />
               <CardTitle>Menú</CardTitle>
+              <div className="flex items-center gap-1 ml-4">
+                <Button variant="ghost" size="icon" onClick={() => window.location.reload()} title="Recargar App">
+                  <RefreshCw className="h-5 w-5" />
+                </Button>
+                <Button variant="ghost" size="sm" className="text-red-500 gap-1" onClick={() => {
+                  const id = prompt("Ingrese el número de la mesa a desbloquear (1-20):");
+                  if (id && resetTableLock) {
+                    resetTableLock(parseInt(id));
+                    toast({ title: "Mesa liberada", description: `Se ha forzado la liberación de la Mesa ${id}.` });
+                  }
+                }}>
+                  <Unlock className="h-4 w-4" />
+                  <span className="sr-only sm:not-sr-only text-xs">Liberar</span>
+                </Button>
+              </div>
             </div>
-            {!isTakeawayOrder && (
+            {!isTakeawayOrder && !isKioskOrder && (
               <Tabs value={activeMenuContext} onValueChange={(value) => setActiveMenuContext(value as MenuContext)} className="w-[220px]">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="salon">Salón</TabsTrigger>
@@ -527,7 +549,11 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       <div>
         <Card className="sticky top-24">
           <CardHeader>
-            <CardTitle>Pedido: {tableId === 'takeaway' ? `Para Llevar #${currentOrder.id?.slice(-4)}` : `Mesa ${tableId}`}</CardTitle>
+            <CardTitle>
+              {isKioskOrder ? `Kiosko #${currentOrder.id?.slice(-4)}` :
+                tableId === 'takeaway' ? `Para Llevar #${currentOrder.id?.slice(-4)}` :
+                  `Mesa ${tableId}`}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[45vh]">
@@ -667,7 +693,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             <DialogDescription>Selecciona una variante para añadir al pedido.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-4 max-h-[60vh] overflow-y-auto">
-            {selectedPlato?.variants?.filter(v => activeMenuContext === 'llevar' ? v.contexto === 'llevar' : v.contexto === 'salon').map(variante => (
+            {selectedPlato?.variants?.filter((v: MenuItemVariant) => activeMenuContext === 'llevar' ? v.contexto === 'llevar' : v.contexto === 'salon').map((variante: MenuItemVariant) => (
               <Button
                 key={variante.id}
                 variant="outline"
@@ -709,9 +735,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Payment Modal */}
+  // Payment Modal
       <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
             <DialogTitle>Finalizar y Cobrar Pedido</DialogTitle>
             <DialogDescription>Seleccione el método de pago para completar la transacción.</DialogDescription>
@@ -729,14 +755,42 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               </TabsList>
               <TabsContent value="Efectivo">
                 <form onSubmit={(e) => { e.preventDefault(); handleFullPayment('Efectivo'); }}>
-                  <div className="space-y-2 mt-4">
-                    <label htmlFor="amount-received">Monto Recibido</label>
-                    <Input id="amount-received" type="number" min="0" placeholder="Ingrese el monto..." value={amountReceived} onChange={(e) => setAmountReceived(e.target.value)} autoFocus />
-                    {change > 0 && (
-                      <p className="text-sm text-green-600 font-medium text-center pt-2">Vuelto: ${change.toFixed(2)}</p>
-                    )}
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 mt-4">
+                    <div className="space-y-6">
+                      <div className="space-y-3">
+                        <label htmlFor="amount-received" className="text-lg font-medium">Monto Recibido</label>
+                        <Input
+                          id="amount-received"
+                          type="number"
+                          min="0"
+                          placeholder="Ingrese el monto..."
+                          value={amountReceived}
+                          onChange={(e) => setAmountReceived(e.target.value)}
+                          autoFocus
+                          className="text-right text-3xl h-16"
+                        />
+                        {change > 0 && (
+                          <div className="bg-green-100 p-4 rounded-lg border border-green-200">
+                            <p className="text-green-800 font-semibold text-center text-xl">Vuelto: ${change.toFixed(2)}</p>
+                          </div>
+                        )}
+                      </div>
+                      <Button type="submit" size="lg" className="w-full h-14 text-xl" disabled={parseFloat(amountReceived) < total && amountReceived !== ''}>Pagar con Efectivo</Button>
+                    </div>
+
+                    <div className="flex justify-center md:justify-end">
+                      <NumericKeypad
+                        value={amountReceived}
+                        onChange={setAmountReceived}
+                        onConfirm={() => {
+                          if (parseFloat(amountReceived) >= total) {
+                            handleFullPayment('Efectivo');
+                          }
+                        }}
+                        className="w-[320px]"
+                      />
+                    </div>
                   </div>
-                  <Button type="submit" className="w-full mt-4" disabled={parseFloat(amountReceived) < total && amountReceived !== ''}>Pagar con Efectivo</Button>
                 </form>
               </TabsContent>
               <TabsContent value="DeUna">

@@ -8,7 +8,7 @@ import { useAppStore } from '@/hooks/use-app-store';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import AppSidebar from '@/components/app-sidebar';
 import { Button } from '@/components/ui/button';
-import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { UtensilsCrossed, Square, CheckSquare, ShoppingBag, ArrowLeft, Monitor } from 'lucide-react';
 import type { Table } from '@/types';
 
 /* ====== Componente Mesa Individual ====== */
@@ -125,10 +125,20 @@ export default function DashboardPage() {
                   <span className="sm:hidden">Llevar</span>
                 </Button>
               </Link>
+              <Link href="/kiosk-admin" className="flex-1 sm:flex-none">
+                <Button
+                  variant="secondary"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto text-xs sm:text-sm"
+                >
+                  <Monitor className="h-4 w-4" />
+                  <span className="hidden sm:inline">Autoservicio</span>
+                  <span className="sm:hidden">Kiosk</span>
+                </Button>
+              </Link>
             </div>
           </div>
-                {/* ======= Grid de Mesas ======= */}
-                <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 sm:gap-4 w-full">
+          {/* ======= Grid de Mesas ======= */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] sm:grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 sm:gap-4 w-full">
             {tables.map((table) => (
               <TableCard key={table.id} table={table} />
             ))}
