@@ -31,6 +31,13 @@ export function useExpenseCategories() {
 
     // Initial load and subscription
     useEffect(() => {
+        // 🔒 OPTIMIZATION: Only admins need expense categories
+        if (!currentUser || currentUser.role !== 'admin') {
+            setCategories([]);
+            setLoading(false);
+            return;
+        }
+
         const q = query(
             collection(db, 'expense_categories'),
             orderBy('name')
@@ -63,40 +70,38 @@ export function useExpenseCategories() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [currentUser]);
 
     // One-time migration effect
     useEffect(() => {
         const migrateIfNeeded = async () => {
+            // 🔒 OPTIMIZATION: Removed redundant getDocs call
+            // We already have fresh data from onSnapshot listener
             if (!loading && categories.length === 0 && currentUser?.role === 'admin') {
-                // Double check with a direct get to ensure we aren't just seeing a loading state or cache.
-                const snap = await getDocs(collection(db, 'expense_categories'));
-                if (snap.empty) {
-                    console.log("Migrating default categories...");
-                    const batch = writeBatch(db);
-                    PREDEFINED_CATEGORIES_TO_MIGRATE.forEach(catName => {
-                        const docRef = doc(collection(db, 'expense_categories'));
-                        batch.set(docRef, {
-                            name: catName,
-                            createdAt: Date.now(),
-                            createdBy: 'system_migration'
-                        });
+                console.log("Migrating default categories...");
+                const batch = writeBatch(db);
+                PREDEFINED_CATEGORIES_TO_MIGRATE.forEach(catName => {
+                    const docRef = doc(collection(db, 'expense_categories'));
+                    batch.set(docRef, {
+                        name: catName,
+                        createdAt: Date.now(),
+                        createdBy: 'system_migration'
                     });
-                    try {
-                        await batch.commit();
-                        toast({
-                            title: "Migración Completada",
-                            description: "Se han creado las categorías de gastos por defecto.",
-                        });
-                    } catch (e) {
-                        console.error("Migration failed", e);
-                    }
+                });
+                try {
+                    await batch.commit();
+                    toast({
+                        title: "Migración Completada",
+                        description: "Se han creado las categorías de gastos por defecto.",
+                    });
+                } catch (e) {
+                    console.error("Migration failed", e);
                 }
             }
         };
 
         migrateIfNeeded();
-    }, [loading, categories.length, currentUser]);
+    }, [loading, categories.length, currentUser, toast]);
 
 
     const addCategory = useCallback(async (name: string, requiresNote?: boolean) => {

@@ -158,7 +158,7 @@ export default function KitchenPage() {
     // Only if count increases
     if (orders.length > prevOrdersCountRef.current) {
       // Play sound if there are actually active orders
-      const hasNewActive = orders.some(o => o.status === 'preparing');
+      const hasNewActive = orders.some((o: Order) => o.status === 'preparing');
       if (hasNewActive && audioRef.current && prevOrdersCountRef.current > 0) {
         // Only play if we are not on initial load (0 -> N) to avoid noise on refresh, 
         // unless user wants it. Let's assume yes but maybe safely.
@@ -176,7 +176,7 @@ export default function KitchenPage() {
     const getVisible = () => {
       const now = Date.now();
       return orders
-        .filter(o => {
+        .filter((o: Order) => {
           if (o.status === 'preparing') return true;
           if (o.status === 'cancelled') {
             return o.cancelledAt && (now - o.cancelledAt < 30000); // 30s for cancelled
@@ -189,7 +189,7 @@ export default function KitchenPage() {
           }
           return false;
         })
-        .sort((a, b) => b.createdAt - a.createdAt);
+        .sort((a: Order, b: Order) => b.createdAt - a.createdAt);
     };
 
     setVisibleOrders(getVisible());

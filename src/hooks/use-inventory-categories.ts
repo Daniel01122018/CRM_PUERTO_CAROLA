@@ -4,12 +4,21 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, getDocs, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { InventoryCategory } from '@/types';
+import { useAuth } from './use-auth';
 
 export function useInventoryCategories() {
+    const { currentUser } = useAuth();
     const [categories, setCategories] = useState<InventoryCategory[] | undefined>(undefined);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // 🔒 OPTIMIZATION: Only admins need inventory categories
+        if (!currentUser || currentUser.role !== 'admin') {
+            setCategories([]);
+            setLoading(false);
+            return;
+        }
+
         const q = query(
             collection(db, 'inventory_categories'),
             orderBy('createdAt', 'desc')
@@ -29,7 +38,7 @@ export function useInventoryCategories() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [currentUser]);
 
     const addCategory = async (categoryData: Omit<InventoryCategory, 'id' | 'createdAt'>) => {
         try {

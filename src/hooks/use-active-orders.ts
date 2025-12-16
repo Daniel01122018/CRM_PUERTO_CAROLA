@@ -28,10 +28,13 @@ export function useActiveOrders() {
         // Get start of today in milliseconds
         const todayStart = startOfDay(new Date()).getTime();
 
-        // Query orders created today or later
+        // 🔒 OPTIMIZATION: Only fetch active and preparing orders
+        // Completed and cancelled orders are not needed for real-time display
+        // NOTE: Requires composite index: (createdAt ASC, status ASC)
         const q = query(
             collection(db, 'orders'),
             where('createdAt', '>=', todayStart),
+            where('status', 'in', ['active', 'preparing']),
             orderBy('createdAt', 'desc')
         );
 
@@ -43,6 +46,10 @@ export function useActiveOrders() {
             setOrders(ordersData);
         }, (error) => {
             console.error("Error fetching active orders from Firestore:", error);
+            // If index error, log helpful message
+            if (error.message?.includes('index')) {
+                console.error("⚠️ Firestore composite index required. Check console for link to create index.");
+            }
             setOrders([]);
         });
 
