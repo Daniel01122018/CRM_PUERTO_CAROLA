@@ -12,7 +12,7 @@ import { useDailyData } from './use-daily-data';
 
 export function useAppStore() {
   const { currentUser, login, logout, isMounted } = useAuth();
-  const { orders, addOrUpdateOrder, cancelOrder } = useActiveOrders();
+  const { orders, addOrUpdateOrder, cancelOrder, resetTableLock } = useActiveOrders();
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses();
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees();
   const { dailyData, setInitialCash } = useDailyData();
@@ -42,6 +42,7 @@ export function useAppStore() {
     orders,
     addOrUpdateOrder,
     cancelOrder,
+    resetTableLock,
     // Expenses
     expenses,
     addExpense,

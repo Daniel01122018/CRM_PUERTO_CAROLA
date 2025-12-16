@@ -17,6 +17,7 @@ import {
   Package,
   TrendingUp, // Import TrendingUp icon
   Smartphone,
+  Monitor, // Added Monitor icon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -48,6 +49,7 @@ export default function AdminDashboard() {
     { label: "Gestión de Menú", icon: Utensils, path: "/menu" },
     { label: "Gestión de Inventario", icon: Package, path: "/inventory" },
     { label: "Autoservicio (Kiosko)", icon: Smartphone, path: "/autoservice" },
+    { label: "Admin. Kiosko", icon: Monitor, path: "/kiosk-admin" },
   ];
 
   if (!isMounted || !currentUser) {
