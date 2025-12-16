@@ -60,9 +60,12 @@ export function useActiveOrders() {
 
     const addOrUpdateOrder = useCallback(async (order: Omit<Order, 'id'> & { id?: string }): Promise<string | null> => {
         try {
-            return await runTransaction(db, async (transaction) => {
+            let shouldUpdateStats = false;
+            let completedOrderId: string | null = null;
+            let orderCreatedAt: number | null = null;
+
+            const orderId = await runTransaction(db, async (transaction) => {
                 const isTableOrder = typeof order.tableId === 'number';
-                let statsToUpdate: any = null;
                 let returningId: string;
 
                 if (order.id) {
@@ -77,10 +80,10 @@ export function useActiveOrders() {
                     // If status is becoming completed, add completedAt timestamp
                     if (order.status === 'completed' && currentOrder.status !== 'completed') {
                         order.completedAt = Date.now();
-
-                        // Prepare stats update (will run after transaction if needed, or we can try to include logic)
-                        // BEWARE: We cannot await imports inside transaction easily if they are lazy, better to import at top or assume available.
-                        // We will return the fact that we need to update stats.
+                        shouldUpdateStats = true;
+                        completedOrderId = returningId;
+                        // Get createdAt from the EXISTING document, not from the parameter
+                        orderCreatedAt = currentOrder.createdAt;
                     }
 
                     transaction.set(orderRef, order, { merge: true });
@@ -115,10 +118,9 @@ export function useActiveOrders() {
                         const { id, ...orderData } = order;
                         if (orderData.status === 'completed') {
                             orderData.completedAt = Date.now();
-                            // If created completed, immediately free the table? 
-                            // Logic says: occupied -> completed -> available. 
-                            // If we create as completed (unlikely), we technically occupied and freed it.
-                            // But let's assume 'active' for new orders usually.
+                            shouldUpdateStats = true;
+                            completedOrderId = returningId;
+                            orderCreatedAt = orderData.createdAt;
                         }
                         transaction.set(newOrderRef, orderData);
 
@@ -129,6 +131,9 @@ export function useActiveOrders() {
                         const { id, ...orderData } = order;
                         if (orderData.status === 'completed') {
                             orderData.completedAt = Date.now();
+                            shouldUpdateStats = true;
+                            completedOrderId = returningId;
+                            orderCreatedAt = orderData.createdAt;
                         }
                         transaction.set(newOrderRef, orderData);
                     }
@@ -137,13 +142,50 @@ export function useActiveOrders() {
                 return returningId;
             });
 
-            // Note: Shared stats update logic is complex to move out perfectly without code duplication or state passing.
-            // For now, I will omit the automatic stats update RE-INSERTION here to strictly fix the concurrency bug first.
-            // Wait, removing stats update is regression.
-            // I should re-implement it.
+            console.log('[addOrUpdateOrder] Transaction complete. Stats tracking flags:', {
+                shouldUpdateStats,
+                completedOrderId,
+                orderCreatedAt
+            });
 
-            // Post-transaction handling for stats? 
-            // `runTransaction` returns the result of the closure.
+            // Update stats AFTER transaction completes successfully
+            if (shouldUpdateStats && completedOrderId && orderCreatedAt) {
+                console.log('[addOrUpdateOrder] Stats conditions met, fetching order for stats...');
+                try {
+                    // Fetch the completed order to get accurate stats
+                    const orderRef = doc(db, 'orders', completedOrderId);
+                    const orderSnap = await getDoc(orderRef);
+
+                    if (orderSnap.exists()) {
+                        const completedOrder = { id: orderSnap.id, ...orderSnap.data() } as Order;
+                        console.log('[addOrUpdateOrder] Fetched completed order:', completedOrder);
+
+                        const { calculateOrderStats } = await import('@/lib/stats-helper');
+                        const stats = calculateOrderStats(completedOrder, menuItems);
+                        console.log('[addOrUpdateOrder] Calculated stats:', stats);
+
+                        await updateDailyStats(new Date(orderCreatedAt), {
+                            revenue: stats.revenue,
+                            orderCount: 1,
+                            paymentMethods: stats.paymentMethods,
+                            itemSales: stats.itemSales
+                        });
+                    } else {
+                        console.warn('[addOrUpdateOrder] Order not found after transaction!', completedOrderId);
+                    }
+                } catch (statsError) {
+                    console.error("[addOrUpdateOrder] Error updating daily stats:", statsError);
+                    // Don't fail the order operation if stats update fails
+                }
+            } else {
+                console.log('[addOrUpdateOrder] Stats NOT updated. Conditions failed:', {
+                    shouldUpdateStats,
+                    completedOrderId,
+                    orderCreatedAt
+                });
+            }
+
+            return orderId;
 
         } catch (error) {
             console.error("Error adding or updating order:", error);

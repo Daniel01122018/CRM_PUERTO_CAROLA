@@ -14,11 +14,14 @@ export const updateDailyStats = async (date: Date, data: {
     const dateId = format(date, 'yyyy-MM-dd');
     const statsRef = doc(db, 'daily_stats', dateId);
 
+    console.log('[updateDailyStats] Called with:', { dateId, data });
+
     try {
         await runTransaction(db, async (transaction) => {
             const statsDoc = await transaction.get(statsRef);
 
             if (!statsDoc.exists()) {
+                console.log('[updateDailyStats] Creating new stats document for', dateId);
                 transaction.set(statsRef, {
                     date: dateId,
                     totalRevenue: data.revenue || 0,
@@ -30,6 +33,7 @@ export const updateDailyStats = async (date: Date, data: {
                     updatedAt: Date.now()
                 });
             } else {
+                console.log('[updateDailyStats] Updating existing stats document for', dateId);
                 const currentData = statsDoc.data();
 
                 // Prepare updates
@@ -68,10 +72,14 @@ export const updateDailyStats = async (date: Date, data: {
                     }
                 }
 
+                console.log('[updateDailyStats] Prepared updates:', updates);
                 transaction.update(statsRef, updates);
             }
         });
+        console.log('[updateDailyStats] Transaction completed successfully');
     } catch (error) {
-        console.error("Error updating daily stats:", error);
+        console.error("[updateDailyStats] ERROR:", error);
+        // Re-throw the error so callers know it failed
+        throw error;
     }
 };
