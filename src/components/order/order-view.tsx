@@ -738,67 +738,108 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
       {/* Payment Modal */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-5xl">
+        <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>Finalizar y Cobrar Pedido</DialogTitle>
             <DialogDescription>Seleccione el método de pago para completar la transacción.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Total a Pagar</p>
-              <p className="text-4xl font-bold">${total.toFixed(2)}</p>
+          <div className="space-y-6 py-4">
+            <div className="flex flex-col items-center justify-center space-y-2 bg-muted/30 p-4 rounded-lg">
+              <span className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total a Pagar</span>
+              <span className="text-5xl font-bold text-primary">${total.toFixed(2)}</span>
             </div>
+
             <Tabs defaultValue="Efectivo" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="Efectivo"><Banknote className="h-5 w-5" /></TabsTrigger>
-                <TabsTrigger value="DeUna" className="font-bold">DeUna</TabsTrigger>
-                <TabsTrigger value="Transferencia"><Smartphone className="h-5 w-5" /></TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 h-12 mb-6">
+                <TabsTrigger value="Efectivo" className="text-base"><Banknote className="mr-2 h-5 w-5" /> Efectivo</TabsTrigger>
+                <TabsTrigger value="DeUna" className="text-base font-bold">DeUna</TabsTrigger>
+                <TabsTrigger value="Transferencia" className="text-base"><Smartphone className="mr-2 h-5 w-5" /> Transferencia</TabsTrigger>
               </TabsList>
-              <TabsContent value="Efectivo">
+
+              <TabsContent value="Efectivo" className="mt-0">
                 <form onSubmit={(e) => { e.preventDefault(); handleFullPayment('Efectivo'); }}>
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-8 mt-4">
-                    <div className="space-y-6">
-                      <div className="space-y-3">
-                        <label htmlFor="amount-received" className="text-lg font-medium">Monto Recibido</label>
-                        <Input
-                          id="amount-received"
-                          type="number"
-                          min="0"
-                          placeholder="Ingrese el monto..."
-                          value={amountReceived}
-                          onChange={(e) => setAmountReceived(e.target.value)}
-                          autoFocus
-                          className="text-right text-3xl h-16"
-                        />
-                        {change > 0 && (
-                          <div className="bg-green-100 p-4 rounded-lg border border-green-200">
-                            <p className="text-green-800 font-semibold text-center text-xl">Vuelto: ${change.toFixed(2)}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="flex flex-col justify-center space-y-6">
+                      <div className="space-y-4 max-w-sm mx-auto w-full">
+                        <div className="space-y-2">
+                          <label htmlFor="amount-received" className="text-sm font-medium text-muted-foreground ml-1">Monto Recibido</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground">$</span>
+                            <Input
+                              id="amount-received"
+                              type="number"
+                              min="0"
+                              placeholder="0.00"
+                              value={amountReceived}
+                              onChange={(e) => setAmountReceived(e.target.value)}
+                              autoFocus
+                              className="text-right text-3xl h-16 pl-8 font-bold"
+                            />
+                          </div>
+                        </div>
+
+                        {change > 0 ? (
+                          <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-lg border border-green-200 dark:border-green-800 animate-in fade-in slide-in-from-top-2">
+                            <p className="text-green-800 dark:text-green-300 text-sm font-medium text-center mb-1">Su cambio</p>
+                            <p className="text-green-800 dark:text-green-300 font-bold text-center text-3xl">${change.toFixed(2)}</p>
+                          </div>
+                        ) : (
+                          <div className="h-[86px] flex items-center justify-center p-4 rounded-lg border border-dashed text-muted-foreground/50">
+                            <p className="text-sm">Ingrese el monto para calcular el cambio</p>
                           </div>
                         )}
+
+                        <Button
+                          type="submit"
+                          size="lg"
+                          className="w-full h-14 text-xl font-bold mt-2"
+                          disabled={parseFloat(amountReceived || '0') < total}
+                        >
+                          Cobrar ${total.toFixed(2)}
+                        </Button>
                       </div>
-                      <Button type="submit" size="lg" className="w-full h-14 text-xl" disabled={parseFloat(amountReceived) < total && amountReceived !== ''}>Pagar con Efectivo</Button>
                     </div>
 
-                    <div className="flex justify-center md:justify-end">
+                    <div className="flex justify-center border-l-0 md:border-l pl-0 md:pl-8">
                       <NumericKeypad
                         value={amountReceived}
                         onChange={setAmountReceived}
                         onConfirm={() => {
-                          if (parseFloat(amountReceived) >= total) {
+                          if (parseFloat(amountReceived || '0') >= total) {
                             handleFullPayment('Efectivo');
                           }
                         }}
-                        className="w-[320px]"
+                        className="w-full max-w-[320px]"
                       />
                     </div>
                   </div>
                 </form>
               </TabsContent>
+
               <TabsContent value="DeUna">
-                <Button className="w-full mt-4" onClick={() => handleFullPayment('DeUna')}>Pagar con DeUna</Button>
+                <div className="flex flex-col items-center justify-center py-8 space-y-6">
+                  <div className="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-full">
+                    <Smartphone className="h-16 w-16 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-xl font-semibold">Pago con DeUna</h3>
+                    <p className="text-muted-foreground max-w-md">Solicita al cliente que realice el pago por el monto exacto de <span className="font-bold text-foreground">${total.toFixed(2)}</span></p>
+                  </div>
+                  <Button size="lg" className="w-full max-w-sm h-14 text-lg" onClick={() => handleFullPayment('DeUna')}>Confirmar Pago Recibido</Button>
+                </div>
               </TabsContent>
+
               <TabsContent value="Transferencia">
-                <Button className="w-full mt-4" onClick={() => handleFullPayment('Transferencia')}>Pagar con Transferencia</Button>
+                <div className="flex flex-col items-center justify-center py-8 space-y-6">
+                  <div className="p-6 bg-purple-50 dark:bg-purple-900/20 rounded-full">
+                    <Banknote className="h-16 w-16 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="text-center space-y-2">
+                    <h3 className="text-xl font-semibold">Pago con Transferencia</h3>
+                    <p className="text-muted-foreground max-w-md">Verifica que la transferencia por <span className="font-bold text-foreground">${total.toFixed(2)}</span> se haya acreditado.</p>
+                  </div>
+                  <Button size="lg" className="w-full max-w-sm h-14 text-lg" onClick={() => handleFullPayment('Transferencia')}>Confirmar Transferencia</Button>
+                </div>
               </TabsContent>
             </Tabs>
           </div>

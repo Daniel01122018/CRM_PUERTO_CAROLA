@@ -160,7 +160,7 @@ export default function ExpensesPage() {
         title: 'Gasto Registrado',
         description: `Se ha añadido un gasto en "${values.category}" por un monto de $${values.amount.toFixed(2)}.`,
       });
-      form.reset({ amount: 0, category: '', source: 'caja', employeeId: '' });
+      form.reset({ amount: 0, category: '', source: values.source, employeeId: '' });
     } catch (error: any) {
       toast({
         variant: 'destructive',
