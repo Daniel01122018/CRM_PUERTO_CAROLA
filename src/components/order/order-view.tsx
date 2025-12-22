@@ -774,8 +774,20 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                               onChange={(e) => setAmountReceived(e.target.value)}
                               autoFocus
                               className="text-right text-3xl h-16 pl-8 font-bold"
+                              step="0.01"
                             />
                           </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 mt-4">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-10 text-sm font-semibold border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
+                            onClick={() => setAmountReceived(total.toFixed(2))}
+                          >
+                            Cambio Exacto
+                          </Button>
                         </div>
 
                         {change > 0 ? (
@@ -848,6 +860,6 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </div >
   );
 }
