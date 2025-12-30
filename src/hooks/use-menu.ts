@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import type { MenuPlato, MenuItem, MenuItemVariant, FirestoreItem } from '@/types';
+export type { FirestoreItem };
 
 export interface Category {
     id: string;

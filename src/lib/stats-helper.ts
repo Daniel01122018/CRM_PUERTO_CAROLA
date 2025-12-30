@@ -50,54 +50,56 @@ export function findMenuItem(menuItems: FirestoreItem[], id: string | number): F
                 }
             }
         }
-        // 3. Fallback to Static Data
-        const staticItem = ALL_MENU_ITEMS.find(i => i.id == id);
-        if (staticItem) {
-            return {
-                name: staticItem.nombre,
-                price: staticItem.precio,
-                category: staticItem.category,
-                contexto: staticItem.contexto
-            };
-        }
-
-        return null;
     }
 
-    export function calculateOrderStats(order: Order | (Omit<Order, 'id'> & { id?: string }), menuItems: FirestoreItem[]): OrderStats {
-        const revenue = order.total;
-        const paymentMethod = order.paymentMethod || 'efectivo';
-
-        const itemSales: { [itemId: string]: { name: string; quantity: number; revenue: number } } = {};
-
-        if (order.items) {
-            order.items.forEach(item => {
-                const itemId = item.menuItemId.toString();
-
-                let name = "Item Desconocido";
-                let price = 0;
-
-                const foundItem = findMenuItem(menuItems, item.menuItemId);
-                if (foundItem) {
-                    name = foundItem.name;
-                    price = foundItem.price;
-                }
-
-                if (item.customPrice) price = item.customPrice;
-
-                const itemRevenue = price * item.quantity;
-
-                if (!itemSales[itemId]) {
-                    itemSales[itemId] = { name, quantity: 0, revenue: 0 };
-                }
-                itemSales[itemId].quantity += item.quantity;
-                itemSales[itemId].revenue += itemRevenue;
-            });
-        }
-
+    // 3. Fallback to Static Data
+    const staticItem = ALL_MENU_ITEMS.find(i => i.id == id);
+    if (staticItem) {
         return {
-            revenue,
-            paymentMethods: { [paymentMethod]: revenue },
-            itemSales
+            name: staticItem.nombre,
+            price: staticItem.precio,
+            category: staticItem.category,
+            contexto: staticItem.contexto
         };
     }
+
+    return null;
+}
+
+export function calculateOrderStats(order: Order | (Omit<Order, 'id'> & { id?: string }), menuItems: FirestoreItem[]): OrderStats {
+    const revenue = order.total;
+    const paymentMethod = order.paymentMethod || 'efectivo';
+
+    const itemSales: { [itemId: string]: { name: string; quantity: number; revenue: number } } = {};
+
+    if (order.items) {
+        order.items.forEach(item => {
+            const itemId = item.menuItemId.toString();
+
+            let name = "Item Desconocido";
+            let price = 0;
+
+            const foundItem = findMenuItem(menuItems, item.menuItemId);
+            if (foundItem) {
+                name = foundItem.name;
+                price = foundItem.price;
+            }
+
+            if (item.customPrice) price = item.customPrice;
+
+            const itemRevenue = price * item.quantity;
+
+            if (!itemSales[itemId]) {
+                itemSales[itemId] = { name, quantity: 0, revenue: 0 };
+            }
+            itemSales[itemId].quantity += item.quantity;
+            itemSales[itemId].revenue += itemRevenue;
+        });
+    }
+
+    return {
+        revenue,
+        paymentMethods: { [paymentMethod]: revenue },
+        itemSales
+    };
+}
