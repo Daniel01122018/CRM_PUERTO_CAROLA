@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useMenu } from "@/hooks/use-menu";
 import { useAppStore } from "@/hooks/use-app-store";
+import { useAuth } from "@/hooks/use-auth";
 import { Order, MenuItem } from "@/types";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ const adaptItem = (fireItem: any): MenuItem => {
         id: parseInt(fireItem.id) || fireItem.oldId || 0,
         nombre: fireItem.name,
         precio: fireItem.price,
-        category: "Platos",
+        category: "Platos", // Dummy Default
         variantes: fireItem.variants,
         sabores: fireItem.flavors,
         paraLlevar: fireItem.paraLlevar,
@@ -35,6 +36,7 @@ export function KioskView() {
     const { toast } = useToast();
     const { categories, items: firestoreItems, loading } = useMenu();
     const { addOrUpdateOrder } = useAppStore();
+    const { currentUser, isMounted } = useAuth();
 
     const [activeCategory, setActiveCategory] = useState<string>("Platos");
     const [currentOrder, setCurrentOrder] = useState<Partial<Order>>({
@@ -50,7 +52,22 @@ export function KioskView() {
     const [selectedItemForVariant, setSelectedItemForVariant] = useState<MenuItem | null>(null);
     const [isVariantModalOpen, setIsVariantModalOpen] = useState(false);
 
-    // Initial load
+    // Access Control Effect
+    useEffect(() => {
+        if (!isMounted) return;
+
+        if (!currentUser) {
+            router.push('/');
+            return;
+        }
+
+        const allowedRoles = ['admin', 'kiosk'];
+        if (!allowedRoles.includes(currentUser.role)) {
+            router.push('/dashboard');
+        }
+    }, [currentUser, isMounted, router]);
+
+    // Initial load - Set default category if available
     useEffect(() => {
         if (categories.length > 0 && activeCategory === "Platos") {
             // Optional: Set to first category
@@ -175,8 +192,12 @@ export function KioskView() {
 
             const newId = await addOrUpdateOrder(orderToSubmit as Order);
 
-            const orderNumber = newId.slice(-4);
-            router.push(`/autoservice/success?id=${orderNumber}`);
+            if (newId) {
+                const orderNumber = newId.slice(-4);
+                router.push(`/autoservice/success?id=${orderNumber}`);
+            } else {
+                throw new Error("Failed to create order");
+            }
 
         } catch (error) {
             console.error("Error submitting order:", error);
@@ -189,6 +210,9 @@ export function KioskView() {
             setIsSubmitting(false);
         }
     };
+
+
+    if (!isMounted || !currentUser) return null;
 
     if (loading) {
         return (
@@ -204,30 +228,21 @@ export function KioskView() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 pb-32 relative overflow-hidden">
-            {/* Animated background elements */}
-            <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-purple-300/20 to-pink-300/20 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-blue-300/20 to-cyan-300/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-
-            {/* Header with glassmorphism */}
-            <header className="bg-white/80 backdrop-blur-xl shadow-xl sticky top-0 z-20 border-b-4 border-gradient-to-r from-purple-500 via-pink-500 to-red-500">
-                <div className="max-w-7xl mx-auto px-6 h-24 flex items-center justify-between">
-                    <Link href="/dashboard">
-                        <Button variant="ghost" className="flex items-center gap-2 text-lg hover:bg-white/50 rounded-xl px-6 h-14 font-bold transition-all hover:scale-105">
-                            <ArrowLeft className="h-6 w-6" />
-                            Salir
-                        </Button>
-                    </Link>
-
-                    <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
-                        <h1 className="text-3xl font-black bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent">
-                            AUTOSERVICIO
-                        </h1>
-                        <Sparkles className="h-7 w-7 text-yellow-500 animate-pulse" />
-                    </div>
-
-                    <div className="w-32" />
+        <div className="min-h-screen bg-gray-50 pb-32">
+            <header className="bg-white shadow-sm sticky top-0 z-10">
+                <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+                    {currentUser.role === 'admin' ? (
+                        <Link href="/admin/dashboard">
+                            <Button variant="ghost" className="flex items-center text-lg hover:bg-gray-100">
+                                <ArrowLeft className="mr-2 h-6 w-6" />
+                                Volver
+                            </Button>
+                        </Link>
+                    ) : (
+                        <div className="w-24" />
+                    )}
+                    <h1 className="text-2xl font-black text-gray-900">AUTOSERVICIO</h1>
+                    <div className="w-24" />
                 </div>
             </header>
 

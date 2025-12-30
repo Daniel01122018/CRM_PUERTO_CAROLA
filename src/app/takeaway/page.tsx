@@ -134,12 +134,14 @@ export default function TakeawayQueuePage() {
               <ShoppingBag className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
               <p className="text-lg font-semibold text-muted-foreground mb-2">No hay pedidos para llevar activos.</p>
               <p className="text-sm text-muted-foreground mb-4">Crea un nuevo pedido para empezar.</p>
-              <Link href="/order/new-takeaway" className="flex justify-center">
-                <Button className="flex items-center justify-center gap-2">
-                  <PlusCircle className="h-4 w-4" />
-                  Crear Primer Pedido
-                </Button>
-              </Link>
+              <div className="flex justify-center">
+                <Link href="/order/new-takeaway">
+                  <Button className="flex items-center gap-2">
+                    <PlusCircle className="h-4 w-4" />
+                    Crear Primer Pedido
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         )}

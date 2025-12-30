@@ -24,6 +24,7 @@ export interface MenuItem {
   paraLlevar?: boolean; // Para items que solo aparecen en modo "llevar"
   baseNombre?: string; // Nombre del plato base si es una variante
   contexto?: 'salon' | 'llevar'; // Contexto de servicio
+  variantes?: MenuItemVariant[]; // Variantes del item (ej. Tamaños)
 }
 
 export interface FirestoreItem {

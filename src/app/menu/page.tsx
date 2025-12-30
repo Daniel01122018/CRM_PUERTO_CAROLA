@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Settings } from 'lucide-react';
 import { useMenu, FirestoreItem, Category } from '@/hooks/use-menu';
+import { MenuItemVariant } from '@/types'; // Import Variant Type
 import { MenuTabs } from '@/components/menu/menu-tabs';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +35,13 @@ export default function MenuManagementPage() {
   const [itemType, setItemType] = useState<'plato' | 'item'>('item');
   const [itemParaLlevar, setItemParaLlevar] = useState(false);
 
+  // Variants State
+  const [variants, setVariants] = useState<MenuItemVariant[]>([]);
+  const [newVariantName, setNewVariantName] = useState('');
+  const [newVariantPrice, setNewVariantPrice] = useState('');
+  const [newVariantContext, setNewVariantContext] = useState<'salon' | 'llevar'>('salon');
+  const [variantToDeleteIndex, setVariantToDeleteIndex] = useState<number | null>(null);
+
   const [itemToDelete, setItemToDelete] = useState<FirestoreItem | null>(null);
 
   const handleAddCategory = async () => {
@@ -50,8 +58,10 @@ export default function MenuManagementPage() {
       setItemName(item.name);
       setItemPrice(item.price.toString());
       setItemCategory(item.categoryId);
-      setItemType(item.type);
+      // Default to 'item' if type is missing (legacy data support)
+      setItemType(item.type || 'item');
       setItemParaLlevar(item.paraLlevar || false);
+      setVariants(item.variants || []); // Load variants
     } else {
       setEditingItem(null);
       setItemName('');
@@ -59,8 +69,46 @@ export default function MenuManagementPage() {
       setItemCategory(categories[0]?.id || '');
       setItemType('item');
       setItemParaLlevar(false);
+      setVariants([]); // Reset variants
     }
+    setNewVariantName('');
+    setNewVariantPrice('');
+    setNewVariantContext('salon');
     setItemDialogOpen(true);
+  };
+
+  const addVariant = () => {
+    if (!newVariantName || !newVariantPrice) return;
+
+    const price = parseFloat(newVariantPrice);
+    if (isNaN(price) || price < 0) return;
+
+    const newVariant: MenuItemVariant = {
+      id: Date.now(), // Temp ID
+      nombre: newVariantName,
+      precio: price,
+      contexto: newVariantContext
+    };
+
+    setVariants([...variants, newVariant]);
+    setNewVariantName('');
+    setNewVariantPrice('');
+  };
+
+  const initiateRemoveVariant = (index: number) => {
+    setVariantToDeleteIndex(index);
+  };
+
+  const confirmRemoveVariant = () => {
+    if (variantToDeleteIndex !== null) {
+      setVariants(variants.filter((_, i) => i !== variantToDeleteIndex));
+      setVariantToDeleteIndex(null);
+    }
+  };
+
+  const removeVariant = (index: number) => {
+    // Legacy direct remove, kept for safety but replaced by initiateRemoveVariant
+    setVariants(variants.filter((_, i) => i !== index));
   };
 
   const handleSaveItem = async () => {
@@ -82,10 +130,11 @@ export default function MenuManagementPage() {
       name: itemName,
       categoryId: itemCategory,
       categoryName: category?.name || '',
-      price,
+      price: itemType === 'item' ? price : 0, // Plato price is usually 0 if variants exist, or base price
       type: itemType,
       paraLlevar: itemParaLlevar,
-      isAvailable: true
+      isAvailable: true,
+      variants: itemType === 'plato' ? variants : []
     };
 
     if (editingItem) {
@@ -167,61 +216,149 @@ export default function MenuManagementPage() {
       </Card>
 
       <Dialog open={isItemDialogOpen} onOpenChange={setItemDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[500px] h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-2">
             <DialogTitle>{editingItem ? 'Editar Ítem' : 'Nuevo Ítem'}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Nombre</Label>
-              <Input className="col-span-3" value={itemName} onChange={e => setItemName(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Categoría</Label>
-              <Select value={itemCategory} onValueChange={setItemCategory}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Selecciona..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Tipo</Label>
-              <Select value={itemType} onValueChange={(v: 'plato' | 'item') => setItemType(v)}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="item">Ítem Simple (Precio fijo)</SelectItem>
-                  <SelectItem value="plato">Plato (Variantes)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {itemType === 'item' && (
+
+          <div className="flex-1 px-6 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Precio</Label>
-                <Input className="col-span-3" type="number" min="0" value={itemPrice} onChange={e => setItemPrice(e.target.value)} />
+                <Label className="text-left">Nombre</Label>
+                <Input className="col-span-3" value={itemName} onChange={e => setItemName(e.target.value)} />
               </div>
-            )}
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Para Llevar</Label>
-              <div className="col-span-3 flex items-center space-x-2">
-                <Checkbox id="llevar" checked={itemParaLlevar} onCheckedChange={(c) => setItemParaLlevar(!!c)} />
-                <label htmlFor="llevar" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Es exclusivo para llevar
-                </label>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-left">Categoría</Label>
+                <Select value={itemCategory} onValueChange={setItemCategory}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Selecciona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-left">Tipo</Label>
+                <Select value={itemType || 'item'} onValueChange={(v) => setItemType(v as 'plato' | 'item')}>
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Seleccionar tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="item">Ítem Simple (Precio fijo)</SelectItem>
+                    <SelectItem value="plato">Plato (Variantes)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {itemType === 'item' && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label className="text-left">Precio</Label>
+                  <Input className="col-span-3" type="number" min="0" value={itemPrice} onChange={e => setItemPrice(e.target.value)} />
+                </div>
+              )}
+
+              {/* Variants Section */}
+              {itemType === 'plato' && (
+                <div className="grid grid-cols-4 items-start gap-4 border-t pt-4 mt-2">
+                  <Label className="text-left mt-2">Variantes</Label>
+                  <div className="col-span-3 space-y-3">
+                    <div className="space-y-2">
+                      {variants.map((v, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <Input disabled value={v.nombre} className="flex-1 h-8 text-sm" />
+                          <div className="w-20 text-sm font-bold text-right">${v.precio.toFixed(2)}</div>
+                          <div className="w-20 flex justify-center">
+                            <span className={`px-2 py-1 rounded-full text-[10px] uppercase font-bold ${v.contexto === 'llevar' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                              {v.contexto || 'salon'}
+                            </span>
+                          </div>
+                          <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => initiateRemoveVariant(idx)}>
+                            <div className="h-4 w-4">x</div>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2 items-end border-t pt-2">
+                      <div className="flex-[2]">
+                        <Label className="text-xs mb-1 block">Nombre</Label>
+                        <Input
+                          value={newVariantName}
+                          onChange={e => setNewVariantName(e.target.value)}
+                          placeholder="Ej. Grande"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <Label className="text-xs mb-1 block">Contexto</Label>
+                        <Select value={newVariantContext} onValueChange={(v: 'salon' | 'llevar') => setNewVariantContext(v)}>
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="salon">Mesa</SelectItem>
+                            <SelectItem value="llevar">Llevar</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-20">
+                        <Label className="text-xs mb-1 block">Precio</Label>
+                        <Input
+                          type="number"
+                          value={newVariantPrice}
+                          onChange={e => setNewVariantPrice(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <Button size="sm" onClick={addVariant} type="button">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label className="text-left mt-2">Disponibilidad</Label>
+                <div className="col-span-3 space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="llevar" checked={itemParaLlevar} onCheckedChange={(c) => setItemParaLlevar(!!c)} />
+                    <label htmlFor="llevar" className="text-sm font-medium leading-none cursor-pointer">
+                      Solo para llevar
+                    </label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Si se marca, este ítem NO estará disponible para pedidos en mesa (Salón).
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="p-6 pt-2">
             <Button onClick={handleSaveItem}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Variant Deletion Confirmation Dialog */}
+      <AlertDialog open={variantToDeleteIndex !== null} onOpenChange={(open) => !open && setVariantToDeleteIndex(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar Variante</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar esta variante?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemoveVariant} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
         <AlertDialogContent>
