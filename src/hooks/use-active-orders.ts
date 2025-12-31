@@ -28,20 +28,28 @@ export function useActiveOrders() {
         // Get start of today in milliseconds
         const todayStart = startOfDay(new Date()).getTime();
 
-        // 🔒 OPTIMIZATION: Only fetch active and preparing orders
-        // Completed and cancelled orders are not needed for real-time display
-        // NOTE: Requires composite index: (createdAt ASC, status ASC)
+        // 🔒 OPTIMIZATION: Fetch active, preparing AND undelivered completed orders
         const q = query(
             collection(db, 'orders'),
             where('createdAt', '>=', todayStart),
-            where('status', 'in', ['active', 'preparing']),
+            where('status', 'in', ['active', 'preparing', 'completed']),
             orderBy('createdAt', 'desc')
         );
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const ordersData: Order[] = [];
             querySnapshot.forEach((doc) => {
-                ordersData.push({ id: doc.id, ...doc.data() } as Order);
+                const data = doc.data() as Order;
+                // Filter: 
+                // 1. All active/preparing
+                // 2. Completed Takeaway ONLY if NOT delivered
+                if (data.status === 'completed') {
+                    if (data.tableId === 'takeaway' && !data.delivered) {
+                        ordersData.push({ ...data, id: doc.id });
+                    }
+                } else {
+                    ordersData.push({ ...data, id: doc.id });
+                }
             });
             setOrders(ordersData);
         }, (error) => {
@@ -86,6 +94,11 @@ export function useActiveOrders() {
                         orderCreatedAt = currentOrder.createdAt;
                     }
 
+                    // Auto-deliver if completed and NOT takeaway
+                    if (order.status === 'completed' && order.tableId !== 'takeaway') {
+                        order.delivered = true;
+                    }
+
                     transaction.set(orderRef, order, { merge: true });
 
                     // Release Table Lock if completed
@@ -121,6 +134,7 @@ export function useActiveOrders() {
                             shouldUpdateStats = true;
                             completedOrderId = returningId;
                             orderCreatedAt = orderData.createdAt;
+                            orderData.delivered = true; // Auto-deliver new completed table order
                         }
                         transaction.set(newOrderRef, orderData);
 
@@ -134,6 +148,7 @@ export function useActiveOrders() {
                             shouldUpdateStats = true;
                             completedOrderId = returningId;
                             orderCreatedAt = orderData.createdAt;
+                            // No auto-deliver for takeaway completed new orders (unlikely but safe)
                         }
                         transaction.set(newOrderRef, orderData);
                     }

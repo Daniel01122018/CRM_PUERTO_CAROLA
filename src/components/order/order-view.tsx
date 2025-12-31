@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, Smartphone, Banknote, Edit, Unlock, RefreshCw } from 'lucide-react';
+import { PlusCircle, MinusCircle, Trash2, ArrowLeft, Send, Plus, XCircle, Smartphone, Banknote, Edit, Unlock, RefreshCw, CheckCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import AppSidebar from '@/components/app-sidebar';
@@ -669,16 +669,30 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                   {hasUnsentChanges && (<Button size="lg" className="lg:h-10" onClick={() => saveOrderAndNavigate('preparing', 'Actualización enviada a cocina')}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
 
                   <Button size="lg" className="lg:h-10 bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)}>Finalizar y Cobrar</Button>
-
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild><Button size="lg" className="lg:h-10" variant="destructive"><XCircle className="mr-2 h-4 w-4" /> Desechar Pedido</Button></AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de desechar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible y solo debe hacerse si el cliente ya no quiere el pedido. El pedido será marcado como cancelado y se notificará a la cocina.</AlertDialogDescription></AlertDialogHeader>
-                      <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, desechar pedido</AlertDialogAction></AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
                 </div>
               )}
+
+              {isTakeawayOrder && currentOrder.status === 'completed' && !currentOrder.delivered && (
+                <Button
+                  size="lg"
+                  className="lg:h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold animate-in fade-in zoom-in"
+                  onClick={async () => {
+                    await addOrUpdateOrder({ ...currentOrder, delivered: true } as Order);
+                    toast({ title: "Pedido Entregado", description: "El pedido ha sido marcado como entregado satisfactoriamente." });
+                    router.push(baseRedirectPath);
+                  }}
+                >
+                  <CheckCircle className="mr-2 h-5 w-5" /> MARCAR COMO ENTREGADO
+                </Button>
+              )}
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild><Button size="lg" className="lg:h-10" variant="destructive"><XCircle className="mr-2 h-4 w-4" /> Desechar Pedido</Button></AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de desechar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible y solo debe hacerse si el cliente ya no quiere el pedido. El pedido será marcado como cancelado y se notificará a la cocina.</AlertDialogDescription></AlertDialogHeader>
+                  <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, desechar pedido</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
               <Button size="lg" className="lg:h-10" variant="outline" onClick={handleBack}><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button>
             </div>
           </CardFooter>

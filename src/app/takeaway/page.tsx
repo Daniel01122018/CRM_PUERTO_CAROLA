@@ -17,7 +17,7 @@ import { es } from 'date-fns/locale';
 import { findMenuItem } from '@/lib/stats-helper';
 
 export default function TakeawayQueuePage() {
-  const { isMounted, currentUser, orders } = useAppStore();
+  const { isMounted, currentUser, orders, addOrUpdateOrder } = useAppStore();
   const { items: menuItems } = useMenu();
   const router = useRouter();
 
@@ -30,9 +30,22 @@ export default function TakeawayQueuePage() {
   const activeTakeawayOrders = useMemo(() => {
     if (!isMounted || !orders) return [];
     return orders
-      .filter(o => o.tableId === 'takeaway' && (o.status === 'active' || o.status === 'preparing'))
+      .filter(o => o.tableId === 'takeaway' && (o.status === 'active' || o.status === 'preparing' || (o.status === 'completed' && !o.delivered)))
       .sort((a, b) => a.createdAt - b.createdAt);
   }, [orders, isMounted]);
+
+  const handleDeliver = async (e: React.MouseEvent, orderId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const order = orders?.find(o => o.id === orderId);
+      if (order) {
+        await addOrUpdateOrder({ ...order, delivered: true });
+      }
+    } catch (error) {
+      console.error("Error delivering order:", error);
+    }
+  };
 
   const getMenuItemName = (id: string | number) => {
     if (!menuItems || menuItems.length === 0) return "Cargando...";
@@ -88,14 +101,31 @@ export default function TakeawayQueuePage() {
                   <Card className="flex flex-col h-full transition-all hover:shadow-lg hover:-translate-y-1 min-h-[200px]">
                     <CardHeader className="pb-3 flex-shrink-0">
                       <CardTitle className="flex justify-between items-center text-base sm:text-lg">
-                        <span className="truncate">Pedido #{order.id.slice(-4)}</span>
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="truncate">Pedido #{order.id.slice(-4)}</span>
+                          {order.status === 'completed' && (
+                            <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0">
+                              PAGADO
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs sm:text-sm font-normal flex items-center gap-1 text-muted-foreground flex-shrink-0 ml-2">
                           <Clock className="h-3 w-3" />
                           {format(new Date(order.createdAt), "HH:mm", { locale: es })}
                         </span>
                       </CardTitle>
-                      <CardDescription className="text-xs sm:text-sm">
-                        {order.items.length} {order.items.length === 1 ? 'artículo' : 'artículos'} - Total: ${order.total.toFixed(2)}
+                      <CardDescription className="text-xs sm:text-sm flex justify-between items-center">
+                        <span>{order.items.length} {order.items.length === 1 ? 'artículo' : 'artículos'} - Total: ${order.total.toFixed(2)}</span>
+                        {order.status === 'completed' && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="bg-primary text-white hover:bg-primary/90 transition-all font-bold px-3 py-1 h-7 text-xs"
+                            onClick={(e) => handleDeliver(e, order.id)}
+                          >
+                            ENTREGAR
+                          </Button>
+                        )}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex-1 p-0 px-6 pb-6">

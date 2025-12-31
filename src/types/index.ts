@@ -63,6 +63,7 @@ export interface Order {
   cancelledAt?: number;
   notes?: string;
   paymentMethod?: PaymentMethod;
+  delivered?: boolean;
 }
 
 export interface Table {

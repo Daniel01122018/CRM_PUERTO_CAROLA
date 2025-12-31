@@ -79,11 +79,6 @@ const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
             <XCircle className="h-5 w-5" />
             ORDEN DESECHADA
           </CardDescription>
-        ) : isCompleted ? (
-          <CardDescription className="flex items-center gap-2 font-bold text-green-700 dark:text-green-400 pt-1">
-            <CheckCircle className="h-5 w-5" />
-            LISTO / PAGADO
-          </CardDescription>
         ) : (
           <CardDescription>ID: {order.id}</CardDescription>
         )}
@@ -182,10 +177,9 @@ export default function KitchenPage() {
             return o.cancelledAt && (now - o.cancelledAt < 30000); // 30s for cancelled
           }
           if (o.status === 'completed' && o.tableId === 'takeaway') {
-            // 5 minutes = 300000 ms
-            // Fallback to updated at or created at if completedAt missing (migration safety)
-            const timeRef = o.completedAt || o.createdAt;
-            return (now - timeRef < 300000);
+            // No auto-expiry here anymore.
+            // We trust the hook to filter out delivered orders.
+            return !o.delivered;
           }
           return false;
         })
