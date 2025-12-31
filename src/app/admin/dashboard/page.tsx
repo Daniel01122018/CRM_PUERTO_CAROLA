@@ -97,7 +97,7 @@ export default function AdminDashboard() {
     { label: "Reporte de Rendimiento", icon: TrendingUp, path: "/reports/performance", category: "reports" },
     { label: "Gestión de Gastos", icon: Wallet, path: "/expenses", category: "finance" },
     { label: "Gestión de Empleados", icon: Users, path: "/employees", category: "management" },
-    { label: "Gestión de Menú", icon: Utensils, path: "/menu", category: "management" },
+    { label: "Gestión de Menú", icon: Utensils, path: "/admin/menu", category: "management" },
     { label: "Gestión de Inventario", icon: Package, path: "/inventory", category: "management" },
     { label: "Autoservicio (Kiosko)", icon: Smartphone, path: "/autoservice", category: "operations" },
     { label: "Admin. Kiosko", icon: Monitor, path: "/kiosk-admin", category: "operations" },

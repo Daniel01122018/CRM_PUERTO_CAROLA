@@ -9,6 +9,7 @@ import { useActiveOrders } from './use-active-orders';
 import { useExpenses } from './use-expenses';
 import { useEmployees } from './use-employees';
 import { useDailyData } from './use-daily-data';
+import { useRestaurantConfig } from './use-restaurant-config';
 
 export function useAppStore() {
   const { currentUser, login, logout, isMounted } = useAuth();
@@ -16,12 +17,15 @@ export function useAppStore() {
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses();
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees();
   const { dailyData, setInitialCash } = useDailyData();
+  const { config } = useRestaurantConfig();
 
 
   const tables = useMemo<Table[] | undefined>(() => {
     if (!orders) return undefined;
 
-    return Array.from({ length: TOTAL_TABLES }, (_, i) => {
+    const totalTables = config?.totalTables || 12;
+
+    return Array.from({ length: totalTables }, (_, i) => {
       const tableId = i + 1;
       const occupiedOrder = orders.find(o => o.tableId === tableId && (o.status === 'active' || o.status === 'preparing'));
       return {
@@ -30,7 +34,7 @@ export function useAppStore() {
         orderId: occupiedOrder?.id
       };
     });
-  }, [orders]);
+  }, [orders, config]);
 
   return {
     // Auth

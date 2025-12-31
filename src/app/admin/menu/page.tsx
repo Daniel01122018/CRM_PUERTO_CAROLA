@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 export default function MenuManagementPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { categories, items, loading, addCategory, addItem, updateItem, deleteItem } = useMenu();
+  const { categories, items, loading, addCategory, addItem, updateItem, deleteItem, reorderItem } = useMenu();
 
   const [isCategoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -207,6 +207,8 @@ export default function MenuManagementPage() {
                       mode="edit"
                       onEdit={handleOpenItemDialog}
                       onDelete={handleDeleteClick}
+                      onMoveUp={(id) => reorderItem(id, 'up')}
+                      onMoveDown={(id) => reorderItem(id, 'down')}
                     />
                   ))}
               </div>

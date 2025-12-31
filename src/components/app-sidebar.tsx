@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { Menu, UserCircle, LogOut, BarChartBig, Wallet, ChefHat, History, LayoutGrid, Sun, Moon, Laptop, ShoppingBag, UtensilsCrossed, Package, Users, ShieldCheck, TrendingUp, Monitor } from 'lucide-react'; // Importar iconos de tema
 import { cn } from '@/lib/utils';
@@ -43,7 +43,7 @@ export default function AppSidebar() {
     ...(isAdmin || isEmployee ? [{ label: "Para Llevar", icon: ShoppingBag, path: '/takeaway' }] : []),
     ...(isAdmin ? [{ label: "Reportes", icon: BarChartBig, path: '/reports' }] : []),
     ...(isAdmin ? [{ label: "Rendimiento", icon: TrendingUp, path: '/reports/performance' }] : []),
-    ...(isAdmin ? [{ label: "Menú", icon: UtensilsCrossed, path: '/menu' }] : []),
+    ...(isAdmin ? [{ label: "Menú", icon: UtensilsCrossed, path: '/admin/menu' }] : []),
     ...(isAdmin ? [{ label: "Inventario", icon: Package, path: '/inventory' }] : []),
     ...(isAdmin ? [{ label: "Empleados", icon: Users, path: '/employees' }] : []),
     ...(isAdmin || isEmployee ? [{ label: "Gastos", icon: Wallet, path: '/expenses' }] : []),
@@ -62,6 +62,9 @@ export default function AppSidebar() {
       <SheetContent side="left" className="p-0 flex flex-col">
         <SheetHeader className="p-4 border-b">
           <SheetTitle className="text-xl font-bold text-primary font-headline">El Puerto de Carola</SheetTitle>
+          <SheetDescription className="sr-only">
+            Menú de navegación principal del sistema
+          </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-4">

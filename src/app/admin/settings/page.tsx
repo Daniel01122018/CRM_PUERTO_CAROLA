@@ -1,25 +1,34 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useBanks } from '@/hooks/use-banks';
 import { useAuth } from '@/hooks/use-auth';
+import { useRestaurantConfig } from '@/hooks/use-restaurant-config';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Trash2, Plus, ArrowLeft, Landmark, Loader2 } from 'lucide-react';
+import { Trash2, Plus, ArrowLeft, Landmark, Loader2, Save, LayoutGrid } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function BankSettingsPage() {
-    const { banks, loading, addBank, deleteBank } = useBanks();
+    const { banks, loading: banksLoading, addBank, deleteBank } = useBanks();
+    const { config, updateTables, loading: configLoading } = useRestaurantConfig();
     const { currentUser } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
     const [newBankName, setNewBankName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [tableCount, setTableCount] = useState<string>('');
 
-    if (loading) {
+    useEffect(() => {
+        if (config?.totalTables) {
+            setTableCount(config.totalTables.toString());
+        }
+    }, [config]);
+
+    if (banksLoading || configLoading) {
         return (
             <div className="flex h-screen items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -31,6 +40,35 @@ export default function BankSettingsPage() {
         router.push('/');
         return null;
     }
+
+    const handleSaveTables = async () => {
+        const count = parseInt(tableCount);
+        if (isNaN(count) || count < 1 || count > 50) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "La cantidad de mesas debe estar entre 1 y 50.",
+            });
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await updateTables(count);
+            toast({
+                title: "Mesas actualizadas",
+                description: `El número de mesas ha sido actualizado a ${count}.`,
+            });
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: error.message,
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const handleAddBank = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -83,12 +121,48 @@ export default function BankSettingsPage() {
                         </Button>
                         <div>
                             <h1 className="text-3xl font-black bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                                Configuración de Bancos
+                                Ajustes del Restaurante
                             </h1>
-                            <p className="text-slate-400">Gestiona las opciones de transferencia para cobranza.</p>
+                            <p className="text-slate-400">Configura mesas y opciones de pago.</p>
                         </div>
                     </div>
                 </div>
+
+                {/* Table Configuration */}
+                <Card className="bg-slate-800 border-slate-700">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <LayoutGrid className="h-5 w-5 text-indigo-400" />
+                            Configuración del Salón
+                        </CardTitle>
+                        <CardDescription className="text-slate-400">
+                            Define cuántas mesas hay disponibles en el salón (Máximo 50).
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col sm:flex-row items-end gap-4 max-w-md">
+                            <div className="space-y-2 flex-1">
+                                <label className="text-sm font-medium text-slate-300">Total de Mesas</label>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    max="50"
+                                    value={tableCount}
+                                    onChange={(e) => setTableCount(e.target.value)}
+                                    className="bg-slate-900 border-slate-700 text-white focus:ring-indigo-500"
+                                />
+                            </div>
+                            <Button
+                                onClick={handleSaveTables}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
+                                disabled={isSubmitting || !tableCount}
+                            >
+                                <Save className="h-4 w-4 mr-2" />
+                                Guardar Cambios
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {/* Add Bank Form */}

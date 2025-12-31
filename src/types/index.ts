@@ -39,6 +39,7 @@ export interface FirestoreItem {
   type: 'plato' | 'item';
   paraLlevar?: boolean;
   oldId?: number;
+  order?: number;
 }
 
 export interface OrderItem {
@@ -136,6 +137,10 @@ export interface DailyStats {
 
 export type InventoryUnit = 'kg' | 'lb' | 'unidades' | 'litros' | 'bolsas' | 'cajas';
 export type MovementType = 'entrada' | 'salida' | 'ajuste';
+
+export interface RestaurantConfig {
+  totalTables: number;
+}
 
 export interface InventoryCategory {
   id: string;

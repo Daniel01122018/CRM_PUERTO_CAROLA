@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, PlusCircle, MinusCircle, Edit, Trash2 } from "lucide-react";
+import { Plus, PlusCircle, MinusCircle, Edit, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { FirestoreItem } from "@/hooks/use-menu";
 import { useState } from "react";
 
@@ -12,11 +12,13 @@ interface MenuItemCardProps {
     onRemove?: (item: FirestoreItem) => void;
     onEdit?: (item: FirestoreItem) => void;
     onDelete?: (item: FirestoreItem) => void;
+    onMoveUp?: (itemId: string) => void;
+    onMoveDown?: (itemId: string) => void;
     quantityInOrder?: number;
     activeContext?: 'salon' | 'llevar';
 }
 
-export function MenuItemCard({ item, mode, onAdd, onRemove, onEdit, onDelete, quantityInOrder = 0, activeContext = 'salon' }: MenuItemCardProps) {
+export function MenuItemCard({ item, mode, onAdd, onRemove, onEdit, onDelete, onMoveUp, onMoveDown, quantityInOrder = 0, activeContext = 'salon' }: MenuItemCardProps) {
     const [openFlavorPopover, setOpenFlavorPopover] = useState(false);
 
     // Filter logic for 'order' mode is handled by parent or here?
@@ -26,16 +28,48 @@ export function MenuItemCard({ item, mode, onAdd, onRemove, onEdit, onDelete, qu
         return (
             <Card className="overflow-hidden">
                 <CardContent className="p-4 flex flex-col justify-between h-full">
-                    <div>
-                        <p className="font-semibold">{item.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                            {item.type === 'plato' ? 'Variantes múltiples' : `$${item.price.toFixed(2)}`}
-                        </p>
-                        {item.paraLlevar && <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Para Llevar</span>}
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="font-semibold">{item.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {item.type === 'plato' ? 'Variantes múltiples' : `$${item.price.toFixed(2)}`}
+                            </p>
+                            {item.paraLlevar && <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full mt-1 inline-block">Solo Llevar</span>}
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-slate-400 hover:text-indigo-600"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMoveUp?.(item.id);
+                                }}
+                            >
+                                <ChevronUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-slate-400 hover:text-indigo-600"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMoveDown?.(item.id);
+                                }}
+                            >
+                                <ChevronDown className="h-4 w-4" />
+                            </Button>
+                        </div>
                     </div>
-                    <div className="flex justify-end gap-2 mt-2">
-                        <Button variant="outline" size="icon" onClick={() => onEdit?.(item)}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="destructive" size="icon" onClick={() => onDelete?.(item)}><Trash2 className="h-4 w-4" /></Button>
+                    <div className="flex justify-end gap-2 mt-4 pt-2 border-t">
+                        <Button variant="outline" size="sm" className="h-8 gap-2" onClick={() => onEdit?.(item)}>
+                            <Edit className="h-3.5 w-3.5" />
+                            <span className="text-xs">Editar</span>
+                        </Button>
+                        <Button variant="destructive" size="sm" className="h-8 gap-2" onClick={() => onDelete?.(item)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="text-xs">Borrar</span>
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
