@@ -129,6 +129,12 @@ export interface DailyStats {
   paymentMethods: { [key: string]: number };
   categoryBreakdown: { [key: string]: number };
   itemSales?: { [itemId: string]: { name: string; quantity: number; revenue: number } };
+  serviceTypeBreakdown?: {
+    mesa: { count: number; revenue: number };
+    llevar: { count: number; revenue: number };
+  };
+  hourlyOrders?: { [hour: string]: number };
+  updatedAt?: number;
 }
 
 // ========================================

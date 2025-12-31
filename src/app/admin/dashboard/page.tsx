@@ -18,7 +18,7 @@ import {
   TrendingUp,
   Smartphone,
   Monitor,
-  Landmark,
+  Settings,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -101,7 +101,7 @@ export default function AdminDashboard() {
     { label: "Gestión de Inventario", icon: Package, path: "/inventory", category: "management" },
     { label: "Autoservicio (Kiosko)", icon: Smartphone, path: "/autoservice", category: "operations" },
     { label: "Admin. Kiosko", icon: Monitor, path: "/kiosk-admin", category: "operations" },
-    { label: "Ajustes de Bancos", icon: Landmark, path: "/admin/settings", category: "management" },
+    { label: "Configuración", icon: Settings, path: "/admin/settings", category: "management" },
   ];
 
   if (!isMounted || !currentUser) {

@@ -10,6 +10,11 @@ export const updateDailyStats = async (date: Date, data: {
     paymentMethods?: { [key: string]: number };
     categoryBreakdown?: { [key: string]: number };
     itemSales?: { [itemId: string]: { name: string; quantity: number; revenue: number } };
+    serviceTypeBreakdown?: {
+        mesa: { count: number; revenue: number };
+        llevar: { count: number; revenue: number };
+    };
+    hourlyOrders?: { [hour: string]: number };
 }) => {
     const dateId = format(date, 'yyyy-MM-dd');
     const statsRef = doc(db, 'daily_stats', dateId);
@@ -30,6 +35,8 @@ export const updateDailyStats = async (date: Date, data: {
                     paymentMethods: data.paymentMethods || {},
                     categoryBreakdown: data.categoryBreakdown || {},
                     itemSales: data.itemSales || {},
+                    serviceTypeBreakdown: data.serviceTypeBreakdown || { mesa: { count: 0, revenue: 0 }, llevar: { count: 0, revenue: 0 } },
+                    hourlyOrders: data.hourlyOrders || {},
                     updatedAt: Date.now()
                 });
             } else {
@@ -69,6 +76,27 @@ export const updateDailyStats = async (date: Date, data: {
                             quantity: currentItem.quantity + info.quantity,
                             revenue: currentItem.revenue + info.revenue
                         };
+                    }
+                }
+
+                if (data.serviceTypeBreakdown) {
+                    const currentService = currentData.serviceTypeBreakdown || { mesa: { count: 0, revenue: 0 }, llevar: { count: 0, revenue: 0 } };
+
+                    if (data.serviceTypeBreakdown.mesa.count !== 0 || data.serviceTypeBreakdown.mesa.revenue !== 0) {
+                        updates['serviceTypeBreakdown.mesa.count'] = (currentService.mesa?.count || 0) + data.serviceTypeBreakdown.mesa.count;
+                        updates['serviceTypeBreakdown.mesa.revenue'] = (currentService.mesa?.revenue || 0) + data.serviceTypeBreakdown.mesa.revenue;
+                    }
+
+                    if (data.serviceTypeBreakdown.llevar.count !== 0 || data.serviceTypeBreakdown.llevar.revenue !== 0) {
+                        updates['serviceTypeBreakdown.llevar.count'] = (currentService.llevar?.count || 0) + data.serviceTypeBreakdown.llevar.count;
+                        updates['serviceTypeBreakdown.llevar.revenue'] = (currentService.llevar?.revenue || 0) + data.serviceTypeBreakdown.llevar.revenue;
+                    }
+                }
+
+                if (data.hourlyOrders) {
+                    const currentHourly = currentData.hourlyOrders || {};
+                    for (const [hour, count] of Object.entries(data.hourlyOrders)) {
+                        updates[`hourlyOrders.${hour}`] = (currentHourly[hour] || 0) + count;
                     }
                 }
 

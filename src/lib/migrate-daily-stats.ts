@@ -72,12 +72,31 @@ export const migrateDailyStats = async () => {
                     paymentMethods: {},
                     categoryBreakdown: {},
                     itemSales: {},
+                    serviceTypeBreakdown: {
+                        mesa: { count: 0, revenue: 0 },
+                        llevar: { count: 0, revenue: 0 }
+                    },
+                    hourlyOrders: {},
                     updatedAt: Date.now()
                 };
             }
 
             statsByDate[date].totalRevenue += order.total;
             statsByDate[date].orderCount += 1;
+
+            // Service Type Breakdown
+            const isTakeaway = order.tableId === 'takeaway';
+            if (isTakeaway) {
+                statsByDate[date].serviceTypeBreakdown.llevar.count += 1;
+                statsByDate[date].serviceTypeBreakdown.llevar.revenue += order.total;
+            } else {
+                statsByDate[date].serviceTypeBreakdown.mesa.count += 1;
+                statsByDate[date].serviceTypeBreakdown.mesa.revenue += order.total;
+            }
+
+            // Hourly Orders
+            const hour = new Date(order.createdAt).getHours().toString();
+            statsByDate[date].hourlyOrders[hour] = (statsByDate[date].hourlyOrders[hour] || 0) + 1;
 
             const paymentMethod = order.paymentMethod || 'efectivo';
             statsByDate[date].paymentMethods[paymentMethod] = (statsByDate[date].paymentMethods[paymentMethod] || 0) + order.total;
@@ -117,6 +136,11 @@ export const migrateDailyStats = async () => {
                     paymentMethods: {},
                     categoryBreakdown: {},
                     itemSales: {},
+                    serviceTypeBreakdown: {
+                        mesa: { count: 0, revenue: 0 },
+                        llevar: { count: 0, revenue: 0 }
+                    },
+                    hourlyOrders: {},
                     updatedAt: Date.now()
                 };
             }

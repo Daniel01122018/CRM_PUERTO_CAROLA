@@ -3,16 +3,7 @@ import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format, eachDayOfInterval, isSameDay } from 'date-fns';
 
-export interface DailyStats {
-    date: string;
-    totalRevenue: number;
-    totalExpenses: number;
-    orderCount: number;
-    paymentMethods: { [key: string]: number };
-    categoryBreakdown: { [key: string]: number };
-    itemSales?: { [itemId: string]: { name: string; quantity: number; revenue: number } };
-    updatedAt: number;
-}
+import { DailyStats } from '@/types';
 
 // Global cache to persist data across re-renders and navigation
 // Key: YYYY-MM-DD, Value: DailyStats

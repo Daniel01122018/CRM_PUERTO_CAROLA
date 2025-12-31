@@ -17,10 +17,11 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegendContent }
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText, RefreshCw } from 'lucide-react';
+import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText, RefreshCw, CreditCard, Utensils, Clock, TrendingUp, ShoppingBag, Store } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,6 +95,85 @@ export default function ReportsPage() {
     const totalOrders = stats.reduce((sum, day) => sum + day.orderCount, 0);
     return { totalIncome, totalExpenses, netProfit, totalOrders };
   }, [stats]);
+
+  const insights = useMemo(() => {
+    // 1. Payment Methods
+    const paymentMethods: { [key: string]: number } = {};
+    let totalPaymentRevenue = 0;
+
+    // 2. Service Type
+    let mesaCount = 0;
+    let llevarCount = 0;
+    let mesaRevenue = 0;
+    let llevarRevenue = 0;
+
+    // 3. Hourly
+    const hourlyDistribution: { [key: string]: number } = {};
+
+    // 4. Products
+    const productSales: { [id: string]: { id: string, name: string, quantity: number, revenue: number } } = {};
+
+    stats.forEach(day => {
+      // Payments
+      if (day.paymentMethods) {
+        Object.entries(day.paymentMethods).forEach(([method, amount]) => {
+          paymentMethods[method] = (paymentMethods[method] || 0) + amount;
+          totalPaymentRevenue += amount;
+        });
+      }
+
+      // Service Type (New Field)
+      if (day.serviceTypeBreakdown) {
+        mesaCount += day.serviceTypeBreakdown.mesa.count || 0;
+        mesaRevenue += day.serviceTypeBreakdown.mesa.revenue || 0;
+        llevarCount += day.serviceTypeBreakdown.llevar.count || 0;
+        llevarRevenue += day.serviceTypeBreakdown.llevar.revenue || 0;
+      }
+
+      // Hourly (New Field)
+      if (day.hourlyOrders) {
+        Object.entries(day.hourlyOrders).forEach(([hour, count]) => {
+          hourlyDistribution[hour] = (hourlyDistribution[hour] || 0) + count;
+        });
+      }
+
+      // Products
+      if (day.itemSales) {
+        Object.entries(day.itemSales).forEach(([id, item]) => {
+          if (!productSales[id]) productSales[id] = { id, name: item.name, quantity: 0, revenue: 0 };
+          productSales[id].quantity += item.quantity;
+          productSales[id].revenue += item.revenue;
+        });
+      }
+    });
+
+    // Process Top Products
+    const topProducts = Object.values(productSales)
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 3);
+
+    // Process Peak Hour
+    let peakHour = "-";
+    let maxOrders = 0;
+    Object.entries(hourlyDistribution).forEach(([hour, count]) => {
+      if (count > maxOrders) {
+        maxOrders = count;
+        peakHour = `${hour}:00 - ${parseInt(hour) + 1}:00`;
+      }
+    });
+
+    // Average Ticket
+    const averageTicket = summaryKpis.totalOrders > 0 ? summaryKpis.totalIncome / summaryKpis.totalOrders : 0;
+
+    return {
+      paymentMethods,
+      totalPaymentRevenue,
+      serviceType: { mesaCount, mesaRevenue, llevarCount, llevarRevenue },
+      peakHour,
+      topProducts,
+      averageTicket
+    };
+  }, [stats, summaryKpis]);
 
   const dailyChartData = useMemo(() => {
     if (!dateFilterRange?.from || !dateFilterRange.to) return [];
@@ -186,181 +266,350 @@ export default function ReportsPage() {
         <div className="print:hidden">
           {/* Header Section */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-            <div className='flex items-center gap-3 flex-wrap'>
+            <div className='flex items-center gap-3'>
+              <Link href="/admin/dashboard">
+                <Button variant="outline" size="icon" className="h-9 w-9">
+                  <ArrowLeft className="h-5 w-5" />
+                  <span className="sr-only">Volver</span>
+                </Button>
+              </Link>
               <AppSidebar />
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-                <BarChart2 className="h-6 w-6 sm:h-8 sm:w-8" />
-                Reportes Financieros
+              <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
+                <BarChart2 className="h-6 w-6" />
+                <span className="hidden sm:inline">Reportes Financieros</span>
+                <span className="sm:hidden">Reportes</span>
               </h1>
             </div>
-            <div className="flex items-center flex-wrap gap-2 justify-start md:justify-end">
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              {/* Filters moved to header */}
+              <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
+                <SelectTrigger className="w-full sm:w-[150px] h-9">
+                  <SelectValue placeholder="Periodo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="this_week">Esta semana</SelectItem>
+                  <SelectItem value="last_week">Semana pasada</SelectItem>
+                  <SelectItem value="this_month">Este mes</SelectItem>
+                  <SelectItem value="last_month">Mes pasado</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button id="date" variant={"outline"} size="sm" className={cn("w-full sm:w-auto justify-start text-left font-normal h-9", !customDateRange && "text-muted-foreground")}>
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customDateRange?.from ?
+                      customDateRange.to ?
+                        `${format(customDateRange.from, 'dd/MM')} - ${format(customDateRange.to, 'dd/MM')}` :
+                        format(customDateRange.from, 'dd/MM') :
+                      <span>Personalizado</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={customDateRange?.from}
+                    selected={customDateRange}
+                    onSelect={(range) => { setCustomDateRange(range); if (range?.from) setFilterPreset('custom'); }}
+                    numberOfMonths={2}
+                    locale={es}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <div className="h-6 w-px bg-border hidden sm:block mx-1" />
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsRecalculateAlertOpen(true)}
                 disabled={isRecalculating}
-                className="flex-1 sm:flex-none min-w-[140px]"
+                className="h-9"
               >
                 <RefreshCw className={cn("mr-2 h-4 w-4", isRecalculating && "animate-spin")} />
-                {isRecalculating ? "Calculando..." : "Recalcular Datos"}
+                <span className="hidden lg:inline">Recalcular</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={handlePrintReport} className="flex-1 sm:flex-none min-w-[140px]">
-                <FileText className="mr-2 h-4 w-4" />
-                Generar Reporte
+              <Button variant="outline" size="icon" onClick={handlePrintReport} className="h-9 w-9">
+                <FileText className="h-4 w-4" />
+                <span className="sr-only">Imprimir</span>
               </Button>
-              <Link href="/admin/dashboard" className="flex-1 sm:flex-none">
-                <Button variant="outline" className="flex items-center gap-2 w-full sm:w-auto">
-                  <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="hidden sm:inline">Volver al Dashboard</span>
-                  <span className="sm:hidden">Volver</span>
-                </Button>
-              </Link>
             </div>
           </div>
 
-          {/* Filtros */}
-          <div className="mb-6">
-            <Card>
-              <CardContent className="p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                <Select value={filterPreset} onValueChange={(v) => { setFilterPreset(v as FilterPreset); setCustomDateRange(undefined); }}>
-                  <SelectTrigger className="w-full sm:w-[180px]">
-                    <SelectValue placeholder="Filtrar por fecha" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="this_week">Esta semana</SelectItem>
-                    <SelectItem value="last_week">Semana pasada</SelectItem>
-                    <SelectItem value="this_month">Este mes</SelectItem>
-                    <SelectItem value="last_month">Mes pasado</SelectItem>
-                  </SelectContent>
-                </Select>
+          <Tabs defaultValue="resumen" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="resumen">Resumen</TabsTrigger>
+              <TabsTrigger value="analisis">Análisis</TabsTrigger>
+              <TabsTrigger value="detalles">Detalles</TabsTrigger>
+            </TabsList>
 
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button id="date" variant={"outline"} className={cn("w-full sm:w-auto justify-start text-left font-normal flex-1", !customDateRange && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {customDateRange?.from ?
-                        customDateRange.to ?
-                          `${format(customDateRange.from, 'LLL dd, y')} - ${format(customDateRange.to, 'LLL dd, y')}` :
-                          format(customDateRange.from, 'LLL dd, y') :
-                        <span>Rango personalizado</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={customDateRange?.from}
-                      selected={customDateRange}
-                      onSelect={(range) => { setCustomDateRange(range); if (range?.from) setFilterPreset('custom'); }}
-                      numberOfMonths={2}
-                      locale={es}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </CardContent>
-            </Card>
-          </div>
+            <TabsContent value="resumen" className="space-y-4">
+              {/* KPIs Grid */}
+              <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">${summaryKpis.totalIncome.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">{summaryKpis.totalOrders} ventas</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Gastos</CardTitle>
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">${summaryKpis.totalExpenses.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">Registros de egresos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Ticket Prom.</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">${insights.averageTicket.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">Por pedido</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-primary text-primary-foreground">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Utilidad</CardTitle>
+                    <PiggyBank className="h-4 w-4 text-primary-foreground/80" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold">${summaryKpis.netProfit.toFixed(2)}</div>
+                    <p className="text-xs text-primary-foreground/80">Neta</p>
+                  </CardContent>
+                </Card>
+              </div>
 
-          {/* KPIs Grid */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">${summaryKpis.totalIncome.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">{summaryKpis.totalOrders} ventas completadas</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Gastos Totales</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600">${summaryKpis.totalExpenses.toFixed(2)}</div>
-                <p className="text-xs text-muted-foreground">Suma de todos los egresos registrados</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-primary text-primary-foreground">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Utilidad Neta</CardTitle>
-                <PiggyBank className="h-4 w-4 text-primary-foreground/80" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">${summaryKpis.netProfit.toFixed(2)}</div>
-                <p className="text-xs text-primary-foreground/80">Ingresos menos gastos</p>
-              </CardContent>
-            </Card>
-          </div>
+              {/* Charts moved here from deleted tab */}
+              <div className="grid gap-6 grid-cols-1 lg:grid-cols-5 pt-2">
+                <Card className="lg:col-span-3">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Ingresos vs. Gastos</CardTitle>
+                    <CardDescription>Comparación diaria.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pl-0 sm:pl-2">
+                    <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                      <BarChart accessibilityLayer data={dailyChartData}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} fontSize={12} />
+                        <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} fontSize={12} />
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
+                        <Legend content={<ChartLegendContent />} />
+                        <Bar dataKey="Ingresos" fill="var(--color-Ingresos)" radius={4} />
+                        <Bar dataKey="Gastos" fill="var(--color-Gastos)" radius={4} />
+                      </BarChart>
+                    </ChartContainer>
+                  </CardContent>
+                </Card>
 
-          {/* Charts Section */}
-          <div className="grid gap-6 grid-cols-1 lg:grid-cols-5">
-            <Card className="lg:col-span-3">
-              <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">Ingresos vs. Gastos</CardTitle>
-                <CardDescription>Comparación diaria de ingresos y gastos para el período seleccionado.</CardDescription>
-              </CardHeader>
-              <CardContent className="pl-2">
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                  <BarChart accessibilityLayer data={dailyChartData}>
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="date"
-                      tickLine={false}
-                      tickMargin={10}
-                      axisLine={false}
-                      fontSize={12}
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `$${value}`}
-                      fontSize={12}
-                    />
-                    <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
-                    <Legend content={<ChartLegendContent />} />
-                    <Bar dataKey="Ingresos" fill="var(--color-Ingresos)" radius={4} />
-                    <Bar dataKey="Gastos" fill="var(--color-Gastos)" radius={4} />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
+                <Card className="lg:col-span-2">
+                  <CardHeader>
+                    <CardTitle className="text-lg">Desglose Gastos</CardTitle>
+                    <CardDescription>Por categoría.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {expenseBreakdownData.length > 0 ? (
+                      <ChartContainer config={{}} className="h-[250px] w-full">
+                        <PieChart>
+                          <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
+                          <Pie
+                            data={expenseBreakdownData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            innerRadius={30}
+                            label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                          >
+                            {expenseBreakdownData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ChartContainer>
+                    ) : (
+                      <div className="flex h-[250px] items-center justify-center text-muted-foreground">
+                        No hay datos.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-lg sm:text-xl">Desglose de Gastos</CardTitle>
-                <CardDescription>Distribución de gastos por categoría.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {expenseBreakdownData.length > 0 ? (
-                  <ChartContainer config={{}} className="h-[300px] w-full">
-                    <PieChart>
-                      <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
-                      <Pie
-                        data={expenseBreakdownData}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        innerRadius={40}
-                        label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-                      >
-                        {expenseBreakdownData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={PIE_CHART_COLORS[index % PIE_CHART_COLORS.length]} />
+            <TabsContent value="analisis" className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {/* Payment Methods Card */}
+                <Card className="col-span-1 lg:col-span-1">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      Métodos de Pago
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {Object.entries(insights.paymentMethods).sort((a, b) => b[1] - a[1]).map(([method, amount]) => (
+                        <div key={method} className="flex items-center justify-between">
+                          <span className="capitalize text-sm">{method === 'deuna' ? 'DeUna' : method}</span>
+                          <div className="text-right">
+                            <div className="font-bold text-sm">${amount.toFixed(2)}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {((amount / insights.totalPaymentRevenue) * 100).toFixed(1)}%
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {Object.keys(insights.paymentMethods).length === 0 && (
+                        <p className="text-sm text-muted-foreground">No hay datos de pagos.</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Service Type Card */}
+                <Card className="col-span-1 lg:col-span-1">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Utensils className="h-4 w-4" />
+                      Tipo de Servicio
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Store className="h-8 w-8 text-muted-foreground/50" />
+                          <div>
+                            <p className="text-sm font-medium">En Mesa</p>
+                            <p className="text-xs text-muted-foreground">{insights.serviceType.mesaCount} pedidos</p>
+                          </div>
+                        </div>
+                        <div className="font-bold">${insights.serviceType.mesaRevenue.toFixed(2)}</div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ShoppingBag className="h-8 w-8 text-muted-foreground/50" />
+                          <div>
+                            <p className="text-sm font-medium">Para Llevar</p>
+                            <p className="text-xs text-muted-foreground">{insights.serviceType.llevarCount} pedidos</p>
+                          </div>
+                        </div>
+                        <div className="font-bold">${insights.serviceType.llevarRevenue.toFixed(2)}</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Peak Hour & Top Products Combined Column */}
+                <div className="space-y-4 col-span-1 lg:col-span-1">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Hora Pico</CardTitle>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{insights.peakHour}</div>
+                      <p className="text-xs text-muted-foreground">Mayor volumen de ventas</p>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Top 3 Productos</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {insights.topProducts.map((product, i) => (
+                          <div key={product.id} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-muted-foreground w-4">#{i + 1}</span>
+                              <span className="truncate max-w-[120px]" title={product.name}>{product.name}</span>
+                            </div>
+                            <span className="font-medium">{product.quantity} un.</span>
+                          </div>
                         ))}
-                      </Pie>
-                    </PieChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="flex h-[300px] items-center justify-center text-muted-foreground">
-                    No hay datos de gastos para mostrar.
+                        {insights.topProducts.length === 0 && (
+                          <p className="text-xs text-muted-foreground">No hay datos de productos.</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="detalles" className="space-y-4">
+              <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Resumen por Día</h3>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Fecha</TableHead>
+                          <TableHead className="text-right">Ingresos</TableHead>
+                          <TableHead className="text-right">Gastos</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dailyChartData.map(day => (
+                          <TableRow key={day.date}>
+                            <TableCell>{day.date}</TableCell>
+                            <TableCell className="text-right">${day.Ingresos.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">${day.Gastos.toFixed(2)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Desglose de Gastos</h3>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Categoría</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {expenseBreakdownData.length > 0 ? expenseBreakdownData.map(cat => (
+                          <TableRow key={cat.name}>
+                            <TableCell>{cat.name}</TableCell>
+                            <TableCell className="text-right">${cat.value.toFixed(2)}</TableCell>
+                          </TableRow>
+                        )) : (
+                          <TableRow>
+                            <TableCell colSpan={2} className="text-center h-24">No hay gastos en este período.</TableCell>
+                          </TableRow>
+                        )}
+                        <TableRow className="font-bold bg-muted/50">
+                          <TableCell>Total Gastos</TableCell>
+                          <TableCell className="text-right">${summaryKpis.totalExpenses.toFixed(2)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="hidden">
+            {/* Note: Printing structure is kept separate at the bottom in existing code */}
           </div>
         </div>
 

@@ -179,11 +179,21 @@ export function useActiveOrders() {
                         const stats = calculateOrderStats(completedOrder, menuItems);
                         console.log('[addOrUpdateOrder] Calculated stats:', stats);
 
+                        const isTakeaway = completedOrder.tableId === 'takeaway';
+                        const hour = new Date(completedOrder.createdAt).getHours().toString();
+
                         await updateDailyStats(new Date(orderCreatedAt), {
                             revenue: stats.revenue,
                             orderCount: 1,
                             paymentMethods: stats.paymentMethods,
-                            itemSales: stats.itemSales
+                            itemSales: stats.itemSales,
+                            serviceTypeBreakdown: {
+                                mesa: { count: isTakeaway ? 0 : 1, revenue: isTakeaway ? 0 : stats.revenue },
+                                llevar: { count: isTakeaway ? 1 : 0, revenue: isTakeaway ? stats.revenue : 0 }
+                            },
+                            hourlyOrders: {
+                                [hour]: 1
+                            }
                         });
                     } else {
                         console.warn('[addOrUpdateOrder] Order not found after transaction!', completedOrderId);
@@ -246,11 +256,21 @@ export function useActiveOrders() {
                     invertedPaymentMethods[key] = -stats.paymentMethods[key];
                 });
 
+                const isTakeaway = order.tableId === 'takeaway';
+                const hour = new Date(order.createdAt).getHours().toString();
+
                 await updateDailyStats(new Date(order.createdAt), {
                     revenue: -stats.revenue,
                     orderCount: -1,
                     paymentMethods: invertedPaymentMethods,
-                    itemSales: invertedItemSales
+                    itemSales: invertedItemSales,
+                    serviceTypeBreakdown: {
+                        mesa: { count: isTakeaway ? 0 : -1, revenue: isTakeaway ? 0 : -stats.revenue },
+                        llevar: { count: isTakeaway ? -1 : 0, revenue: isTakeaway ? -stats.revenue : 0 }
+                    },
+                    hourlyOrders: {
+                        [hour]: -1
+                    }
                 });
             }
 
