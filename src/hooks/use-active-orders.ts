@@ -32,7 +32,7 @@ export function useActiveOrders() {
         const q = query(
             collection(db, 'orders'),
             where('createdAt', '>=', todayStart),
-            where('status', 'in', ['active', 'preparing', 'completed']),
+            where('status', 'in', ['active', 'preparing', 'completed', 'cancelled']),
             orderBy('createdAt', 'desc')
         );
 

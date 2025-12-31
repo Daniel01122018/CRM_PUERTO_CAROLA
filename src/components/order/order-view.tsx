@@ -793,35 +793,26 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2 mt-4">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-10 text-sm font-semibold border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
-                            onClick={() => setAmountReceived(total.toFixed(2))}
-                          >
-                            Cambio Exacto
-                          </Button>
-                        </div>
 
-                        {change > 0 ? (
-                          <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-lg border border-green-200 dark:border-green-800 animate-in fade-in slide-in-from-top-2">
-                            <p className="text-green-800 dark:text-green-300 text-sm font-medium text-center mb-1">Su cambio</p>
-                            <p className="text-green-800 dark:text-green-300 font-bold text-center text-3xl">${change.toFixed(2)}</p>
+
+                        {amountReceived !== '' && parseFloat(amountReceived) >= total ? (
+                          <div className="bg-green-100 dark:bg-green-900/40 p-6 rounded-lg border-2 border-green-200 dark:border-green-800 shadow-sm animate-in fade-in slide-in-from-top-2">
+                            <p className="text-green-800 dark:text-green-300 text-xs uppercase tracking-wider font-bold text-center mb-1">Cambio a Entregar</p>
+                            <p className="text-green-800 dark:text-green-300 font-black text-center text-5xl">${change.toFixed(2)}</p>
                           </div>
                         ) : (
-                          <div className="h-[86px] flex items-center justify-center p-4 rounded-lg border border-dashed text-muted-foreground/50">
-                            <p className="text-sm">Ingrese el monto para calcular el cambio</p>
+                          <div className="h-[120px] flex items-center justify-center p-4 rounded-lg border-2 border-dashed border-muted-foreground/20 text-muted-foreground/50">
+                            <p className="text-sm font-medium">Esperando monto recibido...</p>
                           </div>
                         )}
 
                         <Button
                           type="submit"
                           size="lg"
-                          className="w-full h-14 text-xl font-bold mt-2"
-                          disabled={parseFloat(amountReceived || '0') < total}
+                          className="w-full h-16 text-2xl font-black mt-2 bg-green-600 hover:bg-green-700 text-white shadow-lg"
+                          disabled={parseFloat(amountReceived || '0') < (total - 0.01)}
                         >
-                          Cobrar ${total.toFixed(2)}
+                          COBRAR
                         </Button>
                       </div>
                     </div>
@@ -830,10 +821,10 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                       <NumericKeypad
                         value={amountReceived}
                         onChange={setAmountReceived}
+                        confirmLabel="Cambio Exacto"
+                        confirmIcon={<RefreshCw className="mr-2 h-5 w-5" />}
                         onConfirm={() => {
-                          if (parseFloat(amountReceived || '0') >= total) {
-                            handleFullPayment('Efectivo');
-                          }
+                          setAmountReceived(total.toFixed(2));
                         }}
                         className="w-full max-w-[320px]"
                       />

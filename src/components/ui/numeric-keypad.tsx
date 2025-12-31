@@ -7,6 +7,8 @@ interface NumericKeypadProps {
     value: string;
     onChange: (value: string) => void;
     onConfirm?: () => void;
+    confirmLabel?: string;
+    confirmIcon?: React.ReactNode;
     className?: string;
     maxLength?: number;
 }
@@ -15,6 +17,8 @@ export function NumericKeypad({
     value,
     onChange,
     onConfirm,
+    confirmLabel = "Aceptar",
+    confirmIcon,
     className,
     maxLength = 10
 }: NumericKeypadProps) {
@@ -101,7 +105,7 @@ export function NumericKeypad({
                         className="w-full h-full bg-green-600 hover:bg-green-700 text-lg"
                         onClick={onConfirm}
                     >
-                        <Check className="mr-2 h-5 w-5" /> Aceptar
+                        {confirmIcon || <Check className="mr-2 h-5 w-5" />} {confirmLabel}
                     </Button>
                 )}
             </div>
