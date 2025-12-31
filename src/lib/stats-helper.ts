@@ -68,7 +68,11 @@ export function findMenuItem(menuItems: FirestoreItem[], id: string | number): F
 
 export function calculateOrderStats(order: Order | (Omit<Order, 'id'> & { id?: string }), menuItems: FirestoreItem[]): OrderStats {
     const revenue = order.total;
-    const paymentMethod = order.paymentMethod || 'efectivo';
+    let paymentMethod = (order.paymentMethod as string) || 'Efectivo';
+
+    if (paymentMethod === 'Transferencia' && order.bankName) {
+        paymentMethod = `Transferencia (${order.bankName})`;
+    }
 
     const itemSales: { [itemId: string]: { name: string; quantity: number; revenue: number } } = {};
 

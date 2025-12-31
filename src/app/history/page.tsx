@@ -627,7 +627,12 @@ export default function HistoryPage() {
                         {format(new Date(selectedOrder.createdAt), "dd/MM/yyyy 'a las' HH:mm", { locale: es })}
                       </p>
                       <p className="text-xs text-muted-foreground">ID: {selectedOrder.id}</p>
-                      {selectedOrder.paymentMethod && <p className="text-sm font-medium mt-1">Pagado con: {selectedOrder.paymentMethod}</p>}
+                      {selectedOrder.paymentMethod && (
+                        <p className="text-sm font-medium mt-1">
+                          Pagado con: {selectedOrder.paymentMethod}
+                          {selectedOrder.paymentMethod === 'Transferencia' && selectedOrder.bankName && ` (${selectedOrder.bankName})`}
+                        </p>
+                      )}
                     </div>
                     {selectedOrder.notes && (
                       <div className="text-sm border-t border-b py-2">

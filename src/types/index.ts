@@ -63,6 +63,7 @@ export interface Order {
   cancelledAt?: number;
   notes?: string;
   paymentMethod?: PaymentMethod;
+  bankName?: string;
   delivered?: boolean;
 }
 
@@ -97,6 +98,13 @@ export interface Expense {
   employeeId?: string;
   employeeName?: string;
   note?: string;
+}
+
+export interface BankConfig {
+  id: string;
+  name: string;
+  createdAt: number;
+  createdBy: string;
 }
 
 export interface ExpenseCategoryConfig {

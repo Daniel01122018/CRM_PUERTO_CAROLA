@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useMenu } from '@/hooks/use-menu';
+import { useBanks } from '@/hooks/use-banks';
 import type { Order, OrderItem, MenuItemVariant, MenuPlato, PaymentMethod, FirestoreItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -32,6 +33,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const { toast } = useToast();
   const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders, resetTableLock } = useAppStore();
   const { categories, items: menuItems, loading: menuLoading } = useMenu();
+  const { banks } = useBanks();
 
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
 
@@ -41,6 +43,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [isNotesDialogOpen, setNotesDialogOpen] = useState(false);
 
   const [activeMenuContext, setActiveMenuContext] = useState<MenuContext>('salon');
+  const [selectedBank, setSelectedBank] = useState<string>('');
 
   const [isVariantModalOpen, setVariantModalOpen] = useState(false);
   const [selectedPlato, setSelectedPlato] = useState<FirestoreItem | null>(null);
@@ -398,9 +401,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
     setCurrentOrder({ ...currentOrder, notes: e.target.value });
   };
 
-  const handleFullPayment = async (paymentMethod: PaymentMethod) => {
+  const handleFullPayment = async (paymentMethod: PaymentMethod, bankName?: string) => {
     if (!currentOrder || !currentOrder.id) return;
-    const orderToSave: Order = { ...currentOrder, total, status: 'completed', paymentMethod: paymentMethod } as Order;
+    const orderToSave: Order = { ...currentOrder, total, status: 'completed', paymentMethod: paymentMethod, bankName } as Order;
 
     // CRITICAL: Clear draft and update status immediately
     const storageKey = `draft_order_${orderIdOrTableId}`;
@@ -417,15 +420,19 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
 
   const handleCancelOrder = async () => {
-    if (!currentOrder || !currentOrder.id) return;
+    if (!currentOrder) return;
 
     // CRITICAL: Clear draft immediately
     const storageKey = `draft_order_${orderIdOrTableId}`;
     localStorage.removeItem(storageKey);
 
-    await cancelOrder(currentOrder.id);
+    if (currentOrder.id) {
+      await cancelOrder(currentOrder.id);
+      toast({ variant: "destructive", title: "Pedido Cancelado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.` });
+    } else {
+      toast({ title: "Borrador descartado", description: "Se ha limpiado el pedido actual." });
+    }
 
-    toast({ variant: "destructive", title: "Pedido Cancelado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.` });
     router.push(baseRedirectPath);
   }
 
@@ -686,13 +693,15 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 </Button>
               )}
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild><Button size="lg" className="lg:h-10" variant="destructive"><XCircle className="mr-2 h-4 w-4" /> Desechar Pedido</Button></AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de desechar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible y solo debe hacerse si el cliente ya no quiere el pedido. El pedido será marcado como cancelado y se notificará a la cocina.</AlertDialogDescription></AlertDialogHeader>
-                  <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, desechar pedido</AlertDialogAction></AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {(currentOrder.status === 'active' || currentOrder.status === 'preparing') && (currentOrder.id || (currentOrder.items && currentOrder.items.length > 0)) && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild><Button size="lg" className="lg:h-10" variant="destructive"><XCircle className="mr-2 h-4 w-4" /> Desechar Pedido</Button></AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de desechar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible y solo debe hacerse si el cliente ya no quiere el pedido. El pedido será marcado como cancelado y se notificará a la cocina.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, desechar pedido</AlertDialogAction></AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               <Button size="lg" className="lg:h-10" variant="outline" onClick={handleBack}><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button>
             </div>
           </CardFooter>
@@ -847,15 +856,36 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
               </TabsContent>
 
               <TabsContent value="Transferencia">
-                <div className="flex flex-col items-center justify-center py-8 space-y-6">
-                  <div className="p-6 bg-purple-50 dark:bg-purple-900/20 rounded-full">
-                    <Banknote className="h-16 w-16 text-purple-600 dark:text-purple-400" />
-                  </div>
+                <div className="flex flex-col items-center justify-center py-6 space-y-6">
                   <div className="text-center space-y-2">
                     <h3 className="text-xl font-semibold">Pago con Transferencia</h3>
-                    <p className="text-muted-foreground max-w-md">Verifica que la transferencia por <span className="font-bold text-foreground">${total.toFixed(2)}</span> se haya acreditado.</p>
+                    <p className="text-muted-foreground max-w-md">Selecciona el banco destino para la transferencia de <span className="font-bold text-foreground">${total.toFixed(2)}</span></p>
                   </div>
-                  <Button size="lg" className="w-full max-w-sm h-14 text-lg" onClick={() => handleFullPayment('Transferencia')}>Confirmar Transferencia</Button>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full max-w-2xl px-4">
+                    {banks.map((bank) => (
+                      <button
+                        key={bank.id}
+                        type="button"
+                        onClick={() => setSelectedBank(bank.name)}
+                        className={`p-4 rounded-xl border-2 transition-all text-center font-bold ${selectedBank === bank.name
+                          ? 'border-purple-500 bg-purple-500/10 text-purple-600 dark:text-purple-400'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                          }`}
+                      >
+                        {bank.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  <Button
+                    size="lg"
+                    className="w-full max-w-sm h-14 text-lg bg-purple-600 hover:bg-purple-700 mt-4"
+                    onClick={() => handleFullPayment('Transferencia', selectedBank)}
+                    disabled={!selectedBank}
+                  >
+                    Confirmar Pago: {selectedBank || 'Seleccione Banco'}
+                  </Button>
                 </div>
               </TabsContent>
             </Tabs>
