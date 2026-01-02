@@ -66,7 +66,25 @@ export function useActiveOrders() {
 
     const { items: menuItems } = useMenu();
 
-    const addOrUpdateOrder = useCallback(async (order: Omit<Order, 'id'> & { id?: string }): Promise<string | null> => {
+    // Helper to remove undefined values recursively
+    const removeUndefined = (obj: any): any => {
+        if (Array.isArray(obj)) {
+            return obj.map(v => removeUndefined(v));
+        } else if (obj !== null && typeof obj === 'object') {
+            return Object.entries(obj).reduce((acc, [key, value]) => {
+                if (value !== undefined) {
+                    acc[key] = removeUndefined(value);
+                }
+                return acc;
+            }, {} as any);
+        }
+        return obj;
+    };
+
+    const addOrUpdateOrder = useCallback(async (orderDataRaw: Omit<Order, 'id'> & { id?: string }): Promise<string | null> => {
+        // Sanitize data: Firestore does not accept 'undefined'
+        const order = removeUndefined(orderDataRaw);
+
         try {
             let shouldUpdateStats = false;
             let completedOrderId: string | null = null;

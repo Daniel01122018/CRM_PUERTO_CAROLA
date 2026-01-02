@@ -403,19 +403,49 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
   const handleFullPayment = async (paymentMethod: PaymentMethod, bankName?: string) => {
     if (!currentOrder || !currentOrder.id) return;
-    const orderToSave: Order = { ...currentOrder, total, status: 'completed', paymentMethod: paymentMethod, bankName } as Order;
 
-    // CRITICAL: Clear draft and update status immediately
-    const storageKey = `draft_order_${orderIdOrTableId}`;
-    localStorage.removeItem(storageKey);
-    setCurrentOrder(prev => prev ? { ...prev, status: 'completed' } : null);
+    // Prepare order data
+    const orderToSave: Order = {
+      ...currentOrder,
+      total,
+      status: 'completed',
+      paymentMethod: paymentMethod,
+      // If bankName is undefined (e.g. Cash payment), we can explicitely omit it or pass it.
+      // The hook will now assume responsibility for cleaning undefined values, but we can be explicit here too.
+      // Ideally we just pass what we have.
+      bankName: bankName
+    } as Order;
 
-    await addOrUpdateOrder(orderToSave);
+    try {
+      const result = await addOrUpdateOrder(orderToSave);
 
-    toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado.` });
-    setPaymentDialogOpen(false);
-    setAmountReceived('');
-    router.push(baseRedirectPath);
+      if (result) {
+        // SUCCESS
+        // CRITICAL: Clear draft and update status immediately ONLY ON SUCCESS
+        const storageKey = `draft_order_${orderIdOrTableId}`;
+        localStorage.removeItem(storageKey);
+        setCurrentOrder(prev => prev ? { ...prev, status: 'completed' } : null);
+
+        toast({ title: "Pedido completado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido finalizado.` });
+        setPaymentDialogOpen(false);
+        setAmountReceived('');
+        router.push(baseRedirectPath);
+      } else {
+        // FAILURE (returned null)
+        toast({
+          variant: "destructive",
+          title: "Error al finalizar",
+          description: "No se pudo guardar el pedido. Intente nuevamente."
+        });
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast({
+        variant: "destructive",
+        title: "Error inesperado",
+        description: "Ocurrió un error al procesar el pago."
+      });
+    }
   }
 
 
