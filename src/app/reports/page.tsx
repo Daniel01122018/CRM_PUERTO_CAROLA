@@ -15,7 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import AppSidebar from '@/components/app-sidebar';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegendContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval, eachDayOfInterval, isSameDay, subDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ArrowLeft, BarChart2, Calendar as CalendarIcon, DollarSign, Wallet, PiggyBank, FileText, RefreshCw, CreditCard, Utensils, Clock, TrendingUp, ShoppingBag, Store } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
@@ -124,10 +125,10 @@ export default function ReportsPage() {
 
       // Service Type (New Field)
       if (day.serviceTypeBreakdown) {
-        mesaCount += day.serviceTypeBreakdown.mesa.count || 0;
-        mesaRevenue += day.serviceTypeBreakdown.mesa.revenue || 0;
-        llevarCount += day.serviceTypeBreakdown.llevar.count || 0;
-        llevarRevenue += day.serviceTypeBreakdown.llevar.revenue || 0;
+        mesaCount += day.serviceTypeBreakdown.mesa?.count || 0;
+        mesaRevenue += day.serviceTypeBreakdown.mesa?.revenue || 0;
+        llevarCount += day.serviceTypeBreakdown.llevar?.count || 0;
+        llevarRevenue += day.serviceTypeBreakdown.llevar?.revenue || 0;
       }
 
       // Hourly (New Field)
@@ -206,11 +207,48 @@ export default function ReportsPage() {
 
   const handlePrintReport = () => window.print();
 
+  /* New Recalculation Flow State */
+  const [isRecalculateDialogOpen, setIsRecalculateDialogOpen] = useState(false);
+  const [recalculateStep, setRecalculateStep] = useState<'select' | 'confirm'>('select');
+  const [recalculateRange, setRecalculateRange] = useState<'all' | 'last_30' | 'last_7' | 'this_month'>('all');
+
+  const handleRecalculateOpen = () => {
+    setRecalculateStep('select');
+    setRecalculateRange('all'); // Default
+    setIsRecalculateDialogOpen(true);
+  };
+
+  const handleRecalculateNext = () => {
+    setRecalculateStep('confirm');
+  };
+
   const handleRecalculate = async () => {
     setIsRecalculating(true);
-    setIsRecalculateAlertOpen(false);
+    // Keep dialog open during process or close it? 
+    // Usually close and show loading toast/indicator elsewhere, OR keep valid loading state in dialog.
+    // For now, close dialog and show button spinner.
+    setIsRecalculateDialogOpen(false);
+
     try {
-      const result = await migrateDailyStats();
+      let startDate: Date | undefined;
+      const now = new Date();
+
+      switch (recalculateRange) {
+        case 'last_30':
+          startDate = subDays(startOfDay(now), 30);
+          break;
+        case 'last_7':
+          startDate = subDays(startOfDay(now), 7);
+          break;
+        case 'this_month':
+          startDate = startOfMonth(now);
+          break;
+        case 'all':
+        default:
+          startDate = undefined;
+      }
+
+      const result = await migrateDailyStats(startDate);
       if (result.success) {
         toast({
           title: "Datos Recalculados",
@@ -221,6 +259,7 @@ export default function ReportsPage() {
         throw new Error("Error en la migración");
       }
     } catch (error) {
+      console.error(error);
       toast({
         variant: "destructive",
         title: "Error",
@@ -324,7 +363,7 @@ export default function ReportsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsRecalculateAlertOpen(true)}
+                onClick={handleRecalculateOpen}
                 disabled={isRecalculating}
                 className="h-9"
               >
@@ -693,21 +732,72 @@ export default function ReportsPage() {
         </div>
       </main>
 
-      <AlertDialog open={isRecalculateAlertOpen} onOpenChange={setIsRecalculateAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Está seguro de recalcular los datos?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción utilizará muchos recursos de la base de datos para rehacer los cálculos históricos.
-              Esto podría ralentizar el sistema momentáneamente. ¿Desea continuar?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRecalculate}>Continuar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Dialog open={isRecalculateDialogOpen} onOpenChange={setIsRecalculateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recalcular Estadísticas</DialogTitle>
+            <DialogDescription>
+              {recalculateStep === 'select'
+                ? "Seleccione el rango de tiempo para actualizar."
+                : "Confirme la operación para el rango seleccionado."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {recalculateStep === 'select' ? (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Button variant={recalculateRange === 'all' ? 'default' : 'outline'} onClick={() => setRecalculateRange('all')} className="h-20 flex-col">
+                  <span className="text-lg font-bold">Todo</span>
+                  <span className="text-xs font-normal opacity-80">Reconstruir historial completo</span>
+                </Button>
+                <Button variant={recalculateRange === 'last_30' ? 'default' : 'outline'} onClick={() => setRecalculateRange('last_30')} className="h-20 flex-col">
+                  <span className="text-lg font-bold">30 Días</span>
+                  <span className="text-xs font-normal opacity-80">Último mes de actividad</span>
+                </Button>
+                <Button variant={recalculateRange === 'this_month' ? 'default' : 'outline'} onClick={() => setRecalculateRange('this_month')} className="h-20 flex-col">
+                  <span className="text-lg font-bold">Este Mes</span>
+                  <span className="text-xs font-normal opacity-80">Mes actual ({format(new Date(), 'MMMM', { locale: es })})</span>
+                </Button>
+                <Button variant={recalculateRange === 'last_7' ? 'default' : 'outline'} onClick={() => setRecalculateRange('last_7')} className="h-20 flex-col">
+                  <span className="text-lg font-bold">7 Días</span>
+                  <span className="text-xs font-normal opacity-80">Última semana</span>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="py-4">
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md border border-yellow-200 dark:border-yellow-900 text-sm mb-4">
+                <p className="font-semibold text-yellow-800 dark:text-yellow-200 mb-1">Advertencia de Rendimiento</p>
+                <p className="text-yellow-700 dark:text-yellow-300">
+                  Está a punto de recalcular datos para:
+                  <strong>
+                    {recalculateRange === 'all' ? ' Todo el historial' :
+                      recalculateRange === 'last_30' ? ' Últimos 30 días' :
+                        recalculateRange === 'this_month' ? ' Este mes' : ' Últimos 7 días'}
+                  </strong>.
+                </p>
+                <p className="text-yellow-700 dark:text-yellow-300 mt-2">
+                  Esta operación puede tardar unos momentos y afectar el rendimiento si el rango es muy grande.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {recalculateStep === 'select' ? (
+              <>
+                <Button variant="outline" onClick={() => setIsRecalculateDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={handleRecalculateNext}>Siguiente</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => setRecalculateStep('select')} className="mr-auto">Atrás</Button>
+                <Button variant="destructive" onClick={handleRecalculate}>Confirmar y Recalcular</Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

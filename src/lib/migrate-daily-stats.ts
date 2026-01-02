@@ -1,21 +1,41 @@
-import { collection, getDocs, doc, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, writeBatch, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import type { Order, Expense } from '@/types';
 import { ALL_MENU_ITEMS } from '@/lib/data';
 
-export const migrateDailyStats = async () => {
-    console.log("Starting daily stats migration...");
+export const migrateDailyStats = async (startDate?: Date) => {
+    console.log("Starting daily stats migration...", startDate ? `from ${startDate.toISOString()}` : "all time");
 
     try {
-        // 1. Fetch all completed orders
-        const ordersSnapshot = await getDocs(collection(db, 'orders'));
+        // 1. Fetch all completed orders (filtered if startDate is provided)
+        let ordersQuery;
+        if (startDate) {
+            ordersQuery = query(
+                collection(db, 'orders'),
+                where('createdAt', '>=', startDate.getTime())
+            );
+        } else {
+            ordersQuery = collection(db, 'orders');
+        }
+
+        const ordersSnapshot = await getDocs(ordersQuery);
         const orders = ordersSnapshot.docs
             .map(d => d.data() as Order)
             .filter(o => o.status === 'completed');
 
-        // 2. Fetch all expenses
-        const expensesSnapshot = await getDocs(collection(db, 'expenses'));
+        // 2. Fetch all expenses (filtered if startDate is provided)
+        let expensesQuery;
+        if (startDate) {
+            expensesQuery = query(
+                collection(db, 'expenses'),
+                where('createdAt', '>=', startDate.getTime())
+            );
+        } else {
+            expensesQuery = collection(db, 'expenses');
+        }
+
+        const expensesSnapshot = await getDocs(expensesQuery);
         const expenses = expensesSnapshot.docs.map(d => d.data() as Expense);
 
         // 3. Fetch all menu items
