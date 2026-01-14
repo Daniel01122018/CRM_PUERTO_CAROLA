@@ -24,6 +24,13 @@ export function useExpenses() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Only admins need to see expenses
+    if (!currentUser || currentUser.role !== 'admin') {
+      setExpenses([]);
+      setLoading(false);
+      return;
+    }
+
     // Optimization: Only fetch expenses for the current month by default
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -47,7 +54,7 @@ export function useExpenses() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
   const addExpense = useCallback(async (expenseData: Omit<Expense, 'id' | 'createdAt' | 'createdBy'>) => {
     if (!currentUser) {

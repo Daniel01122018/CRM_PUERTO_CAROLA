@@ -115,6 +115,10 @@ export function useMenu() {
     };
 
 
+    const deleteCategory = async (id: string) => {
+        await deleteDoc(doc(db, 'categories', id));
+    };
+
     return {
         categories,
         items,
@@ -123,6 +127,7 @@ export function useMenu() {
         addItem,
         updateItem,
         deleteItem,
+        deleteCategory,
         reorderItem
     };
 }

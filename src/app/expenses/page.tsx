@@ -96,7 +96,7 @@ export default function ExpensesPage() {
 
   // Use category names from the hook
   const activeCategoryNames = useMemo(() => {
-    return categories.map(c => c.name);
+    return Array.from(new Set(categories.map(c => c.name)));
   }, [categories]);
 
 

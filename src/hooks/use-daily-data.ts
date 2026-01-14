@@ -14,6 +14,12 @@ export function useDailyData() {
   const [dailyData, setDailyData] = useState<DailyData | null>(null);
 
   useEffect(() => {
+    // Only admins need to see daily data
+    if (!currentUser || currentUser.role !== 'admin') {
+      setDailyData(null);
+      return;
+    }
+
     const docRef = doc(db, 'dailyData', todayStr);
     const unsubscribe = onSnapshot(docRef, (doc) => {
       if (doc.exists()) {
@@ -27,7 +33,7 @@ export function useDailyData() {
     });
 
     return () => unsubscribe();
-  }, [todayStr]);
+  }, [todayStr, currentUser]);
 
   const setInitialCash = useCallback(async (amount: number) => {
     if (!currentUser || currentUser.role !== 'admin') {

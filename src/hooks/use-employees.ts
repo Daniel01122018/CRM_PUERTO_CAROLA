@@ -12,7 +12,6 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "./use-auth";
-import { USERS as staticUsers } from "@/lib/data";
 import type { Employee } from "@/types";
 
 export function useEmployees() {
@@ -51,17 +50,7 @@ export function useEmployees() {
   // 🔹 Unificar empleados estáticos + Firestore
   const employees: Employee[] | undefined = useMemo(() => {
     if (!manualEmployees) return undefined;
-
-    const staticEmployees: Employee[] = Object.entries(staticUsers).map(
-      ([name, data]) => ({
-        id: data.id,
-        name,
-        role: data.role,
-        createdAt: 0,
-      })
-    );
-
-    return [...staticEmployees, ...manualEmployees];
+    return manualEmployees;
   }, [manualEmployees]);
 
   // 🔹 Añadir empleado

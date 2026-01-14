@@ -71,36 +71,15 @@ export function useExpenseCategories() {
         return () => unsubscribe();
     }, [currentUser]);
 
-    // One-time migration effect
+    // One-time migration effect - DISABLED to prevent re-creation loops
+    /*
     useEffect(() => {
         const migrateIfNeeded = async () => {
-            // 🔒 OPTIMIZATION: Removed redundant getDocs call
-            // We already have fresh data from onSnapshot listener
-            if (!loading && categories.length === 0 && currentUser?.role === 'admin') {
-                console.log("Migrating default categories...");
-                const batch = writeBatch(db);
-                PREDEFINED_CATEGORIES_TO_MIGRATE.forEach(catName => {
-                    const docRef = doc(collection(db, 'expense_categories'));
-                    batch.set(docRef, {
-                        name: catName,
-                        createdAt: Date.now(),
-                        createdBy: 'system_migration'
-                    });
-                });
-                try {
-                    await batch.commit();
-                    toast({
-                        title: "Migración Completada",
-                        description: "Se han creado las categorías de gastos por defecto.",
-                    });
-                } catch (e) {
-                    console.error("Migration failed", e);
-                }
-            }
+             // Logic removed to prevent auto-duplication when user deletes categories
         };
-
         migrateIfNeeded();
-    }, [loading, categories.length, currentUser, toast]);
+    }, []); 
+    */
 
 
     const addCategory = useCallback(async (name: string, requiresNote?: boolean) => {

@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 export default function MenuManagementPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { categories, items, loading, addCategory, addItem, updateItem, deleteItem, reorderItem } = useMenu();
+  const { categories, items, loading, addCategory, addItem, updateItem, deleteItem, deleteCategory, reorderItem } = useMenu();
 
   const [isCategoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -171,21 +171,44 @@ export default function MenuManagementPage() {
           <h1 className="text-3xl font-bold">Gestión de Menú</h1>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isCategoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        </div>
+        <div className="flex gap-2">
+          <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Nueva Categoría</Button>
+              <Button variant="outline"><Settings className="mr-2 h-4 w-4" /> Categorías</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>Nueva Categoría</DialogTitle>
+                <DialogTitle>Gestionar Categorías</DialogTitle>
               </DialogHeader>
-              <div className="py-4">
-                <Label>Nombre</Label>
-                <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="Ej. Postres" />
+              <div className="py-4 space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    value={newCategoryName}
+                    onChange={e => setNewCategoryName(e.target.value)}
+                    placeholder="Nueva categoría..."
+                  />
+                  <Button size="icon" onClick={handleAddCategory}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="border rounded-md divide-y max-h-[300px] overflow-y-auto">
+                  {categories.map(cat => (
+                    <div key={cat.id} className="flex items-center justify-between p-2 text-sm">
+                      <span>{cat.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => deleteCategory(cat.id)}
+                      >
+                        <div className="h-4 w-4">x</div>
+                      </Button>
+                    </div>
+                  ))}
+                  {categories.length === 0 && <div className="p-4 text-center text-muted-foreground">No hay categorías.</div>}
+                </div>
               </div>
-              <DialogFooter>
-                <Button onClick={handleAddCategory}>Crear</Button>
-              </DialogFooter>
             </DialogContent>
           </Dialog>
 
