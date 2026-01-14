@@ -10,14 +10,18 @@ Firestore es una base de datos NoSQL orientada a documentos. A continuación se 
 Almacena tanto los pedidos activos como el historial de pedidos completados.
 *   **ID**: Generado automáticamente o basado en timestamp.
 *   **Campos Clave**:
-    *   `status`: 'active' | 'preparing' | 'completed' | 'cancelled'
-    *   `tableId`: number (1-12) | 'takeaway' | 'kiosk'
-    *   `items`: Array de objetos (menuItemId, quantity, notes, price)
+    *   `status`: 'active' | 'preparing' | 'completed' | 'cancelled' | 'pending_calculation' | 'enviado'
+    *   `tableId`: number (1-12) | 'takeaway' | 'kiosk' | 'app'
+    *   `origin`: 'crm' | 'app' | 'kiosk' (Para trazabilidad)
+    *   `items`: Array de objetos (menuItemId, quantity, notes, price, name)
     *   `total`: number
+    *   `customerName`: string (Obligatorio para app)
+    *   `customerPhone`: string (Obligatorio para app)
     *   `paymentMethod`: 'Efectivo' | 'DeUna' | 'Transferencia'
     *   `createdAt`: timestamp (number)
     *   `completedAt`: timestamp (number)
 *   **Uso**: Lectura intensa en tiempo real para cocina y caja. Escritura frecuente (actualización de estados).
+    *   **Importante**: Los pedidos de la App **deben** guardar el `snapshot` de `price` y `name` en cada item para evitar inconsistencias si el menú cambia.
 
 ### `menu_items` (Menú)
 Catálogo de productos disponibles.
@@ -62,6 +66,34 @@ Gestión de stock de ingredientes (módulo en desarrollo).
 *   **Items**: Definición de ingredientes (Stock actual, Unidad, Costo).
 *   **Movements**: Bitácora de entradas y salidas.
 
+### `AppMenu` (Menú de la App Móvil)
+Documento único desnormalizado para la aplicación de clientes. Optimizado para una sola lectura.
+*   **ID Documento**: `fullMenu` (único documento en la colección)
+*   **Campos Clave**:
+    *   `categories`: Array de categorías `{ id, name, order }`
+    *   `items`: Array de items del menú (con categoryId, name, price, variants, isAvailable, etc.)
+    *   `updatedAt`: timestamp de última modificación
+    *   `updatedBy`: usuario que realizó la última modificación
+*   **Uso**: Solo lectura para la App móvil (una sola lectura por sesión). Escritura desde el CRM en `/admin/app-menu`.
+*   **Importante**: Este menú es **independiente** del menú del POS (`categories` + `items`). Se puede sincronizar manualmente desde el POS, pero luego evoluciona de forma separada.
+
+### `AppOrders` (Pedidos de la App Móvil)
+Almacena pedidos creados desde la aplicación de clientes.
+*   **ID**: Generado automáticamente.
+*   **Campos Clave**:
+    *   `status`: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled'
+    *   `customerId`, `customerName`, `customerPhone`: Información del cliente
+    *   `deliveryType`: 'pickup' | 'delivery'
+    *   `deliveryAddress`: Dirección (solo para delivery)
+    *   `items`: Array de items `{ menuItemId, menuItemName, quantity, unitPrice, notes }`
+    *   `paymentMethod`: 'Efectivo' | 'DeUna' | 'Transferencia'
+    *   `paymentStatus`: 'pending' | 'paid'
+    *   `total`, `subtotal`, `deliveryFee`
+    *   Timestamps: `createdAt`, `confirmedAt`, `preparingAt`, `readyAt`, `completedAt`, `cancelledAt`
+    *   `fcmToken`: Token para notificaciones push (futuro)
+*   **Uso**: Escritura desde App móvil. Lectura/actualización desde CRM (`/admin/app-orders`).
+*   **Integración**: Al completar un pedido, se actualiza `daily_stats` para unificar reportes financieros.
+
 ---
 
 ## 2. Mapa de Interacciones
@@ -86,6 +118,18 @@ Cómo fluyen los datos entre las colecciones durante las operaciones principales
 1.  **Lectura Batch**: Lee todos los `orders` (filtrado por fecha si aplica).
 2.  **Procesamiento**: Agrupa en memoria por día.
 3.  **Escritura Batch**: Sobrescribe documentos en `daily_stats`.
+
+### D. Pedido desde App (Integración)
+1.  **Estado Inicial**: Los pedidos nacen como `pending_calculation`.
+2.  **Flujo Crítico**:
+    *   `pending_calculation` -> `active`: El CRM confirma productos y precios.
+    *   `active` -> `preparing`: Cocina recibe el pedido.
+    *   `preparing` -> `enviado`: El motorizado/repartidor retira el pedido.
+    *   `enviado` -> `completed`: El cliente recibe y el pago se confirma.
+3.  **Estadísticas (`daily_stats`)**:
+    > [!IMPORTANT]
+    > Actualmente, el CRM actualiza `daily_stats` desde el frontend al pasar a `completed`.
+    > Si la App marca un pedido como `completed` directamente, **DEBE** ejecutar la lógica de agregación en `daily_stats` o delegarlo a una Cloud Function para asegurar reportes válidos.
 
 ---
 

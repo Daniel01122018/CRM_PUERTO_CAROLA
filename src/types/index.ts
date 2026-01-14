@@ -50,12 +50,12 @@ export interface OrderItem {
   contexto: 'salon' | 'llevar'; // Para diferenciar precios de salón y llevar en una misma orden
 }
 
-export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled';
+export type OrderStatus = 'active' | 'preparing' | 'completed' | 'cancelled' | 'pending_calculation' | 'enviado';
 export type PaymentMethod = 'Efectivo' | 'DeUna' | 'Transferencia';
 
 export interface Order {
   id: string; // timestamp based
-  tableId: number | 'takeaway' | 'kiosk';
+  tableId: number | 'takeaway' | 'kiosk' | 'app';
   items: OrderItem[];
   status: OrderStatus;
   total: number;
@@ -66,6 +66,11 @@ export interface Order {
   paymentMethod?: PaymentMethod;
   bankName?: string;
   delivered?: boolean;
+  // Mobile app integration fields
+  origin?: 'crm' | 'app' | 'kiosk';
+  customerName?: string;
+  customerPhone?: string;
+  deliveryAddress?: string;
 }
 
 export interface Table {
