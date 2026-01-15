@@ -14,8 +14,8 @@ export function useDailyData() {
   const [dailyData, setDailyData] = useState<DailyData | null>(null);
 
   useEffect(() => {
-    // Only admins need to see daily data
-    if (!currentUser || currentUser.role !== 'admin') {
+    // Allow admins and employees to see daily data
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'employee')) {
       setDailyData(null);
       return;
     }

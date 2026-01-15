@@ -13,14 +13,35 @@ export interface Category {
 // FirestoreItem removed (moved to types)
 
 export function useMenu() {
-    const [categories, setCategories] = useState<Category[]>([]);
-    const [items, setItems] = useState<FirestoreItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    // Initialize state from localStorage if available
+    const [categories, setCategories] = useState<Category[]>(() => {
+        if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem('menu_categories');
+            if (cached) {
+                try { return JSON.parse(cached); } catch (e) { return []; }
+            }
+        }
+        return [];
+    });
+
+    const [items, setItems] = useState<FirestoreItem[]>(() => {
+        if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem('menu_items');
+            if (cached) {
+                try { return JSON.parse(cached); } catch (e) { return []; }
+            }
+        }
+        return [];
+    });
+
+    // If we have cached data, we're not technically loading visually
+    const [loading, setLoading] = useState(!categories.length || !items.length);
     useEffect(() => {
         const qCategories = query(collection(db, 'categories'), orderBy('order'));
         const unsubscribeCategories = onSnapshot(qCategories, (snapshot) => {
             const cats = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
             setCategories(cats);
+            localStorage.setItem('menu_categories', JSON.stringify(cats));
         });
 
         // Simple query to avoid composite index requirements
@@ -37,6 +58,7 @@ export function useMenu() {
             });
 
             setItems(sorted);
+            localStorage.setItem('menu_items', JSON.stringify(sorted));
             setLoading(false);
         }, (error) => {
             console.error("Error fetching items:", error);
