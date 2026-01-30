@@ -25,6 +25,8 @@ export function useAppOrders() {
     const [orders, setOrders] = useState<AppOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [processingOrders, setProcessingOrders] = useState<Set<string>>(new Set());
+
 
     // Load orders with real-time updates
     useEffect(() => {
@@ -105,14 +107,14 @@ export function useAppOrders() {
         // await sendPushNotification(orderId, newStatus);
     }, [orders]);
 
-    // Update daily_stats when order is completed
+    // Update app_daily_stats when order is completed
     const updateDailyStatsForOrder = async (
         order: AppOrder,
         paymentMethod: 'Efectivo' | 'DeUna' | 'Transferencia'
     ) => {
         const now = new Date();
         const dateKey = now.toISOString().split('T')[0]; // YYYY-MM-DD
-        const statsRef = doc(db, 'daily_stats', dateKey);
+        const statsRef = doc(db, 'app_daily_stats', dateKey);
 
         try {
             const statsSnap = await getDoc(statsRef);
@@ -183,31 +185,87 @@ export function useAppOrders() {
 
     // Confirm order (pending -> confirmed)
     const confirmOrder = useCallback(async (orderId: string) => {
-        await updateOrderStatus(orderId, 'confirmed');
-    }, [updateOrderStatus]);
+        if (processingOrders.has(orderId)) {
+            console.warn('Order already being processed:', orderId);
+            return;
+        }
+        setProcessingOrders(prev => new Set(prev).add(orderId));
+        try {
+            await updateOrderStatus(orderId, 'confirmed');
+        } finally {
+            setProcessingOrders(prev => {
+                const next = new Set(prev);
+                next.delete(orderId);
+                return next;
+            });
+        }
+    }, [updateOrderStatus, processingOrders]);
 
     // Start preparing (confirmed -> preparing)
     const startPreparing = useCallback(async (orderId: string) => {
-        await updateOrderStatus(orderId, 'preparing');
-    }, [updateOrderStatus]);
+        if (processingOrders.has(orderId)) return;
+        setProcessingOrders(prev => new Set(prev).add(orderId));
+        try {
+            await updateOrderStatus(orderId, 'preparing');
+        } finally {
+            setProcessingOrders(prev => {
+                const next = new Set(prev);
+                next.delete(orderId);
+                return next;
+            });
+        }
+    }, [updateOrderStatus, processingOrders]);
 
     // Mark as ready (preparing -> ready)
     const markAsReady = useCallback(async (orderId: string) => {
-        await updateOrderStatus(orderId, 'ready');
-    }, [updateOrderStatus]);
+        if (processingOrders.has(orderId)) return;
+        setProcessingOrders(prev => new Set(prev).add(orderId));
+        try {
+            await updateOrderStatus(orderId, 'ready');
+        } finally {
+            setProcessingOrders(prev => {
+                const next = new Set(prev);
+                next.delete(orderId);
+                return next;
+            });
+        }
+    }, [updateOrderStatus, processingOrders]);
 
     // Complete order (ready -> completed)
     const completeOrder = useCallback(async (
         orderId: string,
         paymentMethod: 'Efectivo' | 'DeUna' | 'Transferencia'
     ) => {
-        await updateOrderStatus(orderId, 'completed', paymentMethod);
-    }, [updateOrderStatus]);
+        if (processingOrders.has(orderId)) {
+            console.warn('Order already being completed:', orderId);
+            return;
+        }
+        setProcessingOrders(prev => new Set(prev).add(orderId));
+        try {
+            await updateOrderStatus(orderId, 'completed', paymentMethod);
+        } finally {
+            setProcessingOrders(prev => {
+                const next = new Set(prev);
+                next.delete(orderId);
+                return next;
+            });
+        }
+    }, [updateOrderStatus, processingOrders]);
 
     // Cancel order
     const cancelOrder = useCallback(async (orderId: string) => {
-        await updateOrderStatus(orderId, 'cancelled');
-    }, [updateOrderStatus]);
+        if (processingOrders.has(orderId)) return;
+        setProcessingOrders(prev => new Set(prev).add(orderId));
+        try {
+            await updateOrderStatus(orderId, 'cancelled');
+        } finally {
+            setProcessingOrders(prev => {
+                const next = new Set(prev);
+                next.delete(orderId);
+                return next;
+            });
+        }
+    }, [updateOrderStatus, processingOrders]);
 
     // Filter helpers
     const activeOrders = orders.filter(o =>
@@ -227,6 +285,7 @@ export function useAppOrders() {
         inProgressOrders,
         loading,
         error,
+        processingOrders,
 
         // Actions
         confirmOrder,

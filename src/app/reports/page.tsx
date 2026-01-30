@@ -55,6 +55,12 @@ export default function ReportsPage() {
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [isRecalculateAlertOpen, setIsRecalculateAlertOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+
+  // Initialize currentTime on client side only to avoid hydration mismatch
+  useEffect(() => {
+    setCurrentTime(new Date());
+  }, []);
 
   useEffect(() => {
     if (isMounted && (!currentUser || currentUser.role !== 'admin')) {
@@ -658,7 +664,7 @@ export default function ReportsPage() {
             <h1 className="text-2xl font-bold">El Puerto de Carola</h1>
             <h2 className="text-xl font-semibold">Reporte Financiero</h2>
             <p className="text-sm">Período: {getFilterDateRangeString()}</p>
-            <p className="text-xs">Generado el: {format(new Date(), "dd/MM/yyyy HH:mm")}</p>
+            <p className="text-xs">Generado el: {currentTime ? format(currentTime, "dd/MM/yyyy HH:mm") : '-'}</p>
           </div>
 
           <div className="grid grid-cols-3 gap-4 mb-6">

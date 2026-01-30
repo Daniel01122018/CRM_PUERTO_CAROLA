@@ -2,35 +2,63 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if user is authenticated
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+    
+    // Check if user is authenticated
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Helper function to get the current user's data
-    function getUserData() {
+    // Get CRM user data (from 'users' collection)
+    function getCRMUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Helper function to check if the user has a specific role
-    function hasRole(role) {
+    // Check if authenticated user exists in CRM 'users' collection
+    function isCRMUser() {
       return isSignedIn() && 
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             getUserData().role == role;
+             exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
-    // Helper function to check if user is admin
+    // Check if user has a specific role in CRM
+    function hasRole(role) {
+      return isCRMUser() && getCRMUserData().role == role;
+    }
+
+    // Check if user is admin
     function isAdmin() {
       return hasRole('admin');
     }
 
-    // Users collection rules
-    match /users/{userId} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    // Check if user is app manager
+    function isAppManager() {
+      return hasRole('appManager');
     }
 
-    // --- Phase 2: Admin Module ---
+    // Check if user can manage app (admin or appManager)
+    function canManageApp() {
+      return isAdmin() || isAppManager();
+    }
+
+    // Check if authenticated user exists in 'AppUsers' collection (mobile app users)
+    function isAppUser() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/AppUsers/$(request.auth.uid));
+    }
+
+    // ========================================
+    // CRM COLLECTIONS (Only for CRM staff)
+    // ========================================
     
+    // Users collection - ONLY for CRM staff
+    match /users/{userId} {
+      // Only CRM users can read their own profile or admins can read any
+      allow read: if isCRMUser() && (request.auth.uid == userId || isAdmin());
+      allow write: if isCRMUser() && (request.auth.uid == userId || isAdmin());
+    }
+
     // Employees (Management of staff)
     match /employees/{employeeId} {
       allow read, write: if isAdmin();
@@ -38,20 +66,19 @@ service cloud.firestore {
 
     // Banks (Configuration for payments)
     match /banks/{bankId} {
-      allow read: if request.auth != null; // Waiters need to see banks for payments
+      allow read: if isCRMUser(); // Only CRM staff can see banks
       allow write: if isAdmin();
     }
 
-    // Restaurant Configuration (e.g. Table count)
+    // Restaurant Configuration
     match /config/restaurant {
-      allow read: if request.auth != null; // Staff needs to know table count
+      allow read: if isCRMUser();
       allow write: if isAdmin();
     }
     
     // Expenses
     match /expenses/{expenseId} {
-      allow read: if isAdmin() || hasRole('employee');
-      allow write: if isAdmin() || hasRole('employee');
+      allow read, write: if isAdmin() || hasRole('employee');
     }
     
     // Daily Data (Cash reporting)
@@ -60,90 +87,116 @@ service cloud.firestore {
        allow write: if isAdmin();
     }
     
-    // Daily Stats (Aggregated revenue)
+    // Daily Stats (Aggregated revenue from POS)
     match /daily_stats/{dateId} {
        allow read: if isAdmin();
-       // Employees update stats when completing orders. 
-       // Ideally we'd use a cloud function, but for now we allow authenticated writes.
-       allow write: if request.auth != null; 
+       allow write: if isCRMUser(); // Only CRM users can update stats
+    }
+
+    // App Daily Stats (Aggregated revenue from mobile app)
+    match /app_daily_stats/{dateId} {
+       allow read: if canManageApp(); // Admin or appManager can view app stats
+       allow write: if isCRMUser(); // CRM users update when processing app orders
     }
     
     // Tables (Status management)
     match /tables/{tableId} {
-       allow read: if request.auth != null; // Waiters need to see table status
-       allow write: if request.auth != null; // Waiters lock/unlock tables
+       allow read, write: if isCRMUser();
     }
     
     // Expense Categories
     match /expense_categories/{categoryId} {
-       allow read: if isAdmin();
-       allow write: if isAdmin();
-    }
-    
-    // Expense Categories
-    match /expense_categories/{categoryId} {
-       allow read: if isAdmin();
-       allow write: if isAdmin();
+       allow read, write: if isAdmin();
     }
     
     // Inventory & Components
     match /inventory_items/{itemId} {
-       allow read: if isAdmin();
-       allow write: if isAdmin();
+       allow read, write: if isAdmin();
     }
 
     match /inventory_categories/{categoryId} {
-       allow read: if isAdmin();
-       allow write: if isAdmin();
+       allow read, write: if isAdmin();
     }
 
     match /inventory_movements/{movementId} {
-       allow read: if isAdmin();
-       allow write: if isAdmin();
+       allow read, write: if isAdmin();
     }
     
-    // --- Phase 3: Kitchen Module ---
-    
-    // Orders (Kitchen needs read access and status updates)
+    // CRM Orders (Kitchen/Waiter orders)
     match /orders/{orderId} {
-      allow read: if request.auth != null; // Waiters, Kitchen, Admin all need to read
-      allow create: if request.auth != null; // Waiters create orders
-      // Allow update if admin OR if kitchen updating specific fields (like status) OR waiter updating own order
-      // For simplicity in this phase, we allow authenticated write, but ideally we'd restrict fields.
-      allow write: if request.auth != null; 
+      allow read, write: if isCRMUser();
     }
 
-    // --- Phase 4: Interim Rules (Menu) ---
-    // The app uses root collections 'categories' and 'items' for the menu
+    // Menu Management (CRM only)
     match /categories/{categoryId} {
-      allow read: if request.auth != null;
+      allow read: if isCRMUser();
       allow write: if isAdmin();
     }
     
     match /items/{itemId} {
-      allow read: if request.auth != null;
+      allow read: if isCRMUser();
       allow write: if isAdmin();
     }
 
-    // Legacy/Placeholder (Safe to keep if unsure, but likely unused based on hook analysis)
     match /menu/{menuId} {
-      allow read: if request.auth != null;
+      allow read: if isCRMUser();
       allow write: if isAdmin();
     }
-    
-    // --- App Integration (Orders & Menu) ---
-    match /AppOrders/{orderId} {
-      allow read, write: if isAdmin();
+
+    // ========================================
+    // MOBILE APP COLLECTIONS (Public/App Users)
+    // ========================================
+
+    // AppMenu: Public read access for the mobile app
+    match /AppMenu/{menuId} {
+      allow read: if true; // Anyone can read the menu
+      allow write: if canManageApp(); // Admin or appManager can update
     }
 
-    match /AppMenu/{menuId} {
-      allow read, write: if isAdmin();
+    // AppConfig: Configuration for mobile app (zones, settings, etc.)
+    match /AppConfig/{document} {
+      allow read: if true; // Public read for app to load zones
+      allow write: if canManageApp(); // Admin or appManager can modify config
     }
-    
-    // Fallback
+
+    // AppUsers: Mobile app user profiles
+    match /AppUsers/{userId} {
+      // Users can only read/write their own profile
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      
+      // Admin or appManager can read all app user profiles (for customer service)
+      allow read: if canManageApp();
+    }
+
+    // AppUsers Addresses sub-collection
+    match /AppUsers/{userId}/addresses/{addressId} {
+      // Users can read/write their own addresses
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      
+      // Admin or appManager can read (for delivery purposes)
+      allow read: if canManageApp();
+    }
+
+    // AppOrders: Orders placed from mobile app
+    match /AppOrders/{orderId} {
+      // App users can create orders
+      allow create: if isAppUser();
+      
+      // App users can read their own orders
+      allow read: if isSignedIn() && resource.data.customerId == request.auth.uid;
+      
+      // Admin or appManager can read/update all orders
+      allow read, update: if canManageApp();
+      
+      // Only admin or appManager can delete orders
+      allow delete: if canManageApp();
+    }
+
+    // ========================================
+    // FALLBACK (Deny all other access)
+    // ========================================
     match /{document=**} {
-      allow read: if request.auth != null; 
-      allow write: if false; 
+      allow read, write: if false;
     }
   }
 }

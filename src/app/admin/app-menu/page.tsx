@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Plus, RefreshCw, Smartphone } from 'lucide-react';
+import { ArrowLeft, Plus, RefreshCw, Smartphone, Trash2 } from 'lucide-react';
 import { useAppMenu } from '@/hooks/use-app-menu';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -26,6 +26,7 @@ export default function AppMenuPage() {
         loading,
         lastUpdated,
         addCategory,
+        deleteCategory,
         addItem,
         updateItem,
         deleteItem,
@@ -57,12 +58,30 @@ export default function AppMenuPage() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [showSyncConfirm, setShowSyncConfirm] = useState(false);
 
+    // Category Deletion State
+    const [categoryToDelete, setCategoryToDelete] = useState<{ id: string, name: string } | null>(null);
+
     const handleAddCategory = async () => {
         if (!newCategoryName.trim()) return;
         await addCategory(newCategoryName);
         setCategoryDialogOpen(false);
         setNewCategoryName('');
         toast({ title: "Categoría creada" });
+    };
+
+    const handleDeleteCategoryClick = (categoryId: string) => {
+        const category = categories.find(c => c.id === categoryId);
+        if (category) {
+            setCategoryToDelete({ id: category.id, name: category.name });
+        }
+    };
+
+    const confirmDeleteCategory = async () => {
+        if (categoryToDelete) {
+            await deleteCategory(categoryToDelete.id);
+            toast({ title: "Categoría eliminada" });
+            setCategoryToDelete(null);
+        }
     };
 
     const handleOpenItemDialog = (item?: AppMenuItem) => {
@@ -271,21 +290,39 @@ export default function AppMenuPage() {
                     <CardContent className="pt-6">
                         <MenuTabs categories={categoriesForTabs}>
                             {(categoryId) => (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                    {items
-                                        .filter(item => item.categoryId === categoryId)
-                                        .sort((a, b) => a.order - b.order)
-                                        .map(item => (
-                                            <MenuItemCard
-                                                key={item.id}
-                                                item={convertToFirestoreItem(item)}
-                                                mode="edit"
-                                                onEdit={() => handleOpenItemDialog(item)}
-                                                onDelete={() => handleDeleteClick(item)}
-                                                onMoveUp={(id) => reorderItem(id, 'up')}
-                                                onMoveDown={(id) => reorderItem(id, 'down')}
-                                            />
-                                        ))}
+                                <div className="space-y-4">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 border-b pb-4">
+                                        <div>
+                                            <h3 className="text-lg font-semibold">Productos de la categoría</h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                Administra los items y variantes de esta sección.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            variant="destructive"
+                                            onClick={() => handleDeleteCategoryClick(categoryId)}
+                                            className="gap-2"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            Eliminar Categoría
+                                        </Button>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {items
+                                            .filter(item => item.categoryId === categoryId)
+                                            .sort((a, b) => a.order - b.order)
+                                            .map(item => (
+                                                <MenuItemCard
+                                                    key={item.id}
+                                                    item={convertToFirestoreItem(item)}
+                                                    mode="edit"
+                                                    onEdit={() => handleOpenItemDialog(item)}
+                                                    onDelete={() => handleDeleteClick(item)}
+                                                    onMoveUp={(id) => reorderItem(id, 'up')}
+                                                    onMoveDown={(id) => reorderItem(id, 'down')}
+                                                />
+                                            ))}
+                                    </div>
                                 </div>
                             )}
                         </MenuTabs>
@@ -423,6 +460,28 @@ export default function AppMenuPage() {
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={confirmRemoveVariant} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                             Eliminar
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Category Deletion Confirmation Dialog */}
+            <AlertDialog open={!!categoryToDelete} onOpenChange={(open) => !open && setCategoryToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Eliminar Categoría</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Estás a punto de eliminar la categoría <span className="font-bold">&quot;{categoryToDelete?.name}&quot;</span>.
+                            <br /><br />
+                            <span className="text-destructive font-bold">Esta acción eliminará la categoría y TODOS los productos (y sus variantes) que pertenezcan a ella.</span>
+                            <br /><br />
+                            ¿Estás seguro de continuar?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDeleteCategory} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Eliminar todo
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

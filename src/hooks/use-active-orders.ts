@@ -23,6 +23,8 @@ import { useMenu } from '@/hooks/use-menu';
 
 export function useActiveOrders() {
     const [orders, setOrders] = useState<Order[] | undefined>(undefined);
+    const [processingOrders, setProcessingOrders] = useState<Set<string>>(new Set());
+
 
     useEffect(() => {
         // Get start of today in milliseconds
@@ -85,12 +87,23 @@ export function useActiveOrders() {
         // Sanitize data: Firestore does not accept 'undefined'
         const order = removeUndefined(orderDataRaw);
 
+        // Prevent concurrent operations on same order
+        const orderId = order.id || 'new';
+        if (processingOrders.has(orderId)) {
+            console.warn('Order already being processed:', orderId);
+            return null;
+        }
+
+        if (orderId !== 'new') {
+            setProcessingOrders(prev => new Set(prev).add(orderId));
+        }
+
         try {
             let shouldUpdateStats = false;
             let completedOrderId: string | null = null;
             let orderCreatedAt: number | null = null;
 
-            const orderId = await runTransaction(db, async (transaction) => {
+            const finalOrderId = await runTransaction(db, async (transaction) => {
                 const isTableOrder = typeof order.tableId === 'number';
                 let returningId: string;
 
@@ -228,7 +241,7 @@ export function useActiveOrders() {
                 });
             }
 
-            return orderId;
+            return finalOrderId;
 
         } catch (error) {
             console.error("Error adding or updating order:", error);
@@ -239,8 +252,17 @@ export function useActiveOrders() {
                 alert(error.message); // Simple alert for now as we are in a hook
             }
             return null;
+        } finally {
+            // Clean up processing state
+            if (order.id) {
+                setProcessingOrders(prev => {
+                    const next = new Set(prev);
+                    next.delete(order.id!);
+                    return next;
+                });
+            }
         }
-    }, [menuItems]);
+    }, [menuItems, processingOrders]);
 
     const cancelOrder = useCallback(async (orderId: string) => {
         try {
@@ -322,5 +344,5 @@ export function useActiveOrders() {
         }
     }, []);
 
-    return { orders, addOrUpdateOrder, cancelOrder, resetTableLock };
+    return { orders, addOrUpdateOrder, cancelOrder, resetTableLock, processingOrders };
 }

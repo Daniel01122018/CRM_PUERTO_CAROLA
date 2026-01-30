@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { format, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, eachDayOfInterval } from 'date-fns';
 
 import { DailyStats } from '@/types';
 
@@ -12,10 +12,19 @@ const globalCache = new Map<string, DailyStats>();
 export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
     const [stats, setStats] = useState<DailyStats[]>([]);
     const [loading, setLoading] = useState(false);
+    const fetchedRangeRef = useRef<string>('');
 
     useEffect(() => {
         if (!dateRange?.from || !dateRange?.to) {
             setStats([]);
+            return;
+        }
+
+        // Create a stable key for this date range
+        const rangeKey = `${dateRange.from.getTime()}-${dateRange.to.getTime()}`;
+
+        // If we already fetched this exact range, don't fetch again
+        if (fetchedRangeRef.current === rangeKey) {
             return;
         }
 
@@ -38,17 +47,14 @@ export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
                         .filter(Boolean); // Safety check
                     setStats(cachedData);
                     setLoading(false);
+                    fetchedRangeRef.current = rangeKey;
                     return;
                 }
 
                 // 3. If we are missing data, fetch ONLY the necessary range
-                // Optimization: Find the min and max of missing keys to query a contiguous range
-                // This covers the common case of extending a date range (e.g. "Last 7 days" -> "Last 30 days")
                 missingKeys.sort(); // String sort yyyy-MM-dd works for dates
                 const fetchStart = missingKeys[0];
                 const fetchEnd = missingKeys[missingKeys.length - 1];
-
-                // console.log(`Cache miss. Fetching from ${fetchStart} to ${fetchEnd}`);
 
                 const q = query(
                     collection(db, 'daily_stats'),
@@ -60,24 +66,18 @@ export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
                 const snapshot = await getDocs(q);
 
                 // Update Cache with new data
-                // Note: If a day has NO stats in DB, map won't have it.
-                // We should handle "cached but empty" to avoid infinite re-fetching for empty days?
-                // For simplicity now: We update what we found.
-                // Improvement: We should mark "attempted" keys even if empty to avoid re-fetching non-existent data? 
-                // Let's rely on what we get back.
-
                 snapshot.docs.forEach(doc => {
                     const data = doc.data() as DailyStats;
                     globalCache.set(data.date, data);
                 });
 
                 // 4. Re-construct the full result set from cache (now updated)
-                // Note: missing keys that were NOT found in DB will simply be filtered out or missing.
                 const finalData = neededKeys
                     .map(key => globalCache.get(key))
                     .filter((item): item is DailyStats => !!item);
 
                 setStats(finalData);
+                fetchedRangeRef.current = rangeKey;
 
             } catch (error) {
                 console.error("Error fetching daily stats:", error);
@@ -87,7 +87,8 @@ export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
         };
 
         fetchStats();
-    }, [dateRange]);
+    }, [dateRange?.from?.getTime(), dateRange?.to?.getTime()]); // Use getTime() for stable comparison
 
     return { stats, loading };
 }
+

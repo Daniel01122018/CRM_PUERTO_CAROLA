@@ -15,6 +15,8 @@ import { MenuTabs } from '@/components/menu/menu-tabs';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
 import type { AppMenuItem, AppMenuVariant } from '@/types/app-menu';
 
+import { CategoryManager } from '@/components/app/category-manager';
+
 export default function AppMenuContent() {
     const { toast } = useToast();
     const {
@@ -23,6 +25,8 @@ export default function AppMenuContent() {
         loading,
         lastUpdated,
         addCategory,
+        updateCategory,
+        deleteCategory,
         addItem,
         updateItem,
         deleteItem,
@@ -31,7 +35,7 @@ export default function AppMenuContent() {
     } = useAppMenu();
 
     const [isCategoryDialogOpen, setCategoryDialogOpen] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState('');
+    // const [newCategoryName, setNewCategoryName] = useState(''); removed unused state
 
     const [isItemDialogOpen, setItemDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<AppMenuItem | null>(null);
@@ -52,12 +56,20 @@ export default function AppMenuContent() {
     const [isSyncing, setIsSyncing] = useState(false);
     const [showSyncConfirm, setShowSyncConfirm] = useState(false);
 
-    const handleAddCategory = async () => {
-        if (!newCategoryName.trim()) return;
-        await addCategory(newCategoryName);
-        setCategoryDialogOpen(false);
-        setNewCategoryName('');
+    // Handlers for Category Manager
+    const handleAddCategory = async (name: string) => {
+        await addCategory(name);
         toast({ title: "Categoría creada" });
+    };
+
+    const handleUpdateCategory = async (id: string, name: string) => {
+        await updateCategory(id, name);
+        toast({ title: "Categoría actualizada" });
+    };
+
+    const handleDeleteCategory = async (id: string) => {
+        await deleteCategory(id);
+        toast({ title: "Categoría eliminada" });
     };
 
     const handleOpenItemDialog = (item?: AppMenuItem) => {
@@ -185,15 +197,16 @@ export default function AppMenuContent() {
                 </Button>
                 <Dialog open={isCategoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Nueva Categoría</Button>
+                        <Button variant="outline"><Plus className="mr-2 h-4 w-4" /> Gestionar Categorías</Button>
                     </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader><DialogTitle>Nueva Categoría</DialogTitle></DialogHeader>
-                        <div className="py-4">
-                            <Label>Nombre</Label>
-                            <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="Ej. Postres" />
-                        </div>
-                        <DialogFooter><Button onClick={handleAddCategory}>Crear</Button></DialogFooter>
+                    <DialogContent className="max-w-xl">
+                        <DialogHeader><DialogTitle>Gestión de Categorías</DialogTitle></DialogHeader>
+                        <CategoryManager
+                            categories={categories}
+                            onAdd={handleAddCategory}
+                            onUpdate={handleUpdateCategory}
+                            onDelete={handleDeleteCategory}
+                        />
                     </DialogContent>
                 </Dialog>
                 <Button onClick={() => handleOpenItemDialog()}><Plus className="mr-2 h-4 w-4" /> Nuevo Ítem</Button>
