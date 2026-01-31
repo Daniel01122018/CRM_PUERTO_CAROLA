@@ -2,26 +2,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-    collection,
-    onSnapshot,
-    addDoc,
-    deleteDoc,
     doc,
-    query,
-    orderBy,
-    getDocs,
-    writeBatch,
-    updateDoc
+    onSnapshot,
+    updateDoc,
+    getDoc,
+    deleteField
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from './use-auth';
-import type { ExpenseCategoryConfig } from '@/types';
+import type { ExpenseCategoryConfig, ExpenseCategoriesDocument } from '@/types';
 import { useToast } from './use-toast';
-
-const PREDEFINED_CATEGORIES_TO_MIGRATE = [
-    "Comida de Empleado", "Pescado", "Chifles", "Supermercado", "Mercado Montebello", "Sueldos",
-    "Yuca", "Camarón", "Pedido de Colas", "Pan", "Gas", "Gasto Personal", "Pasajes", "Bollos"
-];
 
 export function useExpenseCategories() {
     const { currentUser } = useAuth();
@@ -29,7 +19,7 @@ export function useExpenseCategories() {
     const [categories, setCategories] = useState<ExpenseCategoryConfig[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Initial load and subscription
+    // Subscribe to the single config document
     useEffect(() => {
         if (!currentUser) {
             setCategories([]);
@@ -37,50 +27,31 @@ export function useExpenseCategories() {
             return;
         }
 
-        const q = query(
-            collection(db, 'expense_categories'),
-            orderBy('name')
-        );
+        const docRef = doc(db, 'expense_categories', 'config');
 
-        const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-            const cats: ExpenseCategoryConfig[] = [];
-            querySnapshot.forEach((doc) => {
-                cats.push({ id: doc.id, ...doc.data() } as ExpenseCategoryConfig);
-            });
-
-            setCategories(cats);
-            setLoading(false);
-
-            // Auto-migration check: If empty, populate with defaults
-            // We check if it's truly empty and we are authorized to write (admin/employee usually can read, but let's assume if we see 0, we try to init if we are a user)
-            // Actually, let's limit migration to when an Admin is logged in to avoid permission issues if rules are strict.
-            // Or just do it if cats.length === 0.
-
-            if (cats.length === 0 && !querySnapshot.metadata.fromCache) {
-                // Check if we need to migrate. To be safe, let's only do this manually or check once.
-                // However, the requirement says "migración automática... la primera vez que se cargue la aplicación".
-                // We should verify if the collection is truly empty on the server before writing.
-                // Since we are inside onSnapshot, we have the latest view.
-
-                // We'll perform migration logic in a separate function to avoid race conditions or loops, 
-                // triggered only if we are sure it's empty and we haven't tried yet.
-                // For safety, let's just expose a migration function or do it here if currentUser is admin.
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data() as ExpenseCategoriesDocument;
+                const cats: ExpenseCategoryConfig[] = Object.entries(data.categories || {}).map(([name, config]) => ({
+                    id: name, // Use name as ID for compatibility
+                    name,
+                    ...config
+                }));
+                // Sort alphabetically by name
+                cats.sort((a, b) => a.name.localeCompare(b.name));
+                setCategories(cats);
+            } else {
+                setCategories([]);
             }
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching expense categories:", error);
+            setCategories([]);
+            setLoading(false);
         });
 
         return () => unsubscribe();
     }, [currentUser]);
-
-    // One-time migration effect - DISABLED to prevent re-creation loops
-    /*
-    useEffect(() => {
-        const migrateIfNeeded = async () => {
-             // Logic removed to prevent auto-duplication when user deletes categories
-        };
-        migrateIfNeeded();
-    }, []); 
-    */
-
 
     const addCategory = useCallback(async (name: string, requiresNote?: boolean) => {
         if (!currentUser || currentUser.role !== 'admin') {
@@ -92,11 +63,16 @@ export function useExpenseCategories() {
             throw new Error("Esta categoría ya existe.");
         }
 
-        await addDoc(collection(db, 'expense_categories'), {
-            name,
-            requiresNote: !!requiresNote,
-            createdAt: Date.now(),
-            createdBy: currentUser.username
+        const docRef = doc(db, 'expense_categories', 'config');
+
+        // Add new category to the map
+        await updateDoc(docRef, {
+            [`categories.${name}`]: {
+                requiresNote: !!requiresNote,
+                createdAt: Date.now(),
+                createdBy: currentUser.username
+            },
+            updatedAt: Date.now()
         });
     }, [currentUser, categories]);
 
@@ -104,17 +80,48 @@ export function useExpenseCategories() {
         if (!currentUser || currentUser.role !== 'admin') {
             throw new Error("Solo administradores pueden eliminar categorías.");
         }
-        await deleteDoc(doc(db, 'expense_categories', id));
+
+        const docRef = doc(db, 'expense_categories', 'config');
+
+        // Remove category from the map using deleteField()
+        await updateDoc(docRef, {
+            [`categories.${id}`]: deleteField(),
+            updatedAt: Date.now()
+        });
     }, [currentUser]);
 
     const updateCategory = useCallback(async (id: string, name: string) => {
         if (!currentUser || currentUser.role !== 'admin') {
             throw new Error("Solo administradores pueden editar categorías.");
         }
-        await updateDoc(doc(db, 'expense_categories', id), {
-            name,
-            updatedAt: Date.now() // Optional: track updates
-        });
+
+        const docRef = doc(db, 'expense_categories', 'config');
+
+        // If the name is changing, we need to delete the old key and add new one
+        if (id !== name) {
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data() as ExpenseCategoriesDocument;
+                const oldConfig = data.categories[id];
+
+                if (oldConfig) {
+                    await updateDoc(docRef, {
+                        [`categories.${id}`]: deleteField(),
+                        [`categories.${name}`]: {
+                            ...oldConfig,
+                            updatedAt: Date.now()
+                        },
+                        updatedAt: Date.now()
+                    });
+                }
+            }
+        } else {
+            // Just update the timestamp if name didn't change
+            await updateDoc(docRef, {
+                [`categories.${id}.updatedAt`]: Date.now(),
+                updatedAt: Date.now()
+            });
+        }
     }, [currentUser]);
 
     return {

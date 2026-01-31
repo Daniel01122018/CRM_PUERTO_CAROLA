@@ -104,9 +104,16 @@ service cloud.firestore {
        allow read, write: if isCRMUser();
     }
     
-    // Expense Categories
+    // Expense Categories Config (single document with map)
+    match /expense_categories/config {
+       allow read: if isAdmin() || hasRole('employee');
+       allow write: if isAdmin();
+    }
+    
+    // Expense Categories - Individual documents (legacy, for migration only)
     match /expense_categories/{categoryId} {
-       allow read, write: if isAdmin();
+       allow read: if isAdmin(); // Solo admin puede leer documentos individuales (para migración)
+       allow write: if false; // No permitir escritura en documentos individuales
     }
     
     // Inventory & Components

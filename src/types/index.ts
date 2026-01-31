@@ -114,11 +114,17 @@ export interface BankConfig {
 }
 
 export interface ExpenseCategoryConfig {
-  id: string;
+  id: string; // This will be the category name for compatibility
   name: string;
   requiresNote?: boolean;
   createdAt: number;
   createdBy: string;
+  updatedAt?: number;
+}
+
+export interface ExpenseCategoriesDocument {
+  categories: Record<string, Omit<ExpenseCategoryConfig, 'id' | 'name'>>;
+  updatedAt: number;
 }
 
 export interface DailyData {
