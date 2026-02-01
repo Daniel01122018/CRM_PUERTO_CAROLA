@@ -216,11 +216,11 @@ export default function ReportsPage() {
   /* New Recalculation Flow State */
   const [isRecalculateDialogOpen, setIsRecalculateDialogOpen] = useState(false);
   const [recalculateStep, setRecalculateStep] = useState<'select' | 'confirm'>('select');
-  const [recalculateRange, setRecalculateRange] = useState<'all' | 'last_30' | 'last_7' | 'this_month'>('all');
+  const [recalculateRange, setRecalculateRange] = useState<'all' | 'last_30' | 'last_7' | 'this_month' | 'today'>('today');
 
   const handleRecalculateOpen = () => {
     setRecalculateStep('select');
-    setRecalculateRange('all'); // Default
+    setRecalculateRange('today'); // Default to today for quick fixes
     setIsRecalculateDialogOpen(true);
   };
 
@@ -240,11 +240,14 @@ export default function ReportsPage() {
       const now = new Date();
 
       switch (recalculateRange) {
-        case 'last_30':
-          startDate = subDays(startOfDay(now), 30);
+        case 'today':
+          startDate = startOfDay(now);
           break;
         case 'last_7':
           startDate = subDays(startOfDay(now), 7);
+          break;
+        case 'last_30':
+          startDate = subDays(startOfDay(now), 30);
           break;
         case 'this_month':
           startDate = startOfMonth(now);
@@ -752,9 +755,13 @@ export default function ReportsPage() {
           {recalculateStep === 'select' ? (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
-                <Button variant={recalculateRange === 'all' ? 'default' : 'outline'} onClick={() => setRecalculateRange('all')} className="h-20 flex-col">
-                  <span className="text-lg font-bold">Todo</span>
-                  <span className="text-xs font-normal opacity-80">Reconstruir historial completo</span>
+                <Button variant={recalculateRange === 'today' ? 'default' : 'outline'} onClick={() => setRecalculateRange('today')} className="h-20 flex-col">
+                  <span className="text-lg font-bold">Hoy</span>
+                  <span className="text-xs font-normal opacity-80">Solo el día actual</span>
+                </Button>
+                <Button variant={recalculateRange === 'last_7' ? 'default' : 'outline'} onClick={() => setRecalculateRange('last_7')} className="h-20 flex-col">
+                  <span className="text-lg font-bold">7 Días</span>
+                  <span className="text-xs font-normal opacity-80">Última semana</span>
                 </Button>
                 <Button variant={recalculateRange === 'last_30' ? 'default' : 'outline'} onClick={() => setRecalculateRange('last_30')} className="h-20 flex-col">
                   <span className="text-lg font-bold">30 Días</span>
@@ -764,9 +771,9 @@ export default function ReportsPage() {
                   <span className="text-lg font-bold">Este Mes</span>
                   <span className="text-xs font-normal opacity-80">Mes actual ({format(new Date(), 'MMMM', { locale: es })})</span>
                 </Button>
-                <Button variant={recalculateRange === 'last_7' ? 'default' : 'outline'} onClick={() => setRecalculateRange('last_7')} className="h-20 flex-col">
-                  <span className="text-lg font-bold">7 Días</span>
-                  <span className="text-xs font-normal opacity-80">Última semana</span>
+                <Button variant={recalculateRange === 'all' ? 'default' : 'outline'} onClick={() => setRecalculateRange('all')} className="h-20 flex-col col-span-2">
+                  <span className="text-lg font-bold">Todo</span>
+                  <span className="text-xs font-normal opacity-80">Reconstruir historial completo</span>
                 </Button>
               </div>
             </div>
@@ -777,9 +784,10 @@ export default function ReportsPage() {
                 <p className="text-yellow-700 dark:text-yellow-300">
                   Está a punto de recalcular datos para:
                   <strong>
-                    {recalculateRange === 'all' ? ' Todo el historial' :
-                      recalculateRange === 'last_30' ? ' Últimos 30 días' :
-                        recalculateRange === 'this_month' ? ' Este mes' : ' Últimos 7 días'}
+                    {recalculateRange === 'today' ? ' Solo hoy' :
+                      recalculateRange === 'last_7' ? ' Últimos 7 días' :
+                        recalculateRange === 'last_30' ? ' Últimos 30 días' :
+                          recalculateRange === 'this_month' ? ' Este mes' : ' Todo el historial'}
                   </strong>.
                 </p>
                 <p className="text-yellow-700 dark:text-yellow-300 mt-2">
