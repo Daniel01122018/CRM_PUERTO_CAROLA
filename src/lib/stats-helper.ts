@@ -39,7 +39,10 @@ export function findMenuItem(menuItems: FirestoreItem[], id: string | number): F
     if (menuItems) {
         for (const i of menuItems) {
             if (i.variants) {
-                const v = i.variants.find((v: any) => v.id == id);
+                // Compare both as string and number since variant.id can be either type
+                const v = i.variants.find((v: any) =>
+                    v.id == id || v.id == idNum || v.id == idStr
+                );
                 if (v) {
                     return {
                         name: `${i.name} ${v.nombre}`,

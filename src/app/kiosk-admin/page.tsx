@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import { useMenu } from '@/hooks/use-menu';
+import { useCrmMenu } from '@/hooks/use-crm-menu';
 import type { Order } from '@/types';
 import { Utensils, Clock, ArrowLeft, PlusCircle, Monitor } from 'lucide-react';
 import { format } from 'date-fns';
@@ -18,7 +18,7 @@ import { findMenuItem } from '@/lib/stats-helper';
 
 export default function KioskAdminPage() {
     const { isMounted, currentUser, orders } = useAppStore();
-    const { items: menuItems } = useMenu();
+    const { items: menuItems } = useCrmMenu();
     const router = useRouter();
 
     useEffect(() => {

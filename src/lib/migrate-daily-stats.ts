@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, writeBatch, Timestamp, query, where } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, writeBatch, Timestamp, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import type { Order, Expense } from '@/types';
@@ -38,12 +38,21 @@ export const migrateDailyStats = async (startDate?: Date) => {
         const expensesSnapshot = await getDocs(expensesQuery);
         const expenses = expensesSnapshot.docs.map(d => d.data() as Expense);
 
-        // 3. Fetch all menu items
-        const menuItemsSnapshot = await getDocs(collection(db, 'menu_items'));
-        const firestoreMenuItems = menuItemsSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+        // 3. Fetch all menu items from CrmMenu (denormalized)
+        const crmMenuDoc = await getDoc(doc(db, 'CrmMenu', 'fullMenu'));
+        const firestoreMenuItems = crmMenuDoc.exists()
+            ? (crmMenuDoc.data().items || [])
+            : [];
 
         const getItemName = (id: string | number) => {
-            const fsItem = firestoreMenuItems.find(i => i.id === id.toString() || i.oldId === id);
+            const idStr = id.toString();
+            const idNum = typeof id === 'number' ? id : Number(id);
+
+            // Try Firestore CrmMenu items
+            const fsItem = firestoreMenuItems.find((i: any) =>
+                i.id === idStr || i.oldId === idNum
+            );
             if (fsItem) return fsItem.name;
 
             const staticItem = ALL_MENU_ITEMS.find(i => i.id === id);
@@ -52,7 +61,9 @@ export const migrateDailyStats = async (startDate?: Date) => {
             // Try to find in variants
             for (const i of ALL_MENU_ITEMS as any[]) {
                 if (i.variants) {
-                    const v = i.variants.find((v: any) => v.id === id);
+                    const v = i.variants.find((v: any) =>
+                        v.id == id || v.id == idNum || v.id == idStr
+                    );
                     if (v) return `${i.nombre} ${v.nombre}`;
                 }
             }
@@ -60,7 +71,12 @@ export const migrateDailyStats = async (startDate?: Date) => {
         };
 
         const getItemPrice = (id: string | number) => {
-            const fsItem = firestoreMenuItems.find(i => i.id === id.toString() || i.oldId === id);
+            const idStr = id.toString();
+            const idNum = typeof id === 'number' ? id : Number(id);
+
+            const fsItem = firestoreMenuItems.find((i: any) =>
+                i.id === idStr || i.oldId === idNum
+            );
             if (fsItem) return fsItem.price;
 
             const staticItem = ALL_MENU_ITEMS.find(i => i.id === id);
@@ -68,7 +84,9 @@ export const migrateDailyStats = async (startDate?: Date) => {
             // Try to find in variants
             for (const i of ALL_MENU_ITEMS as any[]) {
                 if (i.variants) {
-                    const v = i.variants.find((v: any) => v.id === id);
+                    const v = i.variants.find((v: any) =>
+                        v.id == id || v.id == idNum || v.id == idStr
+                    );
                     if (v) return v.precio;
                 }
             }

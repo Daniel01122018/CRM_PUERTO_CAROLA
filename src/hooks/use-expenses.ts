@@ -65,13 +65,22 @@ export function useExpenses() {
       createdAt: Date.now(),
       createdBy: currentUser.username,
     };
-    await addDoc(collection(db, 'expenses'), newExpense);
+    const docRef = await addDoc(collection(db, 'expenses'), newExpense);
+    const docId = docRef.id;
+
+    // Optimistic Update for local state (used by summary cards)
+    setExpenses(prev => [{ ...newExpense, id: docId } as Expense, ...prev]);
 
     // Update daily stats
     await updateDailyStats(new Date(), {
       expenses: expenseData.amount,
-      categoryBreakdown: { [expenseData.category]: expenseData.amount }
+      categoryBreakdown: { [expenseData.category]: expenseData.amount },
+      expensesBySource: {
+        [expenseData.source]: expenseData.amount
+      }
     });
+
+    return docId;
   }, [currentUser]);
 
   const updateExpense = useCallback(async (expenseId: string, updatedData: Partial<Omit<Expense, 'id'>>) => {
@@ -91,12 +100,17 @@ export function useExpenses() {
       const oldData = expenseSnap.data() as Expense;
       if (updatedData.amount !== undefined && updatedData.amount !== oldData.amount) {
         const diff = updatedData.amount - oldData.amount;
+        const source = updatedData.source || oldData.source;
         await updateDailyStats(new Date(oldData.createdAt), {
           expenses: diff,
           // If category hasn't changed, update the same category
           categoryBreakdown: !updatedData.category || updatedData.category === oldData.category
             ? { [oldData.category]: diff }
-            : undefined
+            : undefined,
+          // Update the appropriate source
+          expensesBySource: {
+            [source]: diff
+          }
         });
       }
 
@@ -104,11 +118,29 @@ export function useExpenses() {
       if (updatedData.category && updatedData.category !== oldData.category) {
         // If amount also changed, use the new amount for the new category
         const amount = updatedData.amount !== undefined ? updatedData.amount : oldData.amount;
+        const source = updatedData.source || oldData.source;
 
         await updateDailyStats(new Date(oldData.createdAt), {
           categoryBreakdown: {
             [oldData.category]: -oldData.amount, // Remove full amount from old category
             [updatedData.category]: amount       // Add full amount to new category
+          },
+          expensesBySource: updatedData.source && updatedData.source !== oldData.source
+            ? {
+              [oldData.source]: -oldData.amount,  // Remove from old source
+              [updatedData.source]: amount        // Add to new source
+            }
+            : undefined
+        });
+      }
+
+      // Handle source change (without category change)
+      if (updatedData.source && updatedData.source !== oldData.source && updatedData.category === oldData.category) {
+        const amount = updatedData.amount !== undefined ? updatedData.amount : oldData.amount;
+        await updateDailyStats(new Date(oldData.createdAt), {
+          expensesBySource: {
+            [oldData.source]: -oldData.amount,
+            [updatedData.source]: amount
           }
         });
       }
@@ -137,7 +169,10 @@ export function useExpenses() {
       const expenseData = expenseSnap.data() as Expense;
       await updateDailyStats(new Date(expenseData.createdAt), {
         expenses: -expenseData.amount,
-        categoryBreakdown: { [expenseData.category]: -expenseData.amount }
+        categoryBreakdown: { [expenseData.category]: -expenseData.amount },
+        expensesBySource: {
+          [expenseData.source]: -expenseData.amount
+        }
       });
     }
 

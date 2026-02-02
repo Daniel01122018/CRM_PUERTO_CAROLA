@@ -19,7 +19,7 @@ import { db } from '@/lib/firebase';
 import type { Order } from '@/types';
 import { startOfDay } from 'date-fns';
 import { updateDailyStats } from '@/lib/daily-stats';
-import { useMenu } from '@/hooks/use-menu';
+import { useCrmMenu } from '@/hooks/use-crm-menu';
 
 export function useActiveOrders() {
     const [orders, setOrders] = useState<Order[] | undefined>(undefined);
@@ -66,7 +66,7 @@ export function useActiveOrders() {
         return () => unsubscribe();
     }, []);
 
-    const { items: menuItems } = useMenu();
+    const { items: menuItems } = useCrmMenu();
 
     // Helper to remove undefined values recursively
     const removeUndefined = (obj: any): any => {
@@ -94,9 +94,11 @@ export function useActiveOrders() {
             return null;
         }
 
-        if (orderId !== 'new') {
-            setProcessingOrders(prev => new Set(prev).add(orderId));
-        }
+        setProcessingOrders(prev => {
+            const next = new Set(prev);
+            next.add(orderId);
+            return next;
+        });
 
         try {
             let shouldUpdateStats = false;
@@ -254,13 +256,12 @@ export function useActiveOrders() {
             return null;
         } finally {
             // Clean up processing state
-            if (order.id) {
-                setProcessingOrders(prev => {
-                    const next = new Set(prev);
-                    next.delete(order.id!);
-                    return next;
-                });
-            }
+            const orderId = order.id || 'new';
+            setProcessingOrders(prev => {
+                const next = new Set(prev);
+                next.delete(orderId);
+                return next;
+            });
         }
     }, [menuItems, processingOrders]);
 

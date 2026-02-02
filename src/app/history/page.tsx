@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useOrderHistory } from '@/hooks/use-order-history';
 import { useWeeklyStats } from '@/hooks/use-weekly-stats';
+import { useTodayStats } from '@/hooks/use-today-stats';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import AppSidebar from '@/components/app-sidebar';
@@ -18,7 +19,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import { useMenu } from '@/hooks/use-menu';
+import { useCrmMenu } from '@/hooks/use-crm-menu';
 import { findMenuItem } from '@/lib/stats-helper';
 import type { Order, MenuItem, PaymentMethod } from '@/types';
 import { format, subDays, startOfDay, isSameDay, startOfYesterday, endOfDay, endOfYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
@@ -47,8 +48,8 @@ interface PaymentMethodSummary {
 }
 
 export default function HistoryPage() {
-  const { isMounted, currentUser, expenses, cancelOrder, dailyData, setInitialCash } = useAppStore();
-  const { items: menuItems } = useMenu();
+  const { isMounted, currentUser, cancelOrder, dailyData, setInitialCash } = useAppStore();
+  const { items: menuItems } = useCrmMenu();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -93,8 +94,9 @@ export default function HistoryPage() {
   }, [filterPreset, customDateRange]);
 
   // Fetch orders based on the calculated range
-  const { orders: historyOrders, loading: historyLoading, refresh } = useOrderHistory(dateFilterRange);
+  const { orders: historyOrders, loading: historyLoading, hasMore, loadMore, refresh } = useOrderHistory(dateFilterRange);
   const { stats: weeklyStats } = useWeeklyStats();
+  const { stats: todayStats, loading: todayStatsLoading } = useTodayStats();
 
   useEffect(() => {
     if (isMounted && !currentUser) {
@@ -152,9 +154,7 @@ export default function HistoryPage() {
   }, [completedOrders, dateFilterRange]);
 
   const summaryData = useMemo(() => {
-    const baseOrders = ordersInDateRange || completedOrders;
-
-    if (!isMounted || !baseOrders || !expenses) {
+    if (!isMounted) {
       return {
         totalToday: 0,
         ordersTodayCount: 0,
@@ -166,21 +166,18 @@ export default function HistoryPage() {
     const today = new Date();
     const todayStart = startOfDay(today);
 
-    const todaysOrders = baseOrders.filter(o => isSameDay(new Date(o.createdAt), todayStart));
-    const totalToday = todaysOrders.reduce((sum, o) => sum + o.total, 0);
+    // Use aggregated stats instead of iterating through all orders
+    const totalToday = todayStats?.totalRevenue || 0;
+    const ordersTodayCount = todayStats?.orderCount || 0;
+    const totalCashToday = todayStats?.paymentMethods?.['Efectivo'] || 0;
 
-    const totalCashToday = todaysOrders
-      .filter(o => o.paymentMethod === 'Efectivo')
-      .reduce((sum, o) => sum + o.total, 0);
-
-    const cashExpensesToday = (expenses || [])
-      .filter(e => isSameDay(new Date(e.createdAt), todayStart) && e.source === 'caja')
-      .reduce((sum, e) => sum + e.amount, 0);
+    // Use aggregated expense data from daily_stats instead of iterating
+    const cashExpensesToday = todayStats?.expensesBySource?.caja || 0;
 
     const initialCashToday = dailyData?.initialCash || 0;
-
     const expectedCashInDrawer = (initialCashToday + totalCashToday) - cashExpensesToday;
 
+    // Weekly data already uses stats aggregates
     const weeklyData: { date: string, Ventas: number }[] = [];
     for (let i = 6; i >= 0; i--) {
       const day = subDays(today, i);
@@ -196,10 +193,10 @@ export default function HistoryPage() {
     return {
       totalToday,
       expectedCashInDrawer,
-      ordersTodayCount: todaysOrders.length,
+      ordersTodayCount,
       weeklyData,
     };
-  }, [completedOrders, expenses, isMounted, dailyData, ordersInDateRange, weeklyStats]);
+  }, [isMounted, dailyData, weeklyStats, todayStats]);
 
   const { filteredOrders, soldItemInfo, paymentMethodSummary } = useMemo(() => {
     let baseOrders = [...ordersInDateRange];
@@ -412,7 +409,7 @@ export default function HistoryPage() {
                   <Wallet className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">-${(expenses?.filter(e => isSameDay(new Date(e.createdAt), new Date()) && e.source === 'caja').reduce((s, e) => s + e.amount, 0) || 0).toFixed(2)}</div>
+                  <div className="text-2xl font-bold text-red-600">-${(todayStats?.expensesBySource?.caja || 0).toFixed(2)}</div>
                 </CardContent>
               </Card>
             </>
@@ -593,6 +590,21 @@ export default function HistoryPage() {
                     </Table>
                   </ScrollArea>
                 </div>
+
+                {/* Load More Button */}
+                {hasMore && !historyLoading && filteredOrders.length > 0 && (
+                  <div className="mt-4 flex justify-center">
+                    <Button onClick={loadMore} variant="outline" className="w-full sm:w-auto">
+                      Cargar Más Pedidos (30)
+                    </Button>
+                  </div>
+                )}
+
+                {historyLoading && filteredOrders.length > 0 && (
+                  <div className="mt-4 text-center text-sm text-muted-foreground">
+                    Cargando más pedidos...
+                  </div>
+                )}
               </CardContent>
             </Card>
 

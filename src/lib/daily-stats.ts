@@ -8,6 +8,10 @@ export const updateDailyStats = async (date: Date, data: {
     expenses?: number;
     orderCount?: number;
     paymentMethods?: { [key: string]: number };
+    expensesBySource?: {
+        caja?: number;
+        caja_chica?: number;
+    };
     categoryBreakdown?: { [key: string]: number };
     itemSales?: { [itemId: string]: { name: string; quantity: number; revenue: number } };
     serviceTypeBreakdown?: {
@@ -33,6 +37,7 @@ export const updateDailyStats = async (date: Date, data: {
                     totalExpenses: data.expenses || 0,
                     orderCount: data.orderCount || 0,
                     paymentMethods: data.paymentMethods || {},
+                    expensesBySource: data.expensesBySource || { caja: 0, caja_chica: 0 },
                     categoryBreakdown: data.categoryBreakdown || {},
                     itemSales: data.itemSales || {},
                     serviceTypeBreakdown: data.serviceTypeBreakdown || { mesa: { count: 0, revenue: 0 }, llevar: { count: 0, revenue: 0 } },
@@ -57,6 +62,16 @@ export const updateDailyStats = async (date: Date, data: {
                     const currentMethods = currentData.paymentMethods || {};
                     for (const [method, amount] of Object.entries(data.paymentMethods)) {
                         updates[`paymentMethods.${method}`] = (currentMethods[method] || 0) + amount;
+                    }
+                }
+
+                if (data.expensesBySource) {
+                    const currentSources = currentData.expensesBySource || { caja: 0, caja_chica: 0 };
+                    if (data.expensesBySource.caja !== undefined) {
+                        updates['expensesBySource.caja'] = (currentSources.caja || 0) + data.expensesBySource.caja;
+                    }
+                    if (data.expensesBySource.caja_chica !== undefined) {
+                        updates['expensesBySource.caja_chica'] = (currentSources.caja_chica || 0) + data.expensesBySource.caja_chica;
                     }
                 }
 

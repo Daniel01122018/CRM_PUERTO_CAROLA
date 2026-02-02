@@ -86,7 +86,17 @@ export function useExpenseHistory(dateRange: DateRange | null) {
             // Update cursor and hasMore
             const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
             setLastDoc(lastVisible || null);
-            setHasMore(querySnapshot.docs.length === BATCH_SIZE);
+            const more = querySnapshot.docs.length === BATCH_SIZE;
+            setHasMore(more);
+
+            // Save to cache after successful fetch
+            const finalExpenses = isInitialLoad ? fetchedExpenses : [...expenses, ...fetchedExpenses];
+            const cacheKey = `expenses_cache_${dateRange.from.getTime()}_${dateRange.to?.getTime() || 'none'}`;
+            localStorage.setItem(cacheKey, JSON.stringify({
+                data: finalExpenses,
+                hasMore: more,
+                timestamp: new Date().getTime()
+            }));
 
         } catch (err: any) {
             console.error("Error fetching expense history:", err);
@@ -98,11 +108,49 @@ export function useExpenseHistory(dateRange: DateRange | null) {
 
     // Initial load effect
     useEffect(() => {
+        // Caching logic
+        if (dateRange && dateRange.from) {
+            const cacheKey = `expenses_cache_${dateRange.from.getTime()}_${dateRange.to?.getTime() || 'none'}`;
+            const cachedData = localStorage.getItem(cacheKey);
+
+            if (cachedData) {
+                try {
+                    const parsed = JSON.parse(cachedData);
+                    const now = new Date().getTime();
+                    // 24 hour TTL (24 * 60 * 60 * 1000)
+                    if (now - parsed.timestamp < 86400000) {
+                        setExpenses(parsed.data);
+                        setHasMore(parsed.hasMore);
+                        // We still fetch in background or just trust cache? 
+                        // For now, let's trust cache but allow refresh to override.
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Error parsing expenses cache", e);
+                }
+            }
+        }
+
         fetchExpenses(true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [dateRange]);
 
+    const saveToCache = (data: Expense[], more: boolean) => {
+        if (!dateRange || !dateRange.from) return;
+        const cacheKey = `expenses_cache_${dateRange.from.getTime()}_${dateRange.to?.getTime() || 'none'}`;
+        localStorage.setItem(cacheKey, JSON.stringify({
+            data,
+            hasMore: more,
+            timestamp: new Date().getTime()
+        }));
+    };
+
     const refresh = () => {
+        // Clear cache on explicit refresh
+        if (dateRange && dateRange.from) {
+            const cacheKey = `expenses_cache_${dateRange.from.getTime()}_${dateRange.to?.getTime() || 'none'}`;
+            localStorage.removeItem(cacheKey);
+        }
         fetchExpenses(true);
     };
 
@@ -110,5 +158,13 @@ export function useExpenseHistory(dateRange: DateRange | null) {
         fetchExpenses(false);
     };
 
-    return { expenses, loading, error, loadMore, hasMore, refresh };
+    const addOptimisticExpense = useCallback((expense: Expense) => {
+        setExpenses(prev => {
+            const updated = [expense, ...prev];
+            saveToCache(updated, hasMore);
+            return updated;
+        });
+    }, [dateRange, hasMore]);
+
+    return { expenses, loading, error, loadMore, hasMore, refresh, addOptimisticExpense };
 }

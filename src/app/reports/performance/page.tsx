@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useDailyStats } from '@/hooks/use-daily-stats';
 import type { FirestoreItem } from '@/types';
-import { useMenu } from '@/hooks/use-menu';
+import { useCrmMenu } from '@/hooks/use-crm-menu';
 import { findMenuItem } from '@/lib/stats-helper';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ import { es } from 'date-fns/locale';
 import { ArrowLeft, BarChart2, Calendar as CalendarIcon, Filter, TrendingUp, TrendingDown, Utensils, Coffee, Plus, Search, ArrowUpDown, ShoppingBag, Store } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
-import { DailyStats } from '@/hooks/use-daily-stats';
+import type { DailyStats } from '@/types';
 
 type FilterPreset = 'this_week' | 'last_week' | 'this_month' | 'last_month' | 'custom';
 
@@ -94,6 +94,9 @@ const calculatePerformanceData = (stats: DailyStats[], menuItems: FirestoreItem[
   stats.forEach(stat => {
     if (stat.itemSales) {
       Object.entries(stat.itemSales).forEach(([itemId, salesInfo]) => {
+        // Type assertion for salesInfo
+        const typedSalesInfo = salesInfo as { name: string; quantity: number; revenue: number };
+
         const menuItem = findMenuItem(menuItems, itemId);
 
         let category = 'Sin Categoría';
@@ -109,7 +112,7 @@ const calculatePerformanceData = (stats: DailyStats[], menuItems: FirestoreItem[
         if (!itemMap.has(itemId)) {
           itemMap.set(itemId, {
             id: itemId,
-            name: salesInfo.name,
+            name: typedSalesInfo.name,
             category,
             quantitySold: 0,
             totalRevenue: 0,
@@ -120,8 +123,8 @@ const calculatePerformanceData = (stats: DailyStats[], menuItems: FirestoreItem[
         }
 
         const currentStats = itemMap.get(itemId)!;
-        currentStats.quantitySold += salesInfo.quantity;
-        currentStats.totalRevenue += salesInfo.revenue;
+        currentStats.quantitySold += typedSalesInfo.quantity;
+        currentStats.totalRevenue += typedSalesInfo.revenue;
         currentStats.profit = currentStats.totalRevenue - (currentStats.cost * currentStats.quantitySold);
       });
     }
@@ -161,7 +164,7 @@ const categorizeMenuItems = (performanceData: MenuItemComparisonPerformance[]) =
 
 export default function PerformanceReportPage() {
   const { isMounted, currentUser } = useAppStore();
-  const { items: menuItems } = useMenu();
+  const { items: menuItems } = useCrmMenu();
   const router = useRouter();
 
   // Primary Period State

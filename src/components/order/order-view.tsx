@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/hooks/use-app-store';
-import { useMenu } from '@/hooks/use-menu';
+import { useCrmMenu } from '@/hooks/use-crm-menu';
 import { useBanks } from '@/hooks/use-banks';
 import type { Order, OrderItem, MenuItemVariant, MenuPlato, PaymentMethod, FirestoreItem } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const router = useRouter();
   const { toast } = useToast();
   const { addOrUpdateOrder, cancelOrder, isMounted, currentUser, orders, resetTableLock } = useAppStore();
-  const { categories, items: menuItems, loading: menuLoading } = useMenu();
+  const { categories, items: menuItems, loading: menuLoading } = useCrmMenu();
   const { banks } = useBanks();
 
   const [currentOrder, setCurrentOrder] = useState<Partial<Order> | null>(null);
@@ -52,6 +52,8 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
   const [isCustomPriceDialogOpen, setIsCustomPriceDialogOpen] = useState(false);
   const [customPriceVariant, setCustomPriceVariant] = useState<MenuItemVariant | null>(null);
   const [customPrice, setCustomPrice] = useState('');
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTakeawayOrder = useMemo(() => {
     if (orderIdOrTableId.startsWith('new-')) {
@@ -320,12 +322,14 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
           newItems[itemIndex] = { ...newItems[itemIndex], quantity: newQuantity };
         }
       } else if (change > 0) {
-        // We need to store ID as number if it was number, or string if string.
-        // The old system used numbers. The new one uses strings.
-        // We should probably convert everything to strings eventually, but for compatibility let's keep it flexible.
-        const idToStore = typeof menuItemId === 'string' && !isNaN(Number(menuItemId)) ? Number(menuItemId) : menuItemId;
-
-        const newItem: OrderItem = { menuItemId: idToStore as any, quantity: change, notes, contexto: activeMenuContext };
+        // Store ID consistently as it comes from the menu (string or number)
+        // New items use string timestamps, old items may use numbers
+        const newItem: OrderItem = {
+          menuItemId: menuItemId as any,
+          quantity: change,
+          notes,
+          contexto: activeMenuContext
+        };
         if (customPrice) {
           newItem.customPrice = customPrice;
         }
@@ -370,26 +374,30 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
 
     const orderToSave: Omit<Order, 'id'> & { id?: string } = { ...currentOrder, total, status: orderStatus } as Omit<Order, 'id'> & { id?: string };
 
-    // CRITICAL: Clear draft AND update local status BEFORE calling async backend functions.
-    // This prevents the global 'orders' update from triggering a re-render that re-loads the draft
-    // before we have a chance to delete it.
-    const storageKey = `draft_order_${orderIdOrTableId}`;
-    localStorage.removeItem(storageKey);
-    setCurrentOrder(prev => prev ? { ...prev, status: orderStatus } : null);
+    setIsSubmitting(true);
+    try {
+      const storageKey = `draft_order_${orderIdOrTableId}`;
+      localStorage.removeItem(storageKey);
+      setCurrentOrder(prev => prev ? { ...prev, status: orderStatus } : null);
 
-    const newId = await addOrUpdateOrder(orderToSave);
+      const newId = await addOrUpdateOrder(orderToSave);
 
-    if (newId) {
-      toast({ title: successMessage, description: `Pedido para ${currentOrder.tableId === 'takeaway' ? 'llevar' : `Mesa ${currentOrder.tableId}`}.` });
+      if (newId) {
+        toast({ title: successMessage, description: `Pedido para ${currentOrder.tableId === 'takeaway' ? 'llevar' : `Mesa ${currentOrder.tableId}`}.` });
 
-      if (orderIdOrTableId.startsWith('new-')) {
-        router.replace(`/order/${newId}`);
-        // Update ID in local state
-        setCurrentOrder(prev => prev ? { ...prev, id: newId } : null);
+        if (orderIdOrTableId.startsWith('new-')) {
+          router.replace(`/order/${newId}`);
+          // Update ID in local state
+          setCurrentOrder(prev => prev ? { ...prev, id: newId } : null);
+        }
       }
+      router.push(baseRedirectPath);
+    } catch (error) {
+      console.error("Error saving order:", error);
+      toast({ variant: "destructive", title: "Error", description: "Ocurrió un error al guardar el pedido." });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.push(baseRedirectPath);
   };
 
   const handleSendToKitchen = () => {
@@ -416,6 +424,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       bankName: bankName
     } as Order;
 
+    setIsSubmitting(true);
     try {
       const result = await addOrUpdateOrder(orderToSave);
 
@@ -445,26 +454,35 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         title: "Error inesperado",
         description: "Ocurrió un error al procesar el pago."
       });
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
 
   const handleCancelOrder = async () => {
     if (!currentOrder) return;
 
-    // CRITICAL: Clear draft immediately
-    const storageKey = `draft_order_${orderIdOrTableId}`;
-    localStorage.removeItem(storageKey);
+    setIsSubmitting(true);
+    try {
+      // CRITICAL: Clear draft immediately
+      const storageKey = `draft_order_${orderIdOrTableId}`;
+      localStorage.removeItem(storageKey);
 
-    if (currentOrder.id) {
-      await cancelOrder(currentOrder.id);
-      toast({ variant: "destructive", title: "Pedido Cancelado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.` });
-    } else {
-      toast({ title: "Borrador descartado", description: "Se ha limpiado el pedido actual." });
+      if (currentOrder.id) {
+        await cancelOrder(currentOrder.id);
+        toast({ variant: "destructive", title: "Pedido Cancelado", description: `El pedido para la ${currentOrder.tableId === 'takeaway' ? 'llevar' : 'mesa ' + currentOrder.tableId} ha sido cancelado.` });
+      } else {
+        toast({ title: "Borrador descartado", description: "Se ha limpiado el pedido actual." });
+      }
+
+      router.push(baseRedirectPath);
+    } catch (error) {
+      console.error("Cancel error:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.push(baseRedirectPath);
-  }
+  };
 
   const handleBack = async () => {
     if (currentOrder?.status === 'active' && (currentOrder.items?.length || 0) > 0) {
@@ -475,7 +493,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       }
     }
     router.push(baseRedirectPath);
-  }
+  };
 
   const handleVariantClick = (variant: MenuItemVariant) => {
     if (variant.customPrice) {
@@ -500,7 +518,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
         variant: 'destructive',
         title: 'Precio inválido',
         description: 'Por favor, ingrese un monto válido.'
-      })
+      });
     }
   };
 
@@ -513,7 +531,7 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
       const id = item.oldId || item.id;
       updateItemQuantity(id, quantity, notes, customPrice);
     }
-  }
+  };
 
 
   if (!isMounted || !currentOrder || orders === undefined || menuLoading) {
@@ -565,6 +583,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                     .filter(item => {
                       if (activeMenuContext === 'llevar') return true;
                       return !item.paraLlevar;
+                    })
+                    .sort((a, b) => {
+                      const orderA = a.order ?? 0;
+                      const orderB = b.order ?? 0;
+                      if (orderA !== orderB) return orderA - orderB;
+                      return (a.name || '').localeCompare(b.name || '');
                     })
                     .map(item => (
                       <MenuItemCard
@@ -700,12 +724,12 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
             <div className="flex justify-between w-full text-2xl font-bold text-primary"><span>Total:</span><span>${total.toFixed(2)}</span></div>
 
             <div className="grid grid-cols-1 gap-2 w-full">
-              {currentOrder.status === 'active' && (<Button size="lg" className="lg:h-10" onClick={handleSendToKitchen} disabled={!currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4" /> Enviar a Cocina</Button>)}
+              {currentOrder.status === 'active' && (<Button size="lg" className="lg:h-10" onClick={handleSendToKitchen} disabled={isSubmitting || !currentOrder.items || currentOrder.items.length === 0}><Send className="mr-2 h-4 w-4" /> {isSubmitting ? "Enviando..." : "Enviar a Cocina"}</Button>)}
               {currentOrder.status === 'preparing' && (
                 <div className="grid grid-cols-1 gap-2 w-full">
-                  {hasUnsentChanges && (<Button size="lg" className="lg:h-10" onClick={() => saveOrderAndNavigate('preparing', 'Actualización enviada a cocina')}><Send className="mr-2 h-4 w-4" /> Enviar Actualización a Cocina</Button>)}
+                  {hasUnsentChanges && (<Button size="lg" className="lg:h-10" onClick={() => saveOrderAndNavigate('preparing', 'Actualización enviada a cocina')} disabled={isSubmitting}><Send className="mr-2 h-4 w-4" /> {isSubmitting ? "Enviando..." : "Enviar Actualización a Cocina"}</Button>)}
 
-                  <Button size="lg" className="lg:h-10 bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)}>Finalizar y Cobrar</Button>
+                  <Button size="lg" className="lg:h-10 bg-green-600 hover:bg-green-700 text-white" onClick={() => setPaymentDialogOpen(true)} disabled={isSubmitting}>Finalizar y Cobrar</Button>
                 </div>
               )}
 
@@ -713,26 +737,34 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                 <Button
                   size="lg"
                   className="lg:h-10 bg-blue-600 hover:bg-blue-700 text-white font-bold animate-in fade-in zoom-in"
+                  disabled={isSubmitting}
                   onClick={async () => {
-                    await addOrUpdateOrder({ ...currentOrder, delivered: true } as Order);
-                    toast({ title: "Pedido Entregado", description: "El pedido ha sido marcado como entregado satisfactoriamente." });
-                    router.push(baseRedirectPath);
+                    setIsSubmitting(true);
+                    try {
+                      await addOrUpdateOrder({ ...currentOrder, delivered: true } as Order);
+                      toast({ title: "Pedido Entregado", description: "El pedido ha sido marcado como entregado satisfactoriamente." });
+                      router.push(baseRedirectPath);
+                    } catch (e) {
+                      console.error("Delivery error:", e);
+                    } finally {
+                      setIsSubmitting(false);
+                    }
                   }}
                 >
-                  <CheckCircle className="mr-2 h-5 w-5" /> MARCAR COMO ENTREGADO
+                  <CheckCircle className="mr-2 h-5 w-5" /> {isSubmitting ? "PROCESANDO..." : "MARCAR COMO ENTREGADO"}
                 </Button>
               )}
 
               {(currentOrder.status === 'active' || currentOrder.status === 'preparing') && (currentOrder.id || (currentOrder.items && currentOrder.items.length > 0)) && (
                 <AlertDialog>
-                  <AlertDialogTrigger asChild><Button size="lg" className="lg:h-10" variant="destructive"><XCircle className="mr-2 h-4 w-4" /> Desechar Pedido</Button></AlertDialogTrigger>
+                  <AlertDialogTrigger asChild><Button size="lg" className="lg:h-10" variant="destructive" disabled={isSubmitting}><XCircle className="mr-2 h-4 w-4" /> Desechar Pedido</Button></AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>¿Estás seguro de desechar este pedido?</AlertDialogTitle><AlertDialogDescription>Esta acción es irreversible y solo debe hacerse si el cliente ya no quiere el pedido. El pedido será marcado como cancelado y se notificará a la cocina.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter><AlertDialogCancel>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder}>Sí, desechar pedido</AlertDialogAction></AlertDialogFooter>
+                    <AlertDialogFooter><AlertDialogCancel disabled={isSubmitting}>No, mantener pedido</AlertDialogCancel><AlertDialogAction onClick={handleCancelOrder} disabled={isSubmitting}>Sí, desechar pedido</AlertDialogAction></AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              <Button size="lg" className="lg:h-10" variant="outline" onClick={handleBack}><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button>
+              <Button size="lg" className="lg:h-10" variant="outline" onClick={handleBack} disabled={isSubmitting}><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button>
             </div>
           </CardFooter>
         </Card>
@@ -849,9 +881,9 @@ export default function OrderView({ orderIdOrTableId }: OrderViewProps) {
                           type="submit"
                           size="lg"
                           className="w-full h-16 text-2xl font-black mt-2 bg-green-600 hover:bg-green-700 text-white shadow-lg"
-                          disabled={parseFloat(amountReceived || '0') < (total - 0.01)}
+                          disabled={isSubmitting || parseFloat(amountReceived || '0') < (total - 0.01)}
                         >
-                          COBRAR
+                          {isSubmitting ? "COBRANDO..." : "COBRAR"}
                         </Button>
                       </div>
                     </div>

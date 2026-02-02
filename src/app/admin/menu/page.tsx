@@ -10,7 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Plus, Settings } from 'lucide-react';
-import { useMenu, FirestoreItem, Category } from '@/hooks/use-menu';
+import { useCrmMenu } from '@/hooks/use-crm-menu';
+import type { FirestoreItem, Category } from '@/types';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { MenuItemVariant } from '@/types'; // Import Variant Type
 import { MenuTabs } from '@/components/menu/menu-tabs';
 import { MenuItemCard } from '@/components/menu/menu-item-card';
@@ -20,7 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 export default function MenuManagementPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { categories, items, loading, addCategory, addItem, updateItem, deleteItem, deleteCategory, reorderItem } = useMenu();
+  const { categories, items, loading, addCategory, addItem, updateItem, deleteItem, deleteCategory, reorderItem } = useCrmMenu();
 
   const [isCategoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -43,6 +46,41 @@ export default function MenuManagementPage() {
   const [variantToDeleteIndex, setVariantToDeleteIndex] = useState<number | null>(null);
 
   const [itemToDelete, setItemToDelete] = useState<FirestoreItem | null>(null);
+  const [isMigrating, setIsMigrating] = useState(false);
+
+  // TEMPORARY: Migration handler
+  const handleMigrateToCrmMenu = async () => {
+    if (!confirm('¿Migrar categorías e ítems a CrmMenu? Esto creará una nueva estructura denormalizada.')) return;
+
+    setIsMigrating(true);
+    try {
+      // Read all from old structure
+      const categoriesSnap = await getDocs(collection(db, 'categories'));
+      const itemsSnap = await getDocs(collection(db, 'items'));
+
+      const categories = categoriesSnap.docs.map(d => ({ id: d.id, ...d.data() as Omit<Category, 'id'> }));
+      const items = itemsSnap.docs.map(d => ({ id: d.id, ...d.data() as Omit<FirestoreItem, 'id'> }));
+
+      // Write to new structure
+      const docRef = doc(db, 'CrmMenu', 'fullMenu');
+      await setDoc(docRef, {
+        categories,
+        items,
+        updatedAt: Date.now(),
+        updatedBy: 'admin'
+      });
+
+      toast({ title: '✅ Migración completada', description: `${categories.length} categorías y ${items.length} ítems migrados.` });
+
+      // Refresh page
+      window.location.reload();
+    } catch (error) {
+      console.error('Migration error:', error);
+      toast({ variant: 'destructive', title: 'Error en migración', description: String(error) });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
@@ -171,6 +209,15 @@ export default function MenuManagementPage() {
           <h1 className="text-3xl font-bold">Gestión de Menú</h1>
         </div>
         <div className="flex gap-2">
+          {/* TEMPORARY: Migration button */}
+          <Button
+            variant="outline"
+            onClick={handleMigrateToCrmMenu}
+            disabled={isMigrating}
+            className="border-orange-500 text-orange-600 hover:bg-orange-50"
+          >
+            {isMigrating ? 'Migrando...' : '🔄 Migrar a CrmMenu'}
+          </Button>
         </div>
         <div className="flex gap-2">
           <Dialog>
@@ -223,6 +270,12 @@ export default function MenuManagementPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {items
                   .filter(item => item.categoryId === categoryId)
+                  .sort((a, b) => {
+                    const orderA = a.order ?? 0;
+                    const orderB = b.order ?? 0;
+                    if (orderA !== orderB) return orderA - orderB;
+                    return (a.name || '').localeCompare(b.name || '');
+                  })
                   .map(item => (
                     <MenuItemCard
                       key={item.id}

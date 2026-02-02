@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAppStore } from '@/hooks/use-app-store';
 import { useActiveOrders } from '@/hooks/use-active-orders';
-import { useMenu } from '@/hooks/use-menu';
+import { useCrmMenu } from '@/hooks/use-crm-menu';
 import { findMenuItem } from '@/lib/stats-helper';
 import AppSidebar from '@/components/app-sidebar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -121,7 +121,7 @@ const KitchenOrderCard = ({ order, menuItems }: KitchenOrderCardProps) => {
 export default function KitchenPage() {
   const { isMounted, currentUser } = useAppStore();
   const { orders } = useActiveOrders();
-  const { items: menuItems } = useMenu();
+  const { items: menuItems } = useCrmMenu();
   const router = useRouter();
   const [visibleOrders, setVisibleOrders] = useState<Order[]>([]);
 

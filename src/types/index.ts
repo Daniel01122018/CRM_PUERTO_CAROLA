@@ -1,3 +1,23 @@
+// ========================================
+// CRM MENU (Denormalized)
+// ========================================
+
+export interface Category {
+  id: string;
+  name: string;
+  order: number;
+}
+
+export interface CrmMenuDocument {
+  categories: Category[];
+  items: FirestoreItem[];
+  updatedAt: number;
+  updatedBy: string;
+}
+
+// ========================================
+// MENU ITEMS
+// ========================================
 
 export interface MenuItemVariant {
   id: number;
@@ -138,6 +158,10 @@ export interface DailyStats {
   totalExpenses: number;
   orderCount: number;
   paymentMethods: { [key: string]: number };
+  expensesBySource?: {
+    caja: number;
+    caja_chica: number;
+  };
   categoryBreakdown: { [key: string]: number };
   itemSales?: { [itemId: string]: { name: string; quantity: number; revenue: number } };
   serviceTypeBreakdown?: {

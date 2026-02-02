@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useMenu } from "@/hooks/use-menu";
+import { useCrmMenu } from "@/hooks/use-crm-menu";
 import { useAppStore } from "@/hooks/use-app-store";
 import { useAuth } from "@/hooks/use-auth";
 import { Order, MenuItem } from "@/types";
@@ -34,7 +34,7 @@ const adaptItem = (fireItem: any): MenuItem => {
 export function KioskView() {
     const router = useRouter();
     const { toast } = useToast();
-    const { categories, items: firestoreItems, loading } = useMenu();
+    const { categories, items: firestoreItems, loading } = useCrmMenu();
     const { addOrUpdateOrder } = useAppStore();
     const { currentUser, isMounted } = useAuth();
 
@@ -89,10 +89,23 @@ export function KioskView() {
 
     const currentItems = useMemo(() => {
         if (!activeCategory) return [];
-        return menuItems.filter((item, index) => {
-            const original = firestoreItems[index];
-            return original.categoryName === activeCategory;
-        });
+        return menuItems
+            .filter((item, index) => {
+                const original = firestoreItems[index];
+                return original.categoryName === activeCategory;
+            })
+            .sort((a, b) => {
+                // Get original firestore items to access order field
+                const indexA = menuItems.indexOf(a);
+                const indexB = menuItems.indexOf(b);
+                const origA = firestoreItems[indexA];
+                const origB = firestoreItems[indexB];
+
+                const orderA = origA?.order ?? 0;
+                const orderB = origB?.order ?? 0;
+                if (orderA !== orderB) return orderA - orderB;
+                return (a.nombre || '').localeCompare(b.nombre || '');
+            });
     }, [activeCategory, menuItems, firestoreItems]);
 
     const orderTotal = useMemo(() => {

@@ -28,8 +28,10 @@ export function useAuth() {
   });
   // If we have cached user, we are not "loading" visually, but we verify in bg
   const [isLoading, setIsLoading] = useState(!currentUser);
+  const [isClientMounted, setIsClientMounted] = useState(false);
 
   useEffect(() => {
+    setIsClientMounted(true);
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
       try {
         if (firebaseUser) {
@@ -133,7 +135,7 @@ export function useAuth() {
     logout,
     isLoading,
     claimAdmin,
-    isMounted: !isLoading
+    isMounted: isClientMounted && !isLoading
   };
 }
 

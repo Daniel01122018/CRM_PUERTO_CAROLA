@@ -50,7 +50,7 @@ export default function ExpensesPage() {
   const { toast } = useToast();
 
   const [filterCategory, setFilterCategory] = useState<ExpenseCategory | 'all'>('all');
-  const [filterPreset, setFilterPreset] = useState<FilterPreset>('this_month');
+  const [filterPreset, setFilterPreset] = useState<FilterPreset>('today');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
 
   const [isCategoryPopoverOpen, setIsCategoryPopoverOpen] = useState(false);
@@ -91,7 +91,7 @@ export default function ExpensesPage() {
     }
   }, [filterPreset, customDateRange]);
 
-  const { expenses: historyExpenses, loading, loadMore, hasMore, refresh } = useExpenseHistory(dateFilterRange);
+  const { expenses: historyExpenses, loading, loadMore, hasMore, refresh, addOptimisticExpense } = useExpenseHistory(dateFilterRange);
   const expenses = historyExpenses;
 
   // Use category names from the hook
@@ -133,19 +133,17 @@ export default function ExpensesPage() {
   const onSubmit = async (values: z.infer<typeof expenseSchema>) => {
     if (!employees || !currentUser) return;
     try {
-      // Build expense data object, excluding undefined fields
+      // Build expense data object
       let expenseData: any = {
         amount: values.amount,
         category: values.category,
         source: currentUser.role === 'admin' ? values.source : 'caja',
       };
 
-      // Only include note if it has a value (not undefined or empty)
       if (values.note && values.note.trim()) {
         expenseData.note = values.note;
       }
 
-      // Add employee data only for specific categories
       if ((values.category === 'Sueldos' || values.category === 'Comida de Empleado') && values.employeeId) {
         const employee = employees.find(e => e.id === values.employeeId);
         if (employee) {
@@ -154,8 +152,16 @@ export default function ExpensesPage() {
         }
       }
 
-      await addExpense(expenseData);
-      refresh();
+      const docId = await addExpense(expenseData);
+
+      // Optimistic Update: Add to the local list immediately
+      addOptimisticExpense({
+        ...expenseData,
+        id: docId,
+        createdAt: Date.now(),
+        createdBy: currentUser.username,
+      });
+
       toast({
         title: 'Gasto Registrado',
         description: `Se ha añadido un gasto en "${values.category}" por un monto de $${values.amount.toFixed(2)}.`,
@@ -293,7 +299,7 @@ export default function ExpensesPage() {
 
   const resetFilters = () => {
     setFilterCategory('all');
-    setFilterPreset('this_month');
+    setFilterPreset('today');
     setCustomDateRange(undefined);
   };
 
@@ -525,9 +531,9 @@ export default function ExpensesPage() {
                   </CardContent>
 
                   <CardFooter>
-                    <Button type="submit" className="w-full">
+                    <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
                       <PlusCircle className="mr-2 h-4 w-4" />
-                      Añadir Gasto
+                      {form.formState.isSubmitting ? "Registrando..." : "Añadir Gasto"}
                     </Button>
                   </CardFooter>
                 </form>
