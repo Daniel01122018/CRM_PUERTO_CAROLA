@@ -25,7 +25,7 @@ import type { Order, MenuItem, PaymentMethod } from '@/types';
 import { format, subDays, startOfDay, isSameDay, startOfYesterday, endOfDay, endOfYesterday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, History as HistoryIcon, Search, DollarSign, XCircle, Edit, PiggyBank, Wallet, Calendar as CalendarIcon, FilterX } from 'lucide-react';
+import { ArrowLeft, History as HistoryIcon, Search, DollarSign, XCircle, Edit, PiggyBank, Wallet, Calendar as CalendarIcon, FilterX, RefreshCw } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 
@@ -48,7 +48,7 @@ interface PaymentMethodSummary {
 }
 
 export default function HistoryPage() {
-  const { isMounted, currentUser, cancelOrder, dailyData, setInitialCash } = useAppStore();
+  const { isMounted, currentUser, cancelOrder, setInitialCash } = useAppStore();
   const { items: menuItems } = useCrmMenu();
   const router = useRouter();
   const { toast } = useToast();
@@ -105,12 +105,12 @@ export default function HistoryPage() {
   }, [currentUser, isMounted, router]);
 
   useEffect(() => {
-    if (dailyData) {
-      setInitialCashInput(dailyData.initialCash.toString());
+    if (todayStats && todayStats.initialCash !== undefined) {
+      setInitialCashInput(todayStats.initialCash.toString());
     } else {
       setInitialCashInput('0');
     }
-  }, [dailyData]);
+  }, [todayStats]);
 
   const handleSetInitialCash = async () => {
     const amount = parseFloat(initialCashInput);
@@ -174,7 +174,7 @@ export default function HistoryPage() {
     // Use aggregated expense data from daily_stats instead of iterating
     const cashExpensesToday = todayStats?.expensesBySource?.caja || 0;
 
-    const initialCashToday = dailyData?.initialCash || 0;
+    const initialCashToday = todayStats?.initialCash || 0;
     const expectedCashInDrawer = (initialCashToday + totalCashToday) - cashExpensesToday;
 
     // Weekly data already uses stats aggregates
@@ -196,7 +196,7 @@ export default function HistoryPage() {
       ordersTodayCount,
       weeklyData,
     };
-  }, [isMounted, dailyData, weeklyStats, todayStats]);
+  }, [isMounted, weeklyStats, todayStats]);
 
   const { filteredOrders, soldItemInfo, paymentMethodSummary } = useMemo(() => {
     let baseOrders = [...ordersInDateRange];
@@ -365,7 +365,7 @@ export default function HistoryPage() {
               <div className="text-3xl font-bold">${summaryData.expectedCashInDrawer.toFixed(2)}</div>
               <p className="text-xs text-primary-foreground/80">
                 (Caja Inicial + Ventas Efectivo) - Gastos de Caja.
-                {(dailyData?.initialCash || 0) > 0 && <span><br />+ ${dailyData?.initialCash.toFixed(2)} de caja inicial</span>}
+                {(todayStats?.initialCash || 0) > 0 && <span><br />+ ${(todayStats?.initialCash || 0).toFixed(2)} de caja inicial</span>}
               </p>
             </CardContent>
           </Card>
@@ -499,7 +499,8 @@ export default function HistoryPage() {
                       </PopoverContent>
                     </Popover>
 
-                    <Button variant="ghost" size="icon" onClick={resetFilters} className="flex-shrink-0"><FilterX className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => refresh()} className="flex-shrink-0" title="Actualizar datos"><RefreshCw className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" onClick={resetFilters} className="flex-shrink-0" title="Limpiar filtros"><FilterX className="h-4 w-4" /></Button>
                   </div>
                   <div className="relative flex-1 min-w-0">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

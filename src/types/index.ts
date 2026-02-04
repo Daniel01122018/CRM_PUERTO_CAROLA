@@ -147,10 +147,6 @@ export interface ExpenseCategoriesDocument {
   updatedAt: number;
 }
 
-export interface DailyData {
-  date: string; // YYYY-MM-DD format
-  initialCash: number;
-}
 
 export interface DailyStats {
   date: string;
@@ -169,6 +165,7 @@ export interface DailyStats {
     llevar: { count: number; revenue: number };
   };
   hourlyOrders?: { [hour: string]: number };
+  initialCash?: number;
   updatedAt?: number;
 }
 

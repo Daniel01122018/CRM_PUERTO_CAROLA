@@ -12,6 +12,7 @@ import {
   where,
   getDoc,
   deleteField,
+  runTransaction,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Expense } from '@/types';
@@ -163,20 +164,29 @@ export function useExpenses() {
     }
     const expenseRef = doc(db, 'expenses', expenseId);
 
-    // Fetch expense to get amount for stats adjustment
-    const expenseSnap = await getDoc(expenseRef);
-    if (expenseSnap.exists()) {
+    // Use transaction to ensure atomicity and prevent race conditions/double subtraction
+    await runTransaction(db, async (transaction) => {
+      const expenseSnap = await transaction.get(expenseRef);
+
+      if (!expenseSnap.exists()) {
+        // Document already deleted, do nothing
+        return;
+      }
+
       const expenseData = expenseSnap.data() as Expense;
+
+      // Update stats within the SAME transaction
       await updateDailyStats(new Date(expenseData.createdAt), {
         expenses: -expenseData.amount,
         categoryBreakdown: { [expenseData.category]: -expenseData.amount },
         expensesBySource: {
           [expenseData.source]: -expenseData.amount
         }
-      });
-    }
+      }, transaction);
 
-    await deleteDoc(expenseRef);
+      // Delete the document
+      transaction.delete(expenseRef);
+    });
   }, [currentUser]);
 
   return { expenses, addExpense, updateExpense, deleteExpense };

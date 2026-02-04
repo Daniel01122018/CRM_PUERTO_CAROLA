@@ -81,16 +81,14 @@ service cloud.firestore {
       allow read, write: if isAdmin() || hasRole('employee');
     }
     
-    // Daily Data (Cash reporting)
-    match /dailyData/{dateId} {
-       allow read: if isAdmin() || hasRole('employee');
-       allow write: if isAdmin();
-    }
+
     
     // Daily Stats (Aggregated revenue from POS)
     match /daily_stats/{dateId} {
-       allow read: if isAdmin();
-       allow write: if isCRMUser(); // Only CRM users can update stats
+       allow read: if isCRMUser();
+       // Employees need to write to update totals (revenue, etc), but SHOULD NOT change initialCash
+       allow create: if isCRMUser() && (isAdmin() || !('initialCash' in request.resource.data));
+       allow update: if isCRMUser() && (isAdmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['initialCash']));
     }
     
     // Orders (POS Orders)

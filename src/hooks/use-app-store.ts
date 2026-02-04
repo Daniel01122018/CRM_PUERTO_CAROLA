@@ -1,22 +1,18 @@
-
-"use client";
-
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import type { Table } from '@/types';
 import { TOTAL_TABLES } from '@/lib/data';
 import { useAuth } from './use-auth';
 import { useActiveOrders } from './use-active-orders';
 import { useExpenses } from './use-expenses';
 import { useEmployees } from './use-employees';
-import { useDailyData } from './use-daily-data';
 import { useRestaurantConfig } from './use-restaurant-config';
+import { setInitialCash as setInitialCashService } from '@/lib/daily-stats';
 
 export function useAppStore() {
   const { currentUser, login, logout, isMounted } = useAuth();
   const { orders, addOrUpdateOrder, cancelOrder, resetTableLock } = useActiveOrders();
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses();
   const { employees, addEmployee, updateEmployee, deleteEmployee } = useEmployees();
-  const { dailyData, setInitialCash } = useDailyData();
   const { config } = useRestaurantConfig();
 
 
@@ -35,6 +31,13 @@ export function useAppStore() {
       };
     });
   }, [orders, config]);
+
+  const setInitialCash = useCallback(async (amount: number) => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      throw new Error("Solo los administradores pueden establecer la caja inicial.");
+    }
+    await setInitialCashService(new Date(), amount);
+  }, [currentUser]);
 
   return {
     // Auth
@@ -58,7 +61,6 @@ export function useAppStore() {
     updateEmployee,
     deleteEmployee,
     // Daily Data
-    dailyData,
     setInitialCash,
     // Derived data
     tables,
