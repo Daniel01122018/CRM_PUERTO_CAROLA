@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format, eachDayOfInterval } from 'date-fns';
@@ -8,23 +8,20 @@ import { DailyStats } from '@/types';
 // Global cache to persist data across re-renders and navigation
 // Key: YYYY-MM-DD, Value: DailyStats
 const globalCache = new Map<string, DailyStats>();
+const CACHE_TTL_MS = 60 * 1000;
+
+function isStale(data: DailyStats | undefined) {
+    if (!data?.updatedAt) return true;
+    return Date.now() - data.updatedAt > CACHE_TTL_MS;
+}
 
 export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
     const [stats, setStats] = useState<DailyStats[]>([]);
     const [loading, setLoading] = useState(false);
-    const fetchedRangeRef = useRef<string>('');
 
     useEffect(() => {
         if (!dateRange?.from || !dateRange?.to) {
             setStats([]);
-            return;
-        }
-
-        // Create a stable key for this date range
-        const rangeKey = `${dateRange.from.getTime()}-${dateRange.to.getTime()}`;
-
-        // If we already fetched this exact range, don't fetch again
-        if (fetchedRangeRef.current === rangeKey) {
             return;
         }
 
@@ -38,7 +35,10 @@ export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
                 });
 
                 const neededKeys = daysNeeded.map(d => format(d, 'yyyy-MM-dd'));
-                const missingKeys = neededKeys.filter(key => !globalCache.has(key));
+                const missingKeys = neededKeys.filter((key) => {
+                    const cached = globalCache.get(key);
+                    return !cached || isStale(cached);
+                });
 
                 // 2. If we have everything, return from cache immediately
                 if (missingKeys.length === 0) {
@@ -47,7 +47,6 @@ export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
                         .filter(Boolean); // Safety check
                     setStats(cachedData);
                     setLoading(false);
-                    fetchedRangeRef.current = rangeKey;
                     return;
                 }
 
@@ -77,7 +76,6 @@ export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
                     .filter((item): item is DailyStats => !!item);
 
                 setStats(finalData);
-                fetchedRangeRef.current = rangeKey;
 
             } catch (error) {
                 console.error("Error fetching daily stats:", error);
@@ -88,6 +86,45 @@ export function useDailyStats(dateRange: { from: Date; to: Date } | undefined) {
 
         fetchStats();
     }, [dateRange?.from?.getTime(), dateRange?.to?.getTime()]); // Use getTime() for stable comparison
+
+
+
+    useEffect(() => {
+        if (!dateRange?.from || !dateRange?.to) return;
+
+        const intervalId = window.setInterval(async () => {
+            try {
+                const q = query(
+                    collection(db, 'daily_stats'),
+                    where('date', '>=', format(dateRange.from, 'yyyy-MM-dd')),
+                    where('date', '<=', format(dateRange.to, 'yyyy-MM-dd')),
+                    orderBy('date', 'asc')
+                );
+
+                const snapshot = await getDocs(q);
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data() as DailyStats;
+                    globalCache.set(data.date, data);
+                });
+
+                const daysNeeded = eachDayOfInterval({
+                    start: dateRange.from,
+                    end: dateRange.to
+                });
+
+                const neededKeys = daysNeeded.map(d => format(d, 'yyyy-MM-dd'));
+                const latestData = neededKeys
+                    .map(key => globalCache.get(key))
+                    .filter((item): item is DailyStats => !!item);
+
+                setStats(latestData);
+            } catch (error) {
+                console.error('Error polling daily stats:', error);
+            }
+        }, CACHE_TTL_MS);
+
+        return () => window.clearInterval(intervalId);
+    }, [dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 
     return { stats, loading };
 }
